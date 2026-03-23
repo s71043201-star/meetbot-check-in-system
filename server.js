@@ -232,7 +232,23 @@ app.post("/webhook", async (req, res) => {
       continue;
     }
 
-    // ── 提醒指定成員（蔡蕙芳專用） ──
+    // ── 提醒（圖文選單按鈕，無姓名 → 快速選人） ──
+    if (text === "提醒") {
+      if (!BOSS_IDS.includes(userId)) {
+        await sendLine(userId, "❌ 此功能僅限管理員使用");
+        continue;
+      }
+      const senderName  = ID_TO_NAME[userId] || "";
+      const targets     = TEAM.filter(n => n !== senderName);
+      const quickItems  = targets.map(name => ({
+        type: "action",
+        action: { type: "message", label: name, text: `提醒 ${name}` }
+      }));
+      await sendLineWithQuickReply(userId, "請選擇要提醒的成員：", quickItems);
+      continue;
+    }
+
+    // ── 提醒指定成員（蔡蕙芳/戴豐逸，含姓名） ──
     const remindMatch = text.match(/^提醒\s*(.+)$/);
     if (remindMatch) {
       if (!BOSS_IDS.includes(userId)) {
