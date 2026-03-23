@@ -166,7 +166,7 @@ async function buildMenu(config, colors) {
   const img = createGridPng(colors);
   process.stdout.write(` ${(img.length / 1024).toFixed(0)}KB  上傳中...\n`);
 
-  await axios.post(`${API}/richmenu/${id}/content`, img, {
+  await axios.post(`https://api-data.line.me/v2/bot/richmenu/${id}/content`, img, {
     headers: { ...HEADERS, 'Content-Type': 'image/png' },
     maxBodyLength: Infinity,
   });
