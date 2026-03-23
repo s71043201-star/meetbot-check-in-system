@@ -79,12 +79,12 @@ tr:hover td { background: #f8f9fa; }
   <table>
     <thead>
       <tr>
-        <th>#</th><th>姓名</th><th>課程名稱</th><th>日期（民國）</th>
-        <th>簽到時間</th><th>簽退時間</th><th>時數</th>
-        <th>工作時段</th><th>工作內容</th><th>備註</th><th>狀態</th>
+        <th>#</th><th>姓名</th><th>課程名稱</th><th>課程屬性</th><th>日期（民國）</th>
+        <th>簽到</th><th>簽退</th><th>時數</th>
+        <th>老師</th><th>報名</th><th>實到</th><th>候補</th><th>上課內容</th><th>狀態</th>
       </tr>
     </thead>
-    <tbody id="tbody"><tr><td colspan="11" class="empty">載入中…</td></tr></tbody>
+    <tbody id="tbody"><tr><td colspan="14" class="empty">載入中…</td></tr></tbody>
   </table>
 </div>
 
@@ -123,7 +123,7 @@ async function loadRecords() {
 
     const tbody = document.getElementById("tbody");
     if (records.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="11" class="empty">查無記錄</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="14" class="empty">查無記錄</td></tr>';
       return;
     }
 
@@ -137,19 +137,22 @@ async function loadRecords() {
         <td>${i+1}</td>
         <td><b>${r.name||"-"}</b></td>
         <td>${r.course||"-"}</td>
+        <td>${r.courseType||"-"}</td>
         <td>${dateStr}</td>
         <td>${fmt(r.checkinTime)}</td>
         <td>${fmt(r.checkoutTime)}</td>
         <td>${r.hours != null ? r.hours+" 時" : "-"}</td>
-        <td>${r.shift||"-"}</td>
-        <td style="text-align:left">${content}</td>
-        <td style="text-align:left;color:#666">${r.note||"-"}</td>
+        <td>${r.teacher||"-"}</td>
+        <td>${r.registeredCount != null ? r.registeredCount : "-"}</td>
+        <td>${r.actualCount != null ? r.actualCount : "-"}</td>
+        <td>${r.walkInCount != null ? r.walkInCount : "-"}</td>
+        <td style="text-align:left;max-width:200px">${r.summary||"-"}</td>
         <td>${tag}</td>
       </tr>`;
     }).join("");
   } catch (e) {
     document.getElementById("tbody").innerHTML =
-      `<tr><td colspan="11" style="color:red;text-align:center;padding:20px">載入失敗：${e.message}</td></tr>`;
+      `<tr><td colspan="14" style="color:red;text-align:center;padding:20px">載入失敗：${e.message}</td></tr>`;
   }
 }
 

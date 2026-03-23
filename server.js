@@ -44,9 +44,9 @@ const ATT_BOSS_IDS = [
   "Uc8e074d50b3b20581945f5c6aca80d1d",
   "Uece4baaf97cfab39ad79c6ed0ee55d03",
 ];
+// 測試中：暫時只通知戴豐逸，測試完畢後再加回陳佩研
 const ATT_NOTIFY_IDS = [
-  "Uc8e074d50b3b20581945f5c6aca80d1d",
-  "Uece4baaf97cfab39ad79c6ed0ee55d03",
+  "Uece4baaf97cfab39ad79c6ed0ee55d03", // 戴豐逸
 ];
 
 const TASKS_FB = "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/meetbot/tasks.json";
@@ -348,12 +348,24 @@ app.post("/checkout", async (req, res) => {
     if (!record) return res.status(404).json({ error: "找不到簽到記錄" });
     const checkinTime = new Date(record.checkinTime);
     const hours       = Math.round((now - checkinTime) / 3600000 * 10) / 10;
-    const updated     = { ...record, checkoutTime: now.toISOString(), shift: shift || "", workContent: workContent || [], note: note || "", hours, status: "checked-out" };
+    const { courseType, teacher, registeredCount, actualCount, walkInCount, summary } = req.body;
+    const updated     = {
+      ...record,
+      checkoutTime: now.toISOString(),
+      courseType:       courseType || "",
+      teacher:          teacher || "",
+      registeredCount:  registeredCount || "",
+      actualCount:      actualCount || "",
+      walkInCount:      walkInCount || "",
+      summary:          summary || "",
+      hours,
+      status: "checked-out"
+    };
     await fbPut(`/${sessionId}`, updated);
 
     const checkinStr  = toTaipei(checkinTime).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
     const checkoutStr = taipei.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
-    const msg = `🔚 臨時人員簽退\n\n👤 姓名：${record.name}\n📚 課程：${record.course}\n⏰ 簽到：${checkinStr}\n⏰ 簽退：${checkoutStr}\n⏱ 工作時數：${hours} 小時`;
+    const msg = `🔚 臨時人員簽退\n\n👤 姓名：${record.name}\n📚 課程：${record.course}\n🏷 課程屬性：${courseType || "-"}\n👨‍🏫 課程老師：${teacher || "-"}\n⏰ 簽到：${checkinStr}\n⏰ 簽退：${checkoutStr}\n⏱ 工作時數：${hours} 小時\n👥 實到人數：${actualCount || "-"}`;
     for (const uid of ATT_NOTIFY_IDS) await sendLine(uid, msg).catch(() => {});
     res.json({ ok: true, hours });
   } catch (e) {
