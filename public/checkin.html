@@ -347,8 +347,8 @@ async function doCheckin() {
 }
 
 async function doCheckout() {
-  const sessionId = sessionStorage.getItem("sessionId");
-  const name      = sessionStorage.getItem("name");
+  const sessionId = localStorage.getItem("sessionId");
+  const name      = localStorage.getItem("name");
   if (!sessionId) { alert("找不到簽到記錄，請重新整理頁面後簽到"); return; }
 
   const plannedHours    = document.querySelector('input[name="plannedHours"]:checked');
