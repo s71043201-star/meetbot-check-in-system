@@ -543,24 +543,24 @@ function buildPersonSheet(wb, personName, records) {
   const tk   = { name:"DFKai-SB", size:12, charset:136 };
 
   // 欄寬：A(1) B(2)編號 C(3)年 D(4)月 E(5)日 F(6)課程名稱 G(7)時分 H(8)至時分 I(9)共計
-  [7.4, 6.4, 6.4, 10.1, 10.1, 24, 10.1, 9.1, 10.3].forEach((w, i) => { ws.getColumn(i+1).width = w; });
+  [5, 8, 8, 12, 12, 32, 13, 13, 13].forEach((w, i) => { ws.getColumn(i+1).width = w; });
 
   // Row 1 大標題
   ws.mergeCells("B1:I1");
-  ws.getRow(1).height = 19.5;
+  ws.getRow(1).height = 28;
   ws.getCell("B1").value = "健康台灣深耕計畫專職人員出勤記錄表";
   ws.getCell("B1").style = { font:{...tk, size:14, bold:true}, alignment:mid };
 
   // Row 2 副標題
   ws.mergeCells("B2:I2");
-  ws.getRow(2).height = 19.5;
+  ws.getRow(2).height = 24;
   ws.getCell("B2").value = "臨時人員出勤記錄與工作內容說明";
   ws.getCell("B2").style = { font:{...tk, size:13, bold:true}, alignment:mid };
 
   // Row 3 姓名 + 工作內容
   ws.mergeCells("C3:D3");
   ws.mergeCells("F3:I3");
-  ws.getRow(3).height = 74.25;
+  ws.getRow(3).height = 90;
   ws.getCell("B3").value = "姓名";
   ws.getCell("B3").style = { font:tk, alignment:mid, border:bdr };
   ws.getCell("C3").value = personName;
@@ -571,7 +571,7 @@ function buildPersonSheet(wb, personName, records) {
   ws.getCell("F3").style = { font:tk, alignment:lmid, border:bdr };
 
   // Row 4 欄位標題
-  ws.getRow(4).height = 23.25;
+  ws.getRow(4).height = 30;
   ["", "編號", "年", "月", "日", "課程名稱", "時　分", "至時分", "共計（時）"].forEach((h, i) => {
     if (i === 0) return;
     const cell = ws.getCell(4, i+1);
@@ -584,7 +584,7 @@ function buildPersonSheet(wb, personName, records) {
   const dataStart = 5;
   records.forEach((r, idx) => {
     const rn  = dataStart + idx;
-    ws.getRow(rn).height = 23.25;
+    ws.getRow(rn).height = 30;
     const ci  = toTaipei(new Date(r.checkinTime)).toLocaleTimeString("zh-TW",  { hour:"2-digit", minute:"2-digit" });
     const co  = toTaipei(new Date(r.checkoutTime)).toLocaleTimeString("zh-TW", { hour:"2-digit", minute:"2-digit" });
     const row = ["", idx+1, r.year, r.month, r.day, r.course||"", ci, co, r.hours];
@@ -599,7 +599,7 @@ function buildPersonSheet(wb, personName, records) {
 
   // 合計列
   const tr = dataStart + records.length;
-  ws.getRow(tr).height = 23.25;
+  ws.getRow(tr).height = 30;
   ws.mergeCells(tr, 2, tr, 8);
   ws.getCell(tr, 2).value = "累計";
   ws.getCell(tr, 2).style = { font:{...tk, bold:true}, alignment:mid, border:bdr };
