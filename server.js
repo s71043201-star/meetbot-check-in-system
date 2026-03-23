@@ -4,7 +4,7 @@ const ExcelJS = require("exceljs");
 const https   = require("https");
 const path    = require("path");
 const { Document, Paragraph, TextRun, Table, TableRow, TableCell,
-        WidthType, AlignmentType, HeadingLevel, Packer, BorderStyle } = require("docx");
+        WidthType, AlignmentType, HeadingLevel, Packer } = require("docx");
 
 // Word 文件暫存（記憶體，2小時後自動刪除）
 const docStore = new Map();
@@ -15,20 +15,30 @@ function storeDoc(buffer, fileName) {
   return uid;
 }
 
+const BORDER = { style: "single", size: 1, color: "auto" };
+const BORDERS = { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER };
+
 function makeRow(label, value) {
-  const cellStyle = { borders: { top:{style:BorderStyle.SINGLE,size:1}, bottom:{style:BorderStyle.SINGLE,size:1}, left:{style:BorderStyle.SINGLE,size:1}, right:{style:BorderStyle.SINGLE,size:1} } };
   return new TableRow({ children: [
-    new TableCell({ ...cellStyle, width:{size:32,type:WidthType.PERCENTAGE}, children:[new Paragraph({ children:[new TextRun({text:label,bold:true})] })] }),
-    new TableCell({ ...cellStyle, width:{size:68,type:WidthType.PERCENTAGE}, children:[new Paragraph({text: value||"-"})] }),
+    new TableCell({
+      borders: BORDERS,
+      width: { size: 2800, type: WidthType.DXA },
+      children: [new Paragraph({ children: [new TextRun({ text: label, bold: true })] })]
+    }),
+    new TableCell({
+      borders: BORDERS,
+      width: { size: 6200, type: WidthType.DXA },
+      children: [new Paragraph({ text: value || "-" })]
+    }),
   ]});
 }
 
 async function generateWordDoc(data) {
-  const doc = new Document({ sections:[{ properties:{}, children:[
-    new Paragraph({ text:"台北市醫師公會健康台灣深耕計畫", heading:HeadingLevel.HEADING_1, alignment:AlignmentType.CENTER }),
-    new Paragraph({ text:"臺北市慢性病防治全人健康智慧整合照護計畫・處方課程開課紀錄表", alignment:AlignmentType.CENTER }),
-    new Paragraph({ text:"" }),
-    new Table({ width:{size:100,type:WidthType.PERCENTAGE}, rows:[
+  const doc = new Document({ sections: [{ properties: {}, children: [
+    new Paragraph({ text: "台北市醫師公會健康台灣深耕計畫", heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER }),
+    new Paragraph({ text: "臺北市慢性病防治全人健康智慧整合照護計畫・處方課程開課紀錄表", alignment: AlignmentType.CENTER }),
+    new Paragraph({ text: "" }),
+    new Table({ width: { size: 9000, type: WidthType.DXA }, rows: [
       makeRow("填表人",           data.name),
       makeRow("課程日期",          data.date),
       makeRow("課程開始時間",       data.checkinStr),
