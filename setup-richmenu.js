@@ -50,17 +50,17 @@ async function createGridPng(cells) {
     rects += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${cell.color}" rx="${R}"/>`;
 
     // 大圖示文字
-    labels += `<text x="${cx}" y="${cy - 60}"
-      font-size="170" text-anchor="middle" dominant-baseline="middle"
+    labels += `<text x="${cx}" y="${cy - 55}"
+      font-size="210" text-anchor="middle" dominant-baseline="middle"
       fill="white" font-family="${FONT}">${cell.icon}</text>`;
     // 主標題
-    labels += `<text x="${cx}" y="${cy + 105}"
-      font-size="110" font-weight="bold" text-anchor="middle" dominant-baseline="middle"
+    labels += `<text x="${cx}" y="${cy + 120}"
+      font-size="140" font-weight="bold" text-anchor="middle" dominant-baseline="middle"
       fill="white" font-family="${FONT}">${cell.label}</text>`;
     // 副說明
-    labels += `<text x="${cx}" y="${cy + 225}"
-      font-size="65" text-anchor="middle" dominant-baseline="middle"
-      fill="rgba(255,255,255,0.80)" font-family="${FONT}">${cell.sub}</text>`;
+    labels += `<text x="${cx}" y="${cy + 255}"
+      font-size="78" font-weight="bold" text-anchor="middle" dominant-baseline="middle"
+      fill="rgba(255,255,255,0.85)" font-family="${FONT}">${cell.sub}</text>`;
   });
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
