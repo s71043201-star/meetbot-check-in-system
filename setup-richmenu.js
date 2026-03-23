@@ -1,12 +1,15 @@
 'use strict';
 // setup-richmenu.js — 一次性執行，設定 LINE 圖文選單
-// 執行方式：LINE_TOKEN=xxx node setup-richmenu.js
+// 執行前先安裝 sharp：npm install sharp
+// 執行方式（CMD）：
+//   set LINE_TOKEN=xxxxxx
+//   node setup-richmenu.js
 
 const axios = require('axios');
-const zlib  = require('zlib');
+const sharp = require('sharp');
 
 const TOKEN = process.env.LINE_TOKEN;
-if (!TOKEN) { console.error('請先設定環境變數：LINE_TOKEN=xxx node setup-richmenu.js'); process.exit(1); }
+if (!TOKEN) { console.error('請先執行：set LINE_TOKEN=你的token'); process.exit(1); }
 
 const API     = 'https://api.line.me/v2/bot';
 const HEADERS = { Authorization: `Bearer ${TOKEN}` };
@@ -23,70 +26,50 @@ const MEMBERS = {
   '陳佩研': 'Uc8e074d50b3b20581945f5c6aca80d1d',
 };
 const BOSS_IDS = [
-  'Uc05e7076d830f4f75ecc14a07b697e5c', // 蔡蕙芳
-  'Uece4baaf97cfab39ad79c6ed0ee55d03', // 戴豐逸
+  'Uc05e7076d830f4f75ecc14a07b697e5c',
+  'Uece4baaf97cfab39ad79c6ed0ee55d03',
 ];
 
-// ── 純 Node.js PNG 產生器（無外部相依）────────────
-function crc32(buf) {
-  let c = 0xFFFFFFFF;
-  for (const b of buf) {
-    c ^= b;
-    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-  }
-  return (c ^ 0xFFFFFFFF) >>> 0;
-}
+// ── PNG 產生器（SVG + sharp，支援中文）────────────
+async function createGridPng(cells) {
+  const W = 2500, H = 1686;
+  const xs = [0, 833, 1666, 2500]; // 欄邊界
+  const ys = [0, 843, 1686];       // 列邊界
+  const PAD = 10, R = 20;
+  const FONT = "'Microsoft JhengHei','PingFang TC','Noto Sans TC',sans-serif";
 
-function pngChunk(type, data) {
-  const len    = Buffer.allocUnsafe(4); len.writeUInt32BE(data.length);
-  const t      = Buffer.from(type);
-  const crcBuf = Buffer.allocUnsafe(4);
-  crcBuf.writeUInt32BE(crc32(Buffer.concat([t, data])));
-  return Buffer.concat([len, t, data, crcBuf]);
-}
+  let rects = '', labels = '';
+  cells.forEach((cell, i) => {
+    const col = i % 3, row = Math.floor(i / 3);
+    const x  = xs[col] + PAD, y  = ys[row] + PAD;
+    const w  = xs[col+1] - xs[col] - PAD*2;
+    const h  = ys[row+1] - ys[row] - PAD*2;
+    const cx = xs[col] + (xs[col+1]-xs[col]) / 2;
+    const cy = ys[row] + (ys[row+1]-ys[row]) / 2;
 
-// 產生 2500x1686 三列兩行彩色格子 PNG
-function createGridPng(cellColors /* [[r,g,b] x6], 左到右上到下 */) {
-  const W = 2500, H = 1686, BORDER = 10;
-  const COL_W = [833, 833, 834];
-  const ROW_H = [843, 843];
+    rects += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${cell.color}" rx="${R}"/>`;
 
-  const scanlines = [];
-  for (let y = 0; y < H; y++) {
-    const row    = Buffer.allocUnsafe(1 + W * 3);
-    row[0]       = 0; // filter type: None
-    const ri     = y < ROW_H[0] ? 0 : 1;
-    const cellY0 = ri === 0 ? 0 : ROW_H[0];
-    let offset   = 1;
-    for (let x = 0; x < W; x++) {
-      const ci     = x < COL_W[0] ? 0 : x < COL_W[0] + COL_W[1] ? 1 : 2;
-      const cellX0 = ci === 0 ? 0 : ci === 1 ? COL_W[0] : COL_W[0] + COL_W[1];
-      const lx = x - cellX0, ly = y - cellY0;
-      const onBorder = lx < BORDER || lx >= COL_W[ci] - BORDER ||
-                       ly < BORDER || ly >= ROW_H[ri] - BORDER;
-      if (onBorder) {
-        row[offset++] = 255; row[offset++] = 255; row[offset++] = 255;
-      } else {
-        const [r, g, b] = cellColors[ri * 3 + ci];
-        row[offset++] = r; row[offset++] = g; row[offset++] = b;
-      }
-    }
-    scanlines.push(row);
-  }
+    // 大圖示文字
+    labels += `<text x="${cx}" y="${cy - 55}"
+      font-size="140" text-anchor="middle" dominant-baseline="middle"
+      fill="white" font-family="${FONT}">${cell.icon}</text>`;
+    // 主標題
+    labels += `<text x="${cx}" y="${cy + 90}"
+      font-size="85" font-weight="bold" text-anchor="middle" dominant-baseline="middle"
+      fill="white" font-family="${FONT}">${cell.label}</text>`;
+    // 副說明
+    labels += `<text x="${cx}" y="${cy + 195}"
+      font-size="52" text-anchor="middle" dominant-baseline="middle"
+      fill="rgba(255,255,255,0.75)" font-family="${FONT}">${cell.sub}</text>`;
+  });
 
-  const raw        = Buffer.concat(scanlines);
-  const compressed = zlib.deflateSync(raw, { level: 1 }); // 純色壓縮率極高
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+    <rect width="${W}" height="${H}" fill="#dde1e7"/>
+    ${rects}
+    ${labels}
+  </svg>`;
 
-  const ihdr = Buffer.allocUnsafe(13);
-  ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4);
-  ihdr.writeUInt8(8, 8); ihdr.writeUInt8(2, 9); ihdr.fill(0, 10);
-
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    pngChunk('IHDR', ihdr),
-    pngChunk('IDAT', compressed),
-    pngChunk('IEND', Buffer.alloc(0)),
-  ]);
+  return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
 // ── 圖文選單定義 ────────────────────────────────
@@ -96,56 +79,54 @@ function area(x, y, w, h, action) {
   return { bounds: { x, y, width: w, height: h }, action };
 }
 
-// 管理員：提醒 / 進度 / 工作 / Meetbot / 簽到系統 / 指令說明
 const ADMIN_MENU = {
   size: { width: 2500, height: 1686 },
   selected: true,
   name: '管理員選單',
   chatBarText: '功能選單',
   areas: [
-    area(0,           0,  CW1, CH, { type: 'message', label: '提醒',   text: '提醒' }),
-    area(CW1,         0,  CW2, CH, { type: 'message', label: '進度',   text: '進度' }),
-    area(CW1 + CW2,   0,  CW3, CH, { type: 'message', label: '工作',   text: '工作' }),
-    area(0,           CH, CW1, CH, { type: 'uri',     label: 'Meetbot', uri: 'https://s71043201-star.github.io/meetbot-app/' }),
-    area(CW1,         CH, CW2, CH, { type: 'uri',     label: '簽到系統', uri: 'https://meetbot-check-in-system.onrender.com/checkin.html' }),
-    area(CW1 + CW2,   CH, CW3, CH, { type: 'message', label: '指令說明', text: '指令' }),
+    area(0,         0,  CW1, CH, { type:'message', label:'提醒',    text:'提醒' }),
+    area(CW1,       0,  CW2, CH, { type:'message', label:'進度',    text:'進度' }),
+    area(CW1+CW2,   0,  CW3, CH, { type:'message', label:'工作',    text:'工作' }),
+    area(0,         CH, CW1, CH, { type:'uri',     label:'Meetbot', uri:'https://s71043201-star.github.io/meetbot-app/' }),
+    area(CW1,       CH, CW2, CH, { type:'uri',     label:'簽到系統', uri:'https://meetbot-check-in-system.onrender.com/checkin.html' }),
+    area(CW1+CW2,   CH, CW3, CH, { type:'message', label:'指令說明', text:'指令' }),
   ],
 };
 
-// 一般成員：工作 / Meetbot / 簽到系統 / 週報 / 歷次列管 / 指令說明
 const MEMBER_MENU = {
   size: { width: 2500, height: 1686 },
   selected: true,
   name: '一般成員選單',
   chatBarText: '功能選單',
   areas: [
-    area(0,           0,  CW1, CH, { type: 'message', label: '工作',    text: '工作' }),
-    area(CW1,         0,  CW2, CH, { type: 'uri',     label: 'Meetbot', uri: 'https://s71043201-star.github.io/meetbot-app/' }),
-    area(CW1 + CW2,   0,  CW3, CH, { type: 'uri',     label: '簽到系統', uri: 'https://meetbot-check-in-system.onrender.com/checkin.html' }),
-    area(0,           CH, CW1, CH, { type: 'uri',     label: '週報',    uri: 'https://s71043201-star.github.io/tpma-statistics/' }),
-    area(CW1,         CH, CW2, CH, { type: 'uri',     label: '歷次列管', uri: 'https://s71043201-star.github.io/meeting-system/' }),
-    area(CW1 + CW2,   CH, CW3, CH, { type: 'message', label: '指令說明', text: '指令' }),
+    area(0,         0,  CW1, CH, { type:'message', label:'工作',    text:'工作' }),
+    area(CW1,       0,  CW2, CH, { type:'uri',     label:'Meetbot', uri:'https://s71043201-star.github.io/meetbot-app/' }),
+    area(CW1+CW2,   0,  CW3, CH, { type:'uri',     label:'簽到系統', uri:'https://meetbot-check-in-system.onrender.com/checkin.html' }),
+    area(0,         CH, CW1, CH, { type:'uri',     label:'週報',    uri:'https://s71043201-star.github.io/tpma-statistics/' }),
+    area(CW1,       CH, CW2, CH, { type:'uri',     label:'歷次列管', uri:'https://s71043201-star.github.io/meeting-system/' }),
+    area(CW1+CW2,   CH, CW3, CH, { type:'message', label:'指令說明', text:'指令' }),
   ],
 };
 
-// 格子顏色（左到右、上到下）
-// 管理員：橙=提醒, 紫=進度, 藍=工作, 青=Meetbot, 綠=簽到, 灰=指令
-const ADMIN_COLORS = [
-  [255, 143,   0],
-  [142,  36, 170],
-  [ 26, 115, 232],
-  [  0, 137, 123],
-  [ 52, 168,  83],
-  [ 84, 110, 122],
+// 管理員選單：提醒/進度/工作/Meetbot/簽到/指令
+const ADMIN_CELLS = [
+  { color:'#FF8F00', icon:'🔔', label:'提醒',    sub:'發送工作提醒' },
+  { color:'#8E24AA', icon:'📊', label:'進度',    sub:'查看全員進度' },
+  { color:'#1A73E8', icon:'📋', label:'工作',    sub:'查看我的待辦' },
+  { color:'#00897B', icon:'💻', label:'Meetbot', sub:'任務追蹤系統' },
+  { color:'#34A853', icon:'✅', label:'簽到系統', sub:'臨時人員出缺勤' },
+  { color:'#546E7A', icon:'❓', label:'指令說明', sub:'查看所有指令' },
 ];
-// 一般成員：藍=工作, 青=Meetbot, 綠=簽到, 橙=週報, 紫=歷次列管, 灰=指令
-const MEMBER_COLORS = [
-  [ 26, 115, 232],
-  [  0, 137, 123],
-  [ 52, 168,  83],
-  [255, 143,   0],
-  [142,  36, 170],
-  [ 84, 110, 122],
+
+// 一般成員選單：工作/Meetbot/簽到/週報/歷次列管/指令
+const MEMBER_CELLS = [
+  { color:'#1A73E8', icon:'📋', label:'工作',    sub:'查看我的待辦' },
+  { color:'#00897B', icon:'💻', label:'Meetbot', sub:'任務追蹤系統' },
+  { color:'#34A853', icon:'✅', label:'簽到系統', sub:'臨時人員出缺勤' },
+  { color:'#FF8F00', icon:'📈', label:'週報',    sub:'週報統計系統' },
+  { color:'#8E24AA', icon:'📝', label:'歷次列管', sub:'會議事項生成' },
+  { color:'#546E7A', icon:'❓', label:'指令說明', sub:'查看所有指令' },
 ];
 
 // ── 主流程 ─────────────────────────────────────
@@ -157,14 +138,14 @@ async function deleteExisting() {
   }
 }
 
-async function buildMenu(config, colors) {
+async function buildMenu(config, cells) {
   const { data } = await axios.post(`${API}/richmenu`, config, { headers: HEADERS });
   const id = data.richMenuId;
   console.log(`  建立選單 ${id}`);
 
   process.stdout.write('  產生圖片中...');
-  const img = createGridPng(colors);
-  process.stdout.write(` ${(img.length / 1024).toFixed(0)}KB  上傳中...\n`);
+  const img = await createGridPng(cells);
+  process.stdout.write(` ${(img.length/1024).toFixed(0)}KB  上傳中...\n`);
 
   await axios.post(`https://api-data.line.me/v2/bot/richmenu/${id}/content`, img, {
     headers: { ...HEADERS, 'Content-Type': 'image/png' },
@@ -181,10 +162,10 @@ async function main() {
   await deleteExisting();
 
   console.log('\n2. 建立管理員選單');
-  const adminId = await buildMenu(ADMIN_MENU, ADMIN_COLORS);
+  const adminId = await buildMenu(ADMIN_MENU, ADMIN_CELLS);
 
   console.log('\n3. 建立一般成員選單');
-  const memberId = await buildMenu(MEMBER_MENU, MEMBER_COLORS);
+  const memberId = await buildMenu(MEMBER_MENU, MEMBER_CELLS);
 
   console.log('\n4. 指派選單給所有成員');
   for (const [name, userId] of Object.entries(MEMBERS)) {
@@ -199,12 +180,6 @@ async function main() {
   }
 
   console.log('\n=== 設定完成 ===');
-  console.log('\n管理員選單色碼說明：');
-  console.log('  上列：橙=提醒  紫=進度  藍=工作');
-  console.log('  下列：青=Meetbot  綠=簽到系統  灰=指令說明');
-  console.log('\n一般成員選單色碼說明：');
-  console.log('  上列：藍=工作  青=Meetbot  綠=簽到系統');
-  console.log('  下列：橙=週報  紫=歷次列管  灰=指令說明');
 }
 
 main().catch(e => {
