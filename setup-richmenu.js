@@ -30,109 +30,91 @@ const BOSS_IDS = [
   'Uece4baaf97cfab39ad79c6ed0ee55d03',
 ];
 
-// ── 圖片下載（Unsplash，無需 API Key） ──────────
-// 使用固定 seed，確保每次產生相同圖片
-const UNSPLASH = {
-  remind:   'https://images.unsplash.com/photo-1614680376408-81e91ffe3db7?w=833&h=843&fit=crop&auto=format',
-  progress: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=833&h=843&fit=crop&auto=format',
-  work:     'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=833&h=843&fit=crop&auto=format',
-  meetbot:  'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=833&h=843&fit=crop&auto=format',
-  admin:    'https://images.unsplash.com/photo-1518770660439-4636190af475?w=833&h=843&fit=crop&auto=format',
-  help:     'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=833&h=843&fit=crop&auto=format',
-  report:   'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=833&h=843&fit=crop&auto=format',
-  meeting:  'https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?w=833&h=843&fit=crop&auto=format',
+// ── 電路板風格色彩（每格一組） ─────────────────
+// admin 6 格：提醒/進度/工作/Meetbot/後台/指令說明
+const CIRCUIT_COLORS = {
+  remind:   { bg1:'#0d1b2a', bg2:'#1b3a52', line:'#00e5ff' },
+  progress: { bg1:'#1a0533', bg2:'#3d0f6b', line:'#d500f9' },
+  work:     { bg1:'#00251a', bg2:'#00574b', line:'#00e676' },
+  meetbot:  { bg1:'#0a1929', bg2:'#0d47a1', line:'#448aff' },
+  admin:    { bg1:'#1c0a00', bg2:'#5d1a00', line:'#ff6d00' },
+  help:     { bg1:'#1a1a2e', bg2:'#16213e', line:'#e040fb' },
+  report:   { bg1:'#00251a', bg2:'#00574b', line:'#00e676' },
+  meeting:  { bg1:'#0d1b2a', bg2:'#1b3a52', line:'#00e5ff' },
 };
 
-// 備用漸層色（圖片下載失敗時使用）
-const FALLBACK = {
-  remind:   [255, 143,   0],
-  progress: [142,  36, 170],
-  work:     [ 26, 115, 232],
-  meetbot:  [  0, 137, 123],
-  admin:    [ 52, 168,  83],
-  help:     [ 84, 110, 122],
-  report:   [255, 143,   0],
-  meeting:  [142,  36, 170],
-};
+function makeCellSvg(w, h, icon, label, sub, colorKey) {
+  const { bg1, bg2, line } = CIRCUIT_COLORS[colorKey];
+  const cx = Math.round(w / 2), cy = Math.round(h / 2);
+  const FONT = "'Microsoft JhengHei','PingFang TC','Noto Sans TC',sans-serif";
+  const STEP = Math.round(w / 30);  // 格線間距
+  const RADIUS = 20;
 
-async function fetchImage(key, w, h) {
-  try {
-    process.stdout.write(`    下載 ${key} 圖片...`);
-    const resp = await axios.get(UNSPLASH[key], {
-      responseType: 'arraybuffer',
-      timeout: 20000,
-      maxRedirects: 5,
-    });
-    const buf = await sharp(Buffer.from(resp.data)).resize(w, h, { fit: 'cover' }).jpeg({ quality: 85 }).toBuffer();
-    process.stdout.write(' OK\n');
-    return buf;
-  } catch {
-    process.stdout.write(' 失敗，使用備用色\n');
-    const [r, g, b] = FALLBACK[key];
-    return sharp({ create: { width: w, height: h, channels: 3, background: { r, g, b } } }).jpeg({ quality: 85 }).toBuffer();
+  let lines = '';
+  for (let x = -h; x < w + h; x += STEP) {
+    lines += `<line x1="${x}" y1="0" x2="${x+h}" y2="${h}" stroke="${line}" stroke-width="1.2" opacity="0.3"/>`;
   }
+  for (let y = 0; y < h + STEP; y += STEP) {
+    lines += `<line x1="0" y1="${y}" x2="${w}" y2="${y}" stroke="${line}" stroke-width="0.8" opacity="0.2"/>`;
+  }
+  let dots = '';
+  for (let x = 0; x <= w; x += STEP * 2) {
+    for (let y = 0; y <= h; y += STEP * 2) {
+      dots += `<circle cx="${x}" cy="${y}" r="4" fill="${line}" opacity="0.6"/>`;
+    }
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+    <defs>
+      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${bg1}"/>
+        <stop offset="100%" stop-color="${bg2}"/>
+      </linearGradient>
+      <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="black" stop-opacity="0"/>
+        <stop offset="60%" stop-color="black" stop-opacity="0.25"/>
+        <stop offset="100%" stop-color="black" stop-opacity="0.65"/>
+      </linearGradient>
+      <clipPath id="clip"><rect width="${w}" height="${h}" rx="${RADIUS}" ry="${RADIUS}"/></clipPath>
+    </defs>
+    <rect width="${w}" height="${h}" fill="url(#bg)" rx="${RADIUS}"/>
+    <g clip-path="url(#clip)">${lines}${dots}</g>
+    <rect width="${w}" height="${h}" fill="url(#fade)" clip-path="url(#clip)"/>
+    <text x="${cx}" y="${cy - 65}"
+      font-size="210" text-anchor="middle" dominant-baseline="middle"
+      fill="white" font-family="${FONT}">${icon}</text>
+    <text x="${cx}" y="${cy + 120}"
+      font-size="145" font-weight="bold" text-anchor="middle" dominant-baseline="middle"
+      fill="white" font-family="${FONT}">${label}</text>
+    <text x="${cx}" y="${cy + 265}"
+      font-size="80" font-weight="bold" text-anchor="middle" dominant-baseline="middle"
+      fill="rgba(255,255,255,0.85)" font-family="${FONT}">${sub}</text>
+  </svg>`;
 }
 
 // ── 格子圖片合成 ───────────────────────────────
 async function createGridPng(cells) {
-  const W = 2500, H = 1686, BORDER = 8, RADIUS = 20;
+  const W = 2500, H = 1686, BORDER = 8;
   const xs = [0, 833, 1666, 2500];
   const ys = [0, 843, 1686];
-  const FONT = "'Microsoft JhengHei','PingFang TC','Noto Sans TC',sans-serif";
 
   const composites = [];
 
   for (let i = 0; i < cells.length; i++) {
-    const col = i % 3, row = Math.floor(i / 3);
+    const col  = i % 3, row = Math.floor(i / 3);
     const left = xs[col] + BORDER;
     const top  = ys[row] + BORDER;
-    const w    = xs[col+1] - xs[col] - BORDER*2;
-    const h    = ys[row+1] - ys[row] - BORDER*2;
-    const cx   = Math.round(w / 2);
-    const cy   = Math.round(h / 2);
-    const cell = cells[i];
+    const w    = xs[col+1] - xs[col] - BORDER * 2;
+    const h    = ys[row+1] - ys[row] - BORDER * 2;
 
-    // 1. 背景圖片
-    const bgBuf = await fetchImage(cell.imgKey, w, h);
-
-    // 2. SVG 文字疊層（漸層暗化 + 圓角遮罩 + 文字）
-    const overlay = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-      <defs>
-        <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stop-color="rgba(0,0,0,0.10)"/>
-          <stop offset="60%"  stop-color="rgba(0,0,0,0.35)"/>
-          <stop offset="100%" stop-color="rgba(0,0,0,0.72)"/>
-        </linearGradient>
-        <clipPath id="clip">
-          <rect width="${w}" height="${h}" rx="${RADIUS}" ry="${RADIUS}"/>
-        </clipPath>
-      </defs>
-      <rect width="${w}" height="${h}" fill="url(#grad)" clip-path="url(#clip)"/>
-      <text x="${cx}" y="${cy - 65}"
-        font-size="210" text-anchor="middle" dominant-baseline="middle"
-        fill="white" font-family="${FONT}">${cell.icon}</text>
-      <text x="${cx}" y="${cy + 120}"
-        font-size="145" font-weight="bold" text-anchor="middle" dominant-baseline="middle"
-        fill="white" font-family="${FONT}"
-        style="text-shadow:0 4px 12px rgba(0,0,0,0.5)">${cell.label}</text>
-      <text x="${cx}" y="${cy + 260}"
-        font-size="80" font-weight="bold" text-anchor="middle" dominant-baseline="middle"
-        fill="rgba(255,255,255,0.88)" font-family="${FONT}">${cell.sub}</text>
-    </svg>`);
-
-    const overlayBuf = await sharp(overlay).png().toBuffer();
-
-    const cellBuf = await sharp(bgBuf)
-      .composite([{ input: overlayBuf, blend: 'over' }])
-      .jpeg({ quality: 85 })
-      .toBuffer();
-
+    const svg    = makeCellSvg(w, h, cells[i].icon, cells[i].label, cells[i].sub, cells[i].colorKey);
+    const cellBuf = await sharp(Buffer.from(svg)).jpeg({ quality: 88 }).toBuffer();
     composites.push({ input: cellBuf, left, top });
   }
 
   return sharp({
-    create: { width: W, height: H, channels: 3, background: { r: 220, g: 225, b: 230 } }
-  }).jpeg({ quality: 85 }).composite(composites).toBuffer();
+    create: { width: W, height: H, channels: 3, background: { r: 15, g: 15, b: 25 } }
+  }).jpeg({ quality: 88 }).composite(composites).toBuffer();
 }
 
 // ── 選單設定 ───────────────────────────────────
@@ -169,21 +151,21 @@ const MEMBER_MENU = {
 };
 
 const ADMIN_CELLS = [
-  { imgKey:'remind',   icon:'🔔', label:'提醒',    sub:'發送工作提醒' },
-  { imgKey:'progress', icon:'📊', label:'進度',    sub:'查看全員進度' },
-  { imgKey:'work',     icon:'📋', label:'工作',    sub:'查看我的待辦' },
-  { imgKey:'meetbot',  icon:'💻', label:'Meetbot', sub:'任務追蹤系統' },
-  { imgKey:'admin',    icon:'🖥', label:'後台',    sub:'出缺勤後台管理' },
-  { imgKey:'help',     icon:'❓', label:'指令說明', sub:'查看所有指令' },
+  { colorKey:'remind',   icon:'🔔', label:'提醒',    sub:'發送工作提醒' },
+  { colorKey:'progress', icon:'📊', label:'進度',    sub:'查看全員進度' },
+  { colorKey:'work',     icon:'📋', label:'工作',    sub:'查看我的待辦' },
+  { colorKey:'meetbot',  icon:'💻', label:'Meetbot', sub:'任務追蹤系統' },
+  { colorKey:'admin',    icon:'🖥', label:'後台',    sub:'出缺勤後台管理' },
+  { colorKey:'help',     icon:'❓', label:'指令說明', sub:'查看所有指令' },
 ];
 
 const MEMBER_CELLS = [
-  { imgKey:'work',     icon:'📋', label:'工作',    sub:'查看我的待辦' },
-  { imgKey:'meetbot',  icon:'💻', label:'Meetbot', sub:'任務追蹤系統' },
-  { imgKey:'admin',    icon:'🖥', label:'後台',    sub:'出缺勤後台管理' },
-  { imgKey:'report',   icon:'📈', label:'週報',    sub:'週報統計系統' },
-  { imgKey:'meeting',  icon:'📝', label:'歷次列管', sub:'會議事項生成' },
-  { imgKey:'help',     icon:'❓', label:'指令說明', sub:'查看所有指令' },
+  { colorKey:'work',     icon:'📋', label:'工作',    sub:'查看我的待辦' },
+  { colorKey:'meetbot',  icon:'💻', label:'Meetbot', sub:'任務追蹤系統' },
+  { colorKey:'admin',    icon:'🖥', label:'後台',    sub:'出缺勤後台管理' },
+  { colorKey:'report',   icon:'📈', label:'週報',    sub:'週報統計系統' },
+  { colorKey:'meeting',  icon:'📝', label:'歷次列管', sub:'會議事項生成' },
+  { colorKey:'help',     icon:'❓', label:'指令說明', sub:'查看所有指令' },
 ];
 
 // ── 主流程 ─────────────────────────────────────
