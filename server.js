@@ -3,12 +3,11 @@ const axios   = require("axios");
 const ExcelJS = require("exceljs");
 const https   = require("https");
 const path    = require("path");
-// 課程記錄暫存（記憶體，2小時後自動刪除）
+// 課程記錄暫存（記憶體，不限期）
 const docStore = new Map();
 function storeDoc(html, fileName) {
   const uid = Date.now().toString(36) + Math.random().toString(36).slice(2);
   docStore.set(uid, { html, fileName });
-  setTimeout(() => docStore.delete(uid), 7200000);
   return uid;
 }
 
@@ -85,6 +84,14 @@ const BOSS_IDS = [
 ];
 
 // 臨時人員系統：陳佩研、戴豐逸
+const SYSTEMS = {
+  "週報":     { name: "週報統計系統",             url: "https://s71043201-star.github.io/tpma-statistics/" },
+  "會議":     { name: "meetbot 會議任務追蹤系統",  url: "https://s71043201-star.github.io/meetbot-app/" },
+  "歷次列管": { name: "會議歷次列管事項生成系統",  url: "https://s71043201-star.github.io/meeting-system/" },
+  "簽到":     { name: "臨時人員簽到系統",          url: "https://meetbot-check-in-system.onrender.com/checkin.html" },
+  "後台":     { name: "出缺勤後台管理",            url: "https://meetbot-check-in-system.onrender.com/admin.html" },
+};
+
 const ATT_BOSS_IDS = [
   "Uc8e074d50b3b20581945f5c6aca80d1d",
   "Uece4baaf97cfab39ad79c6ed0ee55d03",
@@ -103,6 +110,14 @@ async function sendLine(userId, message) {
   await axios.post("https://api.line.me/v2/bot/message/push", {
     to: userId,
     messages: [{ type: "text", text: message }]
+  }, { headers: { Authorization: `Bearer ${TOKEN}` } });
+}
+
+async function sendLineWithQuickReply(userId, message, quickItems) {
+  if (!userId || !TOKEN) return;
+  await axios.post("https://api.line.me/v2/bot/message/push", {
+    to: userId,
+    messages: [{ type: "text", text: message, quickReply: { items: quickItems } }]
   }, { headers: { Authorization: `Bearer ${TOKEN}` } });
 }
 
@@ -202,6 +217,38 @@ app.post("/webhook", async (req, res) => {
     const userId = event.source.userId;
     const text   = event.message.text.trim();
     console.log(`👤 ${userId} 說：${text}`);
+
+    // ── 指令說明 ──
+    if (["指令", "說明", "help", "Help", "?", "？"].includes(text)) {
+      const sysLines = Object.entries(SYSTEMS).map(([kw, s]) => `• ${kw} — ${s.name}`).join("\n");
+      await sendLine(userId, `📋 MeetBot 可用指令\n${"═".repeat(20)}\n\n👤 個人功能\n• 工作 — 查看我的待辦任務\n\n🔑 管理員功能\n• 進度 — 查看全團隊任務進度\n• 臨時人員 3 — 查看某月出勤記錄\n\n🖥 系統連結（輸入關鍵字取得網址）\n${sysLines}\n\n💬 蔡蕙芳專用\n• 提醒 姓名 — 向指定成員發出工作提醒`);
+      continue;
+    }
+
+    // ── 系統網址 ──
+    if (SYSTEMS[text]) {
+      const s = SYSTEMS[text];
+      await sendLine(userId, `🖥 ${s.name}\n\n🔗 ${s.url}`);
+      continue;
+    }
+
+    // ── 提醒指定成員（蔡蕙芳專用） ──
+    const remindMatch = text.match(/^提醒\s*(.+)$/);
+    if (remindMatch) {
+      if (userId !== MEMBERS["蔡蕙芳"]) {
+        await sendLine(userId, "❌ 此功能僅限蔡蕙芳使用");
+        continue;
+      }
+      const targetName = remindMatch[1].trim();
+      const targetId   = MEMBERS[targetName];
+      if (!targetId) {
+        await sendLine(userId, `❌ 找不到成員「${targetName}」`);
+        continue;
+      }
+      await sendLine(targetId, `📌 工作進度提醒\n\n蔡蕙芳 希望你查看今日工作進度，並在系統中勾選已完成的任務。\n\n🔗 meetbot 系統：https://s71043201-star.github.io/meetbot-app/`);
+      await sendLine(userId, `✅ 已向 ${targetName} 發出提醒`);
+      continue;
+    }
 
     // ── 臨時人員 ──
     if (text === "臨時人員") {
@@ -422,7 +469,7 @@ app.post("/checkout", async (req, res) => {
     const uid = storeDoc(recordHtml, `課程記錄_${record.name}`);
     const downloadUrl = `${process.env.BASE_URL || "https://meetbot-check-in-system.onrender.com"}/download/${uid}`;
 
-    const msg = `🔚 臨時人員簽退\n\n👤 姓名：${record.name}\n📚 課程：${record.course}\n🏷 屬性：${courseType || "-"}\n⏰ 簽到：${checkinStr}　簽退：${checkoutStr}\n⏱ 時數：${hours} 小時\n👥 實到：${actualCount ?? "-"} 人\n\n📄 課程記錄（可列印/存PDF）：\n${downloadUrl}\n（2 小時內有效）`;
+    const msg = `🔚 臨時人員簽退\n\n👤 姓名：${record.name}\n📚 課程：${record.course}\n🏷 屬性：${courseType || "-"}\n⏰ 簽到：${checkinStr}　簽退：${checkoutStr}\n⏱ 時數：${hours} 小時\n👥 實到：${actualCount ?? "-"} 人\n\n📄 課程記錄（可列印/存PDF）：\n${downloadUrl}`;
     for (const notifyId of ATT_NOTIFY_IDS) await sendLine(notifyId, msg).catch(() => {});
     res.json({ ok: true, hours });
   } catch (e) {
@@ -516,9 +563,23 @@ app.get("/export", async (req, res) => {
 // ── 下載 Word 檔 ──────────────────────────────
 app.get("/download/:uid", (req, res) => {
   const item = docStore.get(req.params.uid);
-  if (!item) return res.status(404).send("頁面不存在或已過期（2小時有效）");
+  if (!item) return res.status(404).send("頁面不存在（伺服器重啟後連結會失效，請重新簽到簽退產生新記錄）");
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.send(item.html);
+});
+
+// ── 任務完成通知 ──────────────────────────────
+app.post("/notify-task-done", async (req, res) => {
+  const { task } = req.body;
+  if (!task) return res.status(400).json({ error: "缺少 task" });
+  const userId = MEMBERS[task.assignee];
+  if (!userId) return res.json({ ok: false, reason: "找不到成員" });
+  try {
+    await sendLine(userId, `🎉 恭喜 ${task.assignee}！\n\n「${task.title}」已完成！\n\n辛苦了，繼續保持 💪`);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── 測試 ──────────────────────────────────────
@@ -532,6 +593,44 @@ app.get("/test-me", async (req, res) => {
 });
 
 app.get("/", (req, res) => res.redirect("/checkin.html"));
+
+// ── 排程器：平日提醒 ──────────────────────────
+let lastRun430 = "";
+let lastRun450 = "";
+
+setInterval(async () => {
+  const taipei  = toTaipei(new Date());
+  const day     = taipei.getDay();   // 0=Sun, 6=Sat
+  const hour    = taipei.getHours();
+  const min     = taipei.getMinutes();
+  const dateKey = taipei.toISOString().slice(0, 10);
+
+  if (day === 0 || day === 6) return;
+
+  // 16:30 — 除蔡蕙芳以外所有人：請至 meetbot 勾選完成項目
+  if (hour === 16 && min === 30 && lastRun430 !== dateKey) {
+    lastRun430 = dateKey;
+    const targets = Object.entries(MEMBERS)
+      .filter(([name]) => name !== "蔡蕙芳")
+      .map(([, id]) => id);
+    const msg = `📌 下午工作進度提醒\n\n現在是 16:30，請至 meetbot 系統查看您的待辦任務，並勾選今日已完成的項目。\n\n🔗 https://s71043201-star.github.io/meetbot-app/`;
+    for (const id of targets) await sendLine(id, msg).catch(() => {});
+    console.log("排程 16:30 提醒已發送");
+  }
+
+  // 16:50 — 蔡蕙芳：查看進度並可選擇向誰發提醒
+  if (hour === 16 && min === 50 && lastRun450 !== dateKey) {
+    lastRun450 = dateKey;
+    const memberNames = TEAM.filter(n => n !== "蔡蕙芳");
+    const quickItems  = memberNames.map(name => ({
+      type: "action",
+      action: { type: "message", label: name, text: `提醒 ${name}` }
+    }));
+    const msg = `📊 下午進度追蹤提醒\n\n現在是 16:50，請查看今日全員工作進度。\n\n如需向特定成員補發提醒，請點選下方姓名：\n\n🔗 https://s71043201-star.github.io/meetbot-app/`;
+    await sendLineWithQuickReply(MEMBERS["蔡蕙芳"], msg, quickItems).catch(() => {});
+    console.log("排程 16:50 提醒已發送");
+  }
+}, 60000);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`MeetBot + 出缺勤系統啟動，port ${PORT}`));
