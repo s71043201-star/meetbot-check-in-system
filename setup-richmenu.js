@@ -50,17 +50,17 @@ async function createGridPng(cells) {
     rects += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${cell.color}" rx="${R}"/>`;
 
     // 大圖示文字
-    labels += `<text x="${cx}" y="${cy - 55}"
-      font-size="140" text-anchor="middle" dominant-baseline="middle"
+    labels += `<text x="${cx}" y="${cy - 60}"
+      font-size="170" text-anchor="middle" dominant-baseline="middle"
       fill="white" font-family="${FONT}">${cell.icon}</text>`;
     // 主標題
-    labels += `<text x="${cx}" y="${cy + 90}"
-      font-size="85" font-weight="bold" text-anchor="middle" dominant-baseline="middle"
+    labels += `<text x="${cx}" y="${cy + 105}"
+      font-size="110" font-weight="bold" text-anchor="middle" dominant-baseline="middle"
       fill="white" font-family="${FONT}">${cell.label}</text>`;
     // 副說明
-    labels += `<text x="${cx}" y="${cy + 195}"
-      font-size="52" text-anchor="middle" dominant-baseline="middle"
-      fill="rgba(255,255,255,0.75)" font-family="${FONT}">${cell.sub}</text>`;
+    labels += `<text x="${cx}" y="${cy + 225}"
+      font-size="65" text-anchor="middle" dominant-baseline="middle"
+      fill="rgba(255,255,255,0.80)" font-family="${FONT}">${cell.sub}</text>`;
   });
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
@@ -89,7 +89,7 @@ const ADMIN_MENU = {
     area(CW1,       0,  CW2, CH, { type:'message', label:'進度',    text:'進度' }),
     area(CW1+CW2,   0,  CW3, CH, { type:'message', label:'工作',    text:'工作' }),
     area(0,         CH, CW1, CH, { type:'uri',     label:'Meetbot', uri:'https://s71043201-star.github.io/meetbot-app/' }),
-    area(CW1,       CH, CW2, CH, { type:'uri',     label:'簽到系統', uri:'https://meetbot-check-in-system.onrender.com/checkin.html' }),
+    area(CW1,       CH, CW2, CH, { type:'uri',     label:'後台',    uri:'https://meetbot-check-in-system.onrender.com/admin.html' }),
     area(CW1+CW2,   CH, CW3, CH, { type:'message', label:'指令說明', text:'指令' }),
   ],
 };
@@ -115,7 +115,7 @@ const ADMIN_CELLS = [
   { color:'#8E24AA', icon:'📊', label:'進度',    sub:'查看全員進度' },
   { color:'#1A73E8', icon:'📋', label:'工作',    sub:'查看我的待辦' },
   { color:'#00897B', icon:'💻', label:'Meetbot', sub:'任務追蹤系統' },
-  { color:'#34A853', icon:'✅', label:'簽到系統', sub:'臨時人員出缺勤' },
+  { color:'#34A853', icon:'🖥', label:'後台',    sub:'出缺勤後台管理' },
   { color:'#546E7A', icon:'❓', label:'指令說明', sub:'查看所有指令' },
 ];
 
@@ -123,7 +123,7 @@ const ADMIN_CELLS = [
 const MEMBER_CELLS = [
   { color:'#1A73E8', icon:'📋', label:'工作',    sub:'查看我的待辦' },
   { color:'#00897B', icon:'💻', label:'Meetbot', sub:'任務追蹤系統' },
-  { color:'#34A853', icon:'✅', label:'簽到系統', sub:'臨時人員出缺勤' },
+  { color:'#34A853', icon:'🖥', label:'後台',    sub:'出缺勤後台管理' },
   { color:'#FF8F00', icon:'📈', label:'週報',    sub:'週報統計系統' },
   { color:'#8E24AA', icon:'📝', label:'歷次列管', sub:'會議事項生成' },
   { color:'#546E7A', icon:'❓', label:'指令說明', sub:'查看所有指令' },
