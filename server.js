@@ -221,7 +221,7 @@ app.post("/webhook", async (req, res) => {
     // ── 指令說明 ──
     if (["指令", "說明", "help", "Help", "?", "？"].includes(text)) {
       const sysLines = Object.entries(SYSTEMS).map(([kw, s]) => `• ${kw} — ${s.name}`).join("\n");
-      await sendLine(userId, `📋 MeetBot 可用指令\n${"═".repeat(20)}\n\n👤 個人功能\n• 工作 — 查看我的待辦任務\n\n🔑 管理員功能\n• 進度 — 查看全團隊任務進度\n• 臨時人員 3 — 查看某月出勤記錄\n\n🖥 系統連結（輸入關鍵字取得網址）\n${sysLines}\n\n💬 蔡蕙芳專用\n• 提醒 姓名 — 向指定成員發出工作提醒`);
+      await sendLine(userId, `📋 MeetBot 可用指令\n${"═".repeat(20)}\n\n👤 個人功能\n• 工作 — 查看我的待辦任務\n\n🔑 管理員功能\n• 進度 — 查看全團隊任務進度\n• 臨時人員 3 — 查看某月出勤記錄\n\n🖥 系統連結（輸入關鍵字取得網址）\n${sysLines}\n\n💬 管理員專用\n• 提醒 姓名 — 向指定成員發出工作提醒（隨時可用）`);
       continue;
     }
 
@@ -235,8 +235,8 @@ app.post("/webhook", async (req, res) => {
     // ── 提醒指定成員（蔡蕙芳專用） ──
     const remindMatch = text.match(/^提醒\s*(.+)$/);
     if (remindMatch) {
-      if (userId !== MEMBERS["蔡蕙芳"]) {
-        await sendLine(userId, "❌ 此功能僅限蔡蕙芳使用");
+      if (!BOSS_IDS.includes(userId)) {
+        await sendLine(userId, "❌ 此功能僅限管理員使用");
         continue;
       }
       const targetName = remindMatch[1].trim();
@@ -627,7 +627,9 @@ setInterval(async () => {
       action: { type: "message", label: name, text: `提醒 ${name}` }
     }));
     const msg = `📊 下午進度追蹤提醒\n\n現在是 16:50，請查看今日全員工作進度。\n\n如需向特定成員補發提醒，請點選下方姓名：\n\n🔗 https://s71043201-star.github.io/meetbot-app/`;
-    await sendLineWithQuickReply(MEMBERS["蔡蕙芳"], msg, quickItems).catch(() => {});
+    for (const bossId of BOSS_IDS) {
+      await sendLineWithQuickReply(bossId, msg, quickItems).catch(() => {});
+    }
     console.log("排程 16:50 提醒已發送");
   }
 }, 60000);
