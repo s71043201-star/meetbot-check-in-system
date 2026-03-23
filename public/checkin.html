@@ -79,15 +79,31 @@ input[type="radio"] { width: 18px; height: 18px; cursor: pointer; accent-color: 
   <!-- Section 2: 課程記錄表單 -->
   <div id="sec-form" class="hidden">
     <div class="card header-card">
-      <h1>課程記錄填寫</h1>
-      <p class="sub" id="checkin-info"></p>
+      <h1>台北市醫師公會健康台灣深耕計畫</h1>
+      <p class="sub">臺北市慢性病防治全人健康智慧整合照護計畫・處方課程・開課紀錄表</p>
+      <p class="sub" id="checkin-info" style="margin-top:6px;color:#1a73e8"></p>
     </div>
 
-    <!-- QR Code -->
-    <div class="card" style="text-align:center">
-      <div class="q-title" style="text-align:left">簽到頁面 QR Code</div>
-      <img id="qrcode-img" src="" alt="QR Code" style="width:180px;height:180px;border:1px solid #eee;border-radius:8px;">
-      <p style="color:#5f6368;font-size:12px;margin-top:8px;">可供其他人員掃描進行簽到</p>
+    <!-- 三個 QR Code -->
+    <div class="card">
+      <div class="q-title" style="margin-bottom:18px">相關連結</div>
+      <div style="display:flex;justify-content:space-around;flex-wrap:wrap;gap:16px;text-align:center">
+        <div>
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https%3A%2F%2Fhealthcheck-rx.delixir.cc%2Fdoctor"
+               alt="健康處方管理系統" style="width:150px;height:150px;border-radius:6px;border:1px solid #eee">
+          <p style="font-size:12px;color:#444;margin-top:6px;font-weight:500">健康處方管理系統</p>
+        </div>
+        <div>
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https%3A%2F%2Flin.ee%2FnU1fTzAx"
+               alt="台北市醫師公會官方LINE" style="width:150px;height:150px;border-radius:6px;border:1px solid #eee">
+          <p style="font-size:12px;color:#444;margin-top:6px;font-weight:500">台北市醫師公會官方 LINE</p>
+        </div>
+        <div>
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https%3A%2F%2Fdocs.google.com%2Fforms%2Fd%2Fe%2F1FAIpQLSeJT2bLkHxFmIP1YjjYu_TNuyKU5BqQeS4JTz0OJWg7gGnlTA%2Fviewform"
+               alt="滿意度調查問卷" style="width:150px;height:150px;border-radius:6px;border:1px solid #eee">
+          <p style="font-size:12px;color:#444;margin-top:6px;font-weight:500">滿意度調查問卷</p>
+        </div>
+      </div>
     </div>
 
     <!-- 課程預計時數 -->
