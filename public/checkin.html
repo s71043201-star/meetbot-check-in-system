@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>臨時人員出缺勤系統</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Noto Sans TC", "Google Sans", Roboto, sans-serif; background: #f0f4f9; min-height: 100vh; padding: 24px 16px; }
+.container { max-width: 640px; margin: 0 auto; }
+.card { background: #fff; border-radius: 8px; padding: 24px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.header-card { border-top: 10px solid #1a73e8; }
+h1 { font-size: 24px; color: #202124; margin-bottom: 6px; }
+.sub { color: #5f6368; font-size: 14px; }
+.q-title { font-size: 15px; color: #202124; font-weight: 500; margin-bottom: 14px; }
+.required::after { content: " *"; color: #d93025; }
+input[type="text"], textarea {
+  width: 100%; border: none; border-bottom: 1px solid #dadce0;
+  padding: 8px 0; font-size: 14px; font-family: inherit;
+  outline: none; background: transparent; transition: border-color .15s;
+}
+input[type="text"]:focus, textarea:focus { border-bottom: 2px solid #1a73e8; }
+.radio-group, .check-group { display: flex; flex-direction: column; gap: 14px; }
+.opt { display: flex; align-items: center; gap: 12px; font-size: 14px; color: #202124; cursor: pointer; }
+input[type="radio"], input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #1a73e8; flex-shrink: 0; }
+.checkin-btn {
+  display: block; width: 100%; padding: 18px; font-size: 20px; font-weight: 500;
+  background: #34a853; color: #fff; border: none; border-radius: 8px;
+  cursor: pointer; margin-top: 16px; font-family: inherit; transition: background .15s;
+}
+.checkin-btn:hover { background: #2d9348; }
+.checkin-btn:disabled { background: #aaa; cursor: not-allowed; }
+.submit-btn {
+  background: #1a73e8; color: #fff; border: none; border-radius: 4px;
+  padding: 11px 28px; font-size: 15px; font-family: inherit; cursor: pointer;
+  float: right; transition: background .15s;
+}
+.submit-btn:hover { background: #1557b0; }
+.submit-btn:disabled { background: #aaa; cursor: not-allowed; }
+.clock { font-size: 52px; font-weight: 300; text-align: center; color: #202124; letter-spacing: 4px; margin: 8px 0 4px; }
+.clock-label { text-align: center; color: #5f6368; font-size: 13px; margin-bottom: 8px; }
+.done-icon { text-align: center; font-size: 72px; margin: 20px 0; }
+.done-name { text-align: center; font-size: 22px; color: #202124; margin-bottom: 8px; }
+.done-hours { text-align: center; font-size: 36px; font-weight: 300; color: #1a73e8; margin-bottom: 4px; }
+.done-note { text-align: center; color: #5f6368; font-size: 13px; margin-top: 16px; }
+.err { color: #d93025; font-size: 13px; margin-top: 6px; display: none; }
+.clearfix::after { content: ""; display: block; clear: both; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Section 1: 簽到 -->
+  <div id="sec-checkin">
+    <div class="card header-card">
+      <h1>臨時人員出缺勤系統</h1>
+      <p class="sub">請填寫基本資料後按下「簽到」</p>
+    </div>
+    <div class="card">
+      <div class="q-title required">您的姓名</div>
+      <input type="text" id="name" placeholder="請輸入您的姓名">
+      <div class="err" id="err-name">請填寫姓名</div>
+    </div>
+    <div class="card">
+      <div class="q-title required">課程名稱</div>
+      <input type="text" id="course" placeholder="請輸入今日課程名稱">
+      <div class="err" id="err-course">請填寫課程名稱</div>
+    </div>
+    <div class="card">
+      <div class="clock" id="clock">--:--</div>
+      <div class="clock-label">現在時間</div>
+      <button class="checkin-btn" id="checkin-btn" onclick="doCheckin()">✅ 簽到</button>
+    </div>
+  </div>
+
+  <!-- Section 2: 工作內容表單 -->
+  <div id="sec-form" class="hidden">
+    <div class="card header-card">
+      <h1>工作內容紀錄</h1>
+      <p class="sub" id="checkin-info"></p>
+    </div>
+    <div class="card">
+      <div class="q-title required">今日工作時段</div>
+      <div class="radio-group">
+        <label class="opt"><input type="radio" name="shift" value="上午班"> 上午班</label>
+        <label class="opt"><input type="radio" name="shift" value="下午班"> 下午班</label>
+        <label class="opt"><input type="radio" name="shift" value="全天"> 全天</label>
+      </div>
+      <div class="err" id="err-shift">請選擇工作時段</div>
+    </div>
+    <div class="card">
+      <div class="q-title required">工作內容（可複選）</div>
+      <div class="check-group">
+        <label class="opt"><input type="checkbox" value="出缺勤影像資料紀錄"> 出缺勤影像資料紀錄</label>
+        <label class="opt"><input type="checkbox" value="任務執行查核業務"> 任務執行查核業務</label>
+        <label class="opt"><input type="checkbox" value="課程協助"> 課程協助</label>
+        <label class="opt"><input type="checkbox" value="資料整理"> 資料整理</label>
+        <label class="opt"><input type="checkbox" value="其他"> 其他</label>
+      </div>
+      <div class="err" id="err-content">請至少勾選一項工作內容</div>
+    </div>
+    <div class="card">
+      <div class="q-title">備註（選填）</div>
+      <textarea id="note" rows="3" placeholder="如有其他說明，請填寫於此"></textarea>
+    </div>
+    <div class="card clearfix">
+      <button class="submit-btn" id="submit-btn" onclick="doCheckout()">送出並簽退</button>
+    </div>
+  </div>
+
+  <!-- Section 3: 完成 -->
+  <div id="sec-done" class="hidden">
+    <div class="card header-card">
+      <h1>簽退完成</h1>
+      <p class="sub">您的出缺勤記錄已儲存</p>
+    </div>
+    <div class="card">
+      <div class="done-icon">✅</div>
+      <div class="done-name" id="done-name"></div>
+      <div class="done-hours" id="done-hours"></div>
+      <div class="done-note">感謝今日的辛勞！</div>
+    </div>
+  </div>
+
+</div>
+<script>
+// 時鐘
+(function tick() {
+  const now = new Date();
+  document.getElementById("clock").textContent =
+    now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
+  setTimeout(tick, 1000);
+})();
+
+function showErr(id, show) {
+  document.getElementById(id).style.display = show ? "block" : "none";
+}
+
+async function doCheckin() {
+  const name   = document.getElementById("name").value.trim();
+  const course = document.getElementById("course").value.trim();
+  showErr("err-name",   !name);
+  showErr("err-course", !course);
+  if (!name || !course) return;
+
+  const btn = document.getElementById("checkin-btn");
+  btn.disabled = true;
+  btn.textContent = "簽到中…";
+
+  try {
+    const res  = await fetch("/checkin", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, course })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+
+    sessionStorage.setItem("sessionId", data.sessionId);
+    sessionStorage.setItem("name", name);
+
+    const now = new Date();
+    document.getElementById("checkin-info").textContent =
+      `${name} 已於 ${now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })} 簽到 ── 課程：${course}`;
+
+    document.getElementById("sec-checkin").classList.add("hidden");
+    document.getElementById("sec-form").classList.remove("hidden");
+  } catch (e) {
+    alert("簽到失敗：" + e.message);
+    btn.disabled = false;
+    btn.textContent = "✅ 簽到";
+  }
+}
+
+async function doCheckout() {
+  const sessionId = sessionStorage.getItem("sessionId");
+  const name      = sessionStorage.getItem("name");
+  if (!sessionId) { alert("找不到簽到記錄，請重新整理頁面後簽到"); return; }
+
+  const shift = document.querySelector('input[name="shift"]:checked');
+  showErr("err-shift", !shift);
+  if (!shift) return;
+
+  const workContent = [...document.querySelectorAll('.check-group input:checked')].map(el => el.value);
+  showErr("err-content", workContent.length === 0);
+  if (workContent.length === 0) return;
+
+  const note = document.getElementById("note").value.trim();
+  const btn  = document.getElementById("submit-btn");
+  btn.disabled = true;
+  btn.textContent = "送出中…";
+
+  try {
+    const res  = await fetch("/checkout", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, shift: shift.value, workContent, note })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+
+    document.getElementById("done-name").textContent  = `謝謝 ${name}！`;
+    document.getElementById("done-hours").textContent = `今日工作時數：${data.hours} 小時`;
+    document.getElementById("sec-form").classList.add("hidden");
+    document.getElementById("sec-done").classList.remove("hidden");
+    sessionStorage.clear();
+  } catch (e) {
+    alert("簽退失敗：" + e.message);
+    btn.disabled = false;
+    btn.textContent = "送出並簽退";
+  }
+}
+</script>
+</body>
+</html>
