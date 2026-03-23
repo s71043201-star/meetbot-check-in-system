@@ -63,13 +63,13 @@ async function fetchImage(key, w, h) {
       timeout: 20000,
       maxRedirects: 5,
     });
-    const buf = await sharp(Buffer.from(resp.data)).resize(w, h, { fit: 'cover' }).png().toBuffer();
+    const buf = await sharp(Buffer.from(resp.data)).resize(w, h, { fit: 'cover' }).jpeg({ quality: 85 }).toBuffer();
     process.stdout.write(' OK\n');
     return buf;
   } catch {
     process.stdout.write(' 失敗，使用備用色\n');
     const [r, g, b] = FALLBACK[key];
-    return sharp({ create: { width: w, height: h, channels: 3, background: { r, g, b } } }).png().toBuffer();
+    return sharp({ create: { width: w, height: h, channels: 3, background: { r, g, b } } }).jpeg({ quality: 85 }).toBuffer();
   }
 }
 
@@ -124,7 +124,7 @@ async function createGridPng(cells) {
 
     const cellBuf = await sharp(bgBuf)
       .composite([{ input: overlayBuf, blend: 'over' }])
-      .png()
+      .jpeg({ quality: 85 })
       .toBuffer();
 
     composites.push({ input: cellBuf, left, top });
@@ -132,7 +132,7 @@ async function createGridPng(cells) {
 
   return sharp({
     create: { width: W, height: H, channels: 3, background: { r: 220, g: 225, b: 230 } }
-  }).png().composite(composites).toBuffer();
+  }).jpeg({ quality: 85 }).composite(composites).toBuffer();
 }
 
 // ── 選單設定 ───────────────────────────────────
@@ -203,7 +203,7 @@ async function buildMenu(config, cells) {
   const img = await createGridPng(cells);
   process.stdout.write(`  上傳圖片 ${(img.length/1024).toFixed(0)}KB...`);
   await axios.post(`https://api-data.line.me/v2/bot/richmenu/${id}/content`, img, {
-    headers: { ...HEADERS, 'Content-Type': 'image/png' },
+    headers: { ...HEADERS, 'Content-Type': 'image/jpeg' },
     maxBodyLength: Infinity,
   });
   process.stdout.write(' 完成\n');
