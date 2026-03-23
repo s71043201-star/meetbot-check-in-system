@@ -83,6 +83,25 @@ input[type="radio"] { width: 18px; height: 18px; cursor: pointer; accent-color: 
       <p class="sub" id="checkin-info"></p>
     </div>
 
+    <!-- QR Code -->
+    <div class="card" style="text-align:center">
+      <div class="q-title" style="text-align:left">簽到頁面 QR Code</div>
+      <img id="qrcode-img" src="" alt="QR Code" style="width:180px;height:180px;border:1px solid #eee;border-radius:8px;">
+      <p style="color:#5f6368;font-size:12px;margin-top:8px;">可供其他人員掃描進行簽到</p>
+    </div>
+
+    <!-- 課程預計時數 -->
+    <div class="card">
+      <div class="q-title required">課程預計時數</div>
+      <div class="radio-group">
+        <label class="opt"><input type="radio" name="plannedHours" value="1小時（50-60分鐘）"> 1 小時（50-60 分鐘）</label>
+        <label class="opt"><input type="radio" name="plannedHours" value="1.5小時"> 1.5 小時</label>
+        <label class="opt"><input type="radio" name="plannedHours" value="2小時"> 2 小時</label>
+        <label class="opt"><input type="radio" name="plannedHours" value="其他"> 其他</label>
+      </div>
+      <div class="err" id="err-plannedHours">請選擇課程預計時數</div>
+    </div>
+
     <!-- 課程屬性 -->
     <div class="card">
       <div class="q-title required">課程屬性</div>
@@ -197,6 +216,11 @@ async function doCheckin() {
     document.getElementById("checkin-info").textContent =
       `${name}・${course}・開始時間：${now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}`;
 
+    // 產生 QR Code
+    const pageUrl = window.location.origin + "/checkin.html";
+    document.getElementById("qrcode-img").src =
+      "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(pageUrl);
+
     document.getElementById("sec-checkin").classList.add("hidden");
     document.getElementById("sec-form").classList.remove("hidden");
   } catch (e) {
@@ -211,6 +235,7 @@ async function doCheckout() {
   const name      = sessionStorage.getItem("name");
   if (!sessionId) { alert("找不到簽到記錄，請重新整理頁面後簽到"); return; }
 
+  const plannedHours    = document.querySelector('input[name="plannedHours"]:checked');
   const courseType      = document.querySelector('input[name="courseType"]:checked');
   const registeredCount = document.getElementById("registeredCount").value;
   const actualCount     = document.getElementById("actualCount").value;
@@ -218,7 +243,8 @@ async function doCheckout() {
   const summary         = document.getElementById("summary").value.trim();
 
   let valid = true;
-  showErr("err-courseType", !courseType); if (!courseType) valid = false;
+  showErr("err-plannedHours", !plannedHours); if (!plannedHours) valid = false;
+  showErr("err-courseType",   !courseType);   if (!courseType)   valid = false;
   showErr("err-reg",  registeredCount === ""); if (registeredCount === "") valid = false;
   showErr("err-act",  actualCount === "");     if (actualCount === "") valid = false;
   showErr("err-walk", walkInCount === "");     if (walkInCount === "") valid = false;
@@ -235,6 +261,7 @@ async function doCheckout() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sessionId,
+        plannedHours:    plannedHours.value,
         courseType:      courseType.value,
         teacher,
         registeredCount: parseInt(registeredCount),

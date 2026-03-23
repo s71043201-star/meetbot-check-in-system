@@ -3,6 +3,49 @@ const axios   = require("axios");
 const ExcelJS = require("exceljs");
 const https   = require("https");
 const path    = require("path");
+const { Document, Paragraph, TextRun, Table, TableRow, TableCell,
+        WidthType, AlignmentType, HeadingLevel, Packer, BorderStyle } = require("docx");
+
+// Word 文件暫存（記憶體，2小時後自動刪除）
+const docStore = new Map();
+function storeDoc(buffer, fileName) {
+  const uid = Date.now().toString(36) + Math.random().toString(36).slice(2);
+  docStore.set(uid, { buffer, fileName });
+  setTimeout(() => docStore.delete(uid), 7200000);
+  return uid;
+}
+
+function makeRow(label, value) {
+  const cellStyle = { borders: { top:{style:BorderStyle.SINGLE,size:1}, bottom:{style:BorderStyle.SINGLE,size:1}, left:{style:BorderStyle.SINGLE,size:1}, right:{style:BorderStyle.SINGLE,size:1} } };
+  return new TableRow({ children: [
+    new TableCell({ ...cellStyle, width:{size:32,type:WidthType.PERCENTAGE}, children:[new Paragraph({ children:[new TextRun({text:label,bold:true})] })] }),
+    new TableCell({ ...cellStyle, width:{size:68,type:WidthType.PERCENTAGE}, children:[new Paragraph({text: value||"-"})] }),
+  ]});
+}
+
+async function generateWordDoc(data) {
+  const doc = new Document({ sections:[{ properties:{}, children:[
+    new Paragraph({ text:"台北市醫師公會健康台灣深耕計畫", heading:HeadingLevel.HEADING_1, alignment:AlignmentType.CENTER }),
+    new Paragraph({ text:"臺北市慢性病防治全人健康智慧整合照護計畫・處方課程開課紀錄表", alignment:AlignmentType.CENTER }),
+    new Paragraph({ text:"" }),
+    new Table({ width:{size:100,type:WidthType.PERCENTAGE}, rows:[
+      makeRow("填表人",           data.name),
+      makeRow("課程日期",          data.date),
+      makeRow("課程開始時間",       data.checkinStr),
+      makeRow("課程結束時間",       data.checkoutStr),
+      makeRow("課程預計時數",       data.plannedHours),
+      makeRow("實際工作時數",       data.hours + " 小時"),
+      makeRow("課程屬性",          data.courseType),
+      makeRow("課程名稱",          data.course),
+      makeRow("課程老師",          data.teacher),
+      makeRow("系統報名人數",       String(data.registeredCount ?? "-")),
+      makeRow("線上報名實到人數",   String(data.actualCount ?? "-")),
+      makeRow("無報名現場候補人數", String(data.walkInCount ?? "-")),
+      makeRow("簡述上課內容",       data.summary),
+    ]}
+  ]}]});
+  return await Packer.toBuffer(doc);
+}
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
@@ -348,25 +391,38 @@ app.post("/checkout", async (req, res) => {
     if (!record) return res.status(404).json({ error: "找不到簽到記錄" });
     const checkinTime = new Date(record.checkinTime);
     const hours       = Math.round((now - checkinTime) / 3600000 * 10) / 10;
-    const { courseType, teacher, registeredCount, actualCount, walkInCount, summary } = req.body;
-    const updated     = {
+    const { courseType, teacher, plannedHours, registeredCount, actualCount, walkInCount, summary } = req.body;
+    const checkinStr  = toTaipei(checkinTime).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
+    const checkoutStr = taipei.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
+    const dateStr     = `${record.year}/${record.month}/${record.day}`;
+
+    const updated = {
       ...record,
-      checkoutTime: now.toISOString(),
+      checkoutTime:     now.toISOString(),
       courseType:       courseType || "",
       teacher:          teacher || "",
-      registeredCount:  registeredCount || "",
-      actualCount:      actualCount || "",
-      walkInCount:      walkInCount || "",
+      plannedHours:     plannedHours || "",
+      registeredCount:  registeredCount ?? "",
+      actualCount:      actualCount ?? "",
+      walkInCount:      walkInCount ?? "",
       summary:          summary || "",
       hours,
       status: "checked-out"
     };
     await fbPut(`/${sessionId}`, updated);
 
-    const checkinStr  = toTaipei(checkinTime).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
-    const checkoutStr = taipei.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
-    const msg = `🔚 臨時人員簽退\n\n👤 姓名：${record.name}\n📚 課程：${record.course}\n🏷 課程屬性：${courseType || "-"}\n👨‍🏫 課程老師：${teacher || "-"}\n⏰ 簽到：${checkinStr}\n⏰ 簽退：${checkoutStr}\n⏱ 工作時數：${hours} 小時\n👥 實到人數：${actualCount || "-"}`;
-    for (const uid of ATT_NOTIFY_IDS) await sendLine(uid, msg).catch(() => {});
+    // 產生 Word 文件
+    const wordBuffer = await generateWordDoc({
+      name: record.name, course: record.course, date: dateStr,
+      checkinStr, checkoutStr, hours, plannedHours, courseType,
+      teacher, registeredCount, actualCount, walkInCount, summary
+    });
+    const fileName = `課程記錄_${record.name}_${dateStr.replace(/\//g,"-")}.docx`;
+    const uid      = storeDoc(wordBuffer, fileName);
+    const downloadUrl = `${process.env.BASE_URL || "https://meetbot-check-in-system.onrender.com"}/download/${uid}`;
+
+    const msg = `🔚 臨時人員簽退\n\n👤 姓名：${record.name}\n📚 課程：${record.course}\n🏷 屬性：${courseType || "-"}\n⏰ 簽到：${checkinStr}　簽退：${checkoutStr}\n⏱ 時數：${hours} 小時\n👥 實到：${actualCount ?? "-"} 人\n\n📄 課程記錄 Word 檔：\n${downloadUrl}\n（2 小時內有效）`;
+    for (const notifyId of ATT_NOTIFY_IDS) await sendLine(notifyId, msg).catch(() => {});
     res.json({ ok: true, hours });
   } catch (e) {
     console.error("checkout:", e.message);
@@ -454,6 +510,15 @@ app.get("/export", async (req, res) => {
     console.error("export:", e.message);
     res.status(500).json({ error: e.message });
   }
+});
+
+// ── 下載 Word 檔 ──────────────────────────────
+app.get("/download/:uid", (req, res) => {
+  const item = docStore.get(req.params.uid);
+  if (!item) return res.status(404).send("檔案不存在或已過期（2小時有效）");
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+  res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(item.fileName)}`);
+  res.send(item.buffer);
 });
 
 // ── 測試 ──────────────────────────────────────
