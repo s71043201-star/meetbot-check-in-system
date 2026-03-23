@@ -490,66 +490,107 @@ app.get("/records", async (req, res) => {
 });
 
 // ── 匯出 Excel ────────────────────────────────
+function buildPersonSheet(wb, personName, records) {
+  const ws = wb.addWorksheet(personName);
+
+  const bdr  = { top:{style:"thin"}, bottom:{style:"thin"}, left:{style:"thin"}, right:{style:"thin"} };
+  const mid  = { horizontal:"center", vertical:"middle" };
+  const lmid = { horizontal:"left",   vertical:"middle", wrapText:true };
+  const tk   = { name:"DFKai-SB", size:12, charset:136 };
+
+  // 欄寬：A(1) B(2)編號 C(3)年 D(4)月 E(5)日 F(6)課程名稱 G(7)時分 H(8)至時分 I(9)共計
+  [7.4, 6.4, 6.4, 10.1, 10.1, 24, 10.1, 9.1, 10.3].forEach((w, i) => { ws.getColumn(i+1).width = w; });
+
+  // Row 1 大標題
+  ws.mergeCells("B1:I1");
+  ws.getRow(1).height = 19.5;
+  ws.getCell("B1").value = "健康台灣深耕計畫專職人員出勤記錄表";
+  ws.getCell("B1").style = { font:{...tk, size:14, bold:true}, alignment:mid };
+
+  // Row 2 副標題
+  ws.mergeCells("B2:I2");
+  ws.getRow(2).height = 19.5;
+  ws.getCell("B2").value = "臨時人員出勤記錄與工作內容說明";
+  ws.getCell("B2").style = { font:{...tk, size:13, bold:true}, alignment:mid };
+
+  // Row 3 姓名 + 工作內容
+  ws.mergeCells("C3:D3");
+  ws.mergeCells("F3:I3");
+  ws.getRow(3).height = 74.25;
+  ws.getCell("B3").value = "姓名";
+  ws.getCell("B3").style = { font:tk, alignment:mid, border:bdr };
+  ws.getCell("C3").value = personName;
+  ws.getCell("C3").style = { font:tk, alignment:mid, border:bdr };
+  ws.getCell("E3").value = "工作內容";
+  ws.getCell("E3").style = { font:tk, alignment:mid, border:bdr };
+  ws.getCell("F3").value = "協助處方課執行期間\n場地協助、報到協助、出席紀錄、活動影像紀錄、課後滿意度調查提醒等";
+  ws.getCell("F3").style = { font:tk, alignment:lmid, border:bdr };
+
+  // Row 4 欄位標題
+  ws.getRow(4).height = 23.25;
+  ["", "編號", "年", "月", "日", "課程名稱", "時　分", "至時分", "共計（時）"].forEach((h, i) => {
+    if (i === 0) return;
+    const cell = ws.getCell(4, i+1);
+    cell.value = h;
+    cell.style = { font:tk, alignment:mid, border:bdr };
+  });
+
+  // 資料列
+  let totalHours = 0;
+  const dataStart = 5;
+  records.forEach((r, idx) => {
+    const rn  = dataStart + idx;
+    ws.getRow(rn).height = 23.25;
+    const ci  = toTaipei(new Date(r.checkinTime)).toLocaleTimeString("zh-TW",  { hour:"2-digit", minute:"2-digit" });
+    const co  = toTaipei(new Date(r.checkoutTime)).toLocaleTimeString("zh-TW", { hour:"2-digit", minute:"2-digit" });
+    const row = ["", idx+1, r.year, r.month, r.day, r.course||"", ci, co, r.hours];
+    row.forEach((v, i) => {
+      if (i === 0) return;
+      const cell = ws.getCell(rn, i+1);
+      cell.value = v;
+      cell.style = { font:tk, alignment: i === 5 ? lmid : mid, border:bdr };
+    });
+    totalHours += r.hours || 0;
+  });
+
+  // 合計列
+  const tr = dataStart + records.length;
+  ws.getRow(tr).height = 23.25;
+  ws.mergeCells(tr, 2, tr, 8);
+  ws.getCell(tr, 2).value = "累計";
+  ws.getCell(tr, 2).style = { font:{...tk, bold:true}, alignment:mid, border:bdr };
+  ws.getCell(tr, 9).value = Math.round(totalHours * 10) / 10;
+  ws.getCell(tr, 9).style = { font:{...tk, bold:true}, alignment:mid, border:bdr };
+}
+
 app.get("/export", async (req, res) => {
-  const { name, month, year } = req.query;
+  const { name: nameFilter, month: monthFilter, year: yearFilter } = req.query;
   try {
     const data = await fbGet();
     let records = data ? Object.entries(data).map(([id, r]) => ({ id, ...r })) : [];
-    if (name)  records = records.filter(r => r.name === name);
-    if (month) records = records.filter(r => r.month === parseInt(month));
-    if (year)  records = records.filter(r => r.year  === parseInt(year));
+    if (nameFilter)  records = records.filter(r => r.name  === nameFilter);
+    if (monthFilter) records = records.filter(r => r.month === parseInt(monthFilter));
+    if (yearFilter)  records = records.filter(r => r.year  === parseInt(yearFilter));
     records = records.filter(r => r.status === "checked-out");
     records.sort((a, b) => new Date(a.checkinTime) - new Date(b.checkinTime));
 
+    // 按人分組
+    const byPerson = {};
+    records.forEach(r => {
+      if (!byPerson[r.name]) byPerson[r.name] = [];
+      byPerson[r.name].push(r);
+    });
+
     const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet("出缺勤記錄");
-    const border = { top:{style:"thin"}, bottom:{style:"thin"}, left:{style:"thin"}, right:{style:"thin"} };
-    const center = { horizontal:"center", vertical:"middle" };
+    if (Object.keys(byPerson).length === 0) {
+      buildPersonSheet(wb, nameFilter || "無記錄", []);
+    } else {
+      for (const [pname, pRecords] of Object.entries(byPerson)) {
+        buildPersonSheet(wb, pname, pRecords);
+      }
+    }
 
-    ws.mergeCells("A1:H1");
-    ws.getCell("A1").value = "衛生福利部國民健康署健康台灣深耕計畫暨人員出缺勤記錄管理";
-    ws.getCell("A1").style = { font:{bold:true,size:14}, alignment:center };
-    ws.getRow(1).height = 28;
-
-    ws.mergeCells("A2:H2");
-    ws.getCell("A2").value = "臨時人員出缺勤記錄與工作時數統計";
-    ws.getCell("A2").style = { font:{bold:true,size:12}, alignment:center };
-    ws.getRow(2).height = 22;
-
-    ws.getCell("B3").value = "姓名"; ws.getCell("B3").style = { font:{bold:true}, alignment:center };
-    ws.mergeCells("C3:D3"); ws.getCell("C3").value = name || "";
-    ws.getCell("E3").value = "工作時數"; ws.getCell("E3").style = { font:{bold:true}, alignment:center };
-    ws.mergeCells("F3:H3"); ws.getCell("F3").value = "（包含：上午班、下午班、午休、出缺勤影像資料紀錄、所負責任務執行查核業務）";
-    ws.getRow(3).height = 20;
-
-    ["", "序號", "年", "月", "日", "簽到時間", "簽退時間", "合計(時)"].forEach((h, i) => {
-      const cell = ws.getCell(4, i + 1);
-      cell.value = h;
-      cell.style = { font:{bold:true}, alignment:center, fill:{type:"pattern",pattern:"solid",fgColor:{argb:"FFD9E1F2"}}, border };
-    });
-    ws.getRow(4).height = 20;
-
-    let totalHours = 0;
-    records.forEach((r, idx) => {
-      const rn = 5 + idx;
-      const ci = toTaipei(new Date(r.checkinTime)).toLocaleTimeString("zh-TW",  { hour:"2-digit", minute:"2-digit" });
-      const co = toTaipei(new Date(r.checkoutTime)).toLocaleTimeString("zh-TW", { hour:"2-digit", minute:"2-digit" });
-      ["", idx+1, r.year, r.month, r.day, ci, co, r.hours].forEach((v, i) => {
-        ws.getCell(rn, i+1).value = v;
-        ws.getCell(rn, i+1).style = { alignment:center, border };
-      });
-      totalHours += r.hours || 0;
-    });
-
-    const tr = 5 + records.length;
-    ws.getCell(tr, 2).value = "合計"; ws.getCell(tr, 2).style = { font:{bold:true}, alignment:center, border };
-    if (records.length > 0) ws.mergeCells(tr, 3, tr, 7);
-    ws.getCell(tr, 8).value = Math.round(totalHours * 10) / 10;
-    ws.getCell(tr, 8).style = { font:{bold:true}, alignment:center, border };
-
-    [3, 8, 6, 6, 6, 12, 12, 10].forEach((w, i) => { ws.getColumn(i+1).width = w; });
-
-    const fileName = `臨時人員出缺勤記錄_${year||""}年${month ? month+"月" : ""}.xlsx`;
+    const fileName = `臨時人員出勤記錄_${yearFilter||""}年${monthFilter ? monthFilter+"月" : ""}.xlsx`;
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
     await wb.xlsx.write(res);
