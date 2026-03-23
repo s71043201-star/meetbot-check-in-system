@@ -48,10 +48,31 @@ input[type="radio"] { width: 18px; height: 18px; cursor: pointer; accent-color: 
 .clearfix::after { content: ""; display: block; clear: both; }
 .hidden { display: none !important; }
 .hint { font-size: 12px; color: #888; margin-top: 4px; }
+.recover-bar {
+  background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px;
+  padding: 14px 18px; margin-bottom: 12px; font-size: 13px; color: #5d4037;
+}
+.recover-bar strong { display: block; margin-bottom: 8px; font-size: 14px; color: #e65100; }
+.recover-bar .recover-btns { display: flex; gap: 10px; margin-top: 10px; }
+.btn-recover { padding: 8px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-family: inherit; }
+.btn-yes { background: #ff8f00; color: #fff; }
+.btn-yes:hover { background: #e65100; }
+.btn-no  { background: #eee; color: #555; }
+.btn-no:hover { background: #ddd; }
 </style>
 </head>
 <body>
 <div class="container">
+
+  <!-- 回復提示列（localStorage 偵測） -->
+  <div id="recover-bar" class="recover-bar hidden">
+    <strong>⚠️ 發現未完成的簽退記錄</strong>
+    <span id="recover-info"></span>
+    <div class="recover-btns">
+      <button class="btn-recover btn-yes" onclick="restoreSession()">繼續填寫簽退表單</button>
+      <button class="btn-recover btn-no"  onclick="discardRecover()">忽略，重新簽到</button>
+    </div>
+  </div>
 
   <!-- Section 1: 簽到 -->
   <div id="sec-checkin">
@@ -222,6 +243,72 @@ function showErr(id, show) {
   document.getElementById(id).style.display = show ? "block" : "none";
 }
 
+// ── 回復機制：頁面載入時檢查 localStorage ──────
+(async function checkRecover() {
+  const savedId = localStorage.getItem("sessionId");
+  if (!savedId) return;
+  try {
+    const res  = await fetch("/session/" + savedId);
+    if (!res.ok) { localStorage.clear(); return; }
+    const data = await res.json();
+    if (!data.record || data.record.status !== "checked-in") { localStorage.clear(); return; }
+    const r   = data.record;
+    const t   = new Date(r.checkinTime).toLocaleTimeString("zh-TW", { hour:"2-digit", minute:"2-digit" });
+    document.getElementById("recover-info").textContent =
+      `姓名：${r.name}　課程：${r.course}　簽到時間：${t}`;
+    document.getElementById("recover-bar").classList.remove("hidden");
+  } catch { localStorage.clear(); }
+})();
+
+// 姓名欄失焦時：查詢是否有進行中的簽到（跨裝置回復）
+document.getElementById("name").addEventListener("blur", async function() {
+  const name = this.value.trim();
+  if (!name) return;
+  // 若 localStorage 已有相同 session 就不重複提示
+  if (localStorage.getItem("sessionId")) return;
+  try {
+    const res  = await fetch("/active-session?name=" + encodeURIComponent(name));
+    const data = await res.json();
+    if (!data.found) return;
+    const r = data.record;
+    const t = new Date(r.checkinTime).toLocaleTimeString("zh-TW", { hour:"2-digit", minute:"2-digit" });
+    // 存入 localStorage 並顯示回復提示
+    localStorage.setItem("sessionId", data.sessionId);
+    localStorage.setItem("name", r.name);
+    localStorage.setItem("course", r.course);
+    document.getElementById("recover-info").textContent =
+      `姓名：${r.name}　課程：${r.course}　簽到時間：${t}`;
+    document.getElementById("recover-bar").classList.remove("hidden");
+  } catch {}
+});
+
+function restoreSession() {
+  const sessionId = localStorage.getItem("sessionId");
+  const name      = localStorage.getItem("name");
+  const course    = localStorage.getItem("course");
+  if (!sessionId) return;
+  fetch("/session/" + sessionId).then(r => r.json()).then(data => {
+    if (!data.record || data.record.status !== "checked-in") {
+      alert("此簽到記錄已完成或不存在，請重新簽到");
+      localStorage.clear();
+      document.getElementById("recover-bar").classList.add("hidden");
+      return;
+    }
+    const r = data.record;
+    const t = new Date(r.checkinTime).toLocaleTimeString("zh-TW", { hour:"2-digit", minute:"2-digit" });
+    document.getElementById("checkin-info").textContent =
+      `${r.name}・${r.course}・開始時間：${t}`;
+    document.getElementById("recover-bar").classList.add("hidden");
+    document.getElementById("sec-checkin").classList.add("hidden");
+    document.getElementById("sec-form").classList.remove("hidden");
+  }).catch(() => alert("回復失敗，請重新簽到"));
+}
+
+function discardRecover() {
+  localStorage.clear();
+  document.getElementById("recover-bar").classList.add("hidden");
+}
+
 async function doCheckin() {
   const name   = document.getElementById("name").value.trim();
   const course = document.getElementById("course").value.trim();
@@ -241,14 +328,15 @@ async function doCheckin() {
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
 
-    sessionStorage.setItem("sessionId", data.sessionId);
-    sessionStorage.setItem("name", name);
-    sessionStorage.setItem("course", course);
+    localStorage.setItem("sessionId", data.sessionId);
+    localStorage.setItem("name", name);
+    localStorage.setItem("course", course);
 
     const now = new Date();
     document.getElementById("checkin-info").textContent =
       `${name}・${course}・開始時間：${now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}`;
 
+    document.getElementById("recover-bar").classList.add("hidden");
     document.getElementById("sec-checkin").classList.add("hidden");
     document.getElementById("sec-form").classList.remove("hidden");
   } catch (e) {
@@ -305,7 +393,7 @@ async function doCheckout() {
     document.getElementById("done-hours").textContent = `今日工作時數：${data.hours} 小時`;
     document.getElementById("sec-form").classList.add("hidden");
     document.getElementById("sec-done").classList.remove("hidden");
-    sessionStorage.clear();
+    localStorage.clear();
   } catch (e) {
     alert("送出失敗：" + e.message);
     btn.disabled = false;

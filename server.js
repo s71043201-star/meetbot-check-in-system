@@ -478,6 +478,34 @@ app.post("/checkout", async (req, res) => {
   }
 });
 
+// ── 查詢單一 session ──────────────────────────
+app.get("/session/:id", async (req, res) => {
+  try {
+    const record = await fbGet(`/${req.params.id}`);
+    if (!record) return res.status(404).json({ error: "not found" });
+    res.json({ ok: true, record, sessionId: req.params.id });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── 查詢姓名是否有進行中的簽到 ────────────────
+app.get("/active-session", async (req, res) => {
+  const { name } = req.query;
+  if (!name) return res.status(400).json({ error: "缺少 name" });
+  try {
+    const data = await fbGet();
+    if (!data) return res.json({ found: false });
+    const entry = Object.entries(data).find(
+      ([, r]) => r.name === name && r.status === "checked-in"
+    );
+    if (!entry) return res.json({ found: false });
+    res.json({ found: true, sessionId: entry[0], record: entry[1] });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── 查詢記錄 ──────────────────────────────────
 app.get("/records", async (req, res) => {
   try {
