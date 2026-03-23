@@ -232,11 +232,6 @@ async function doCheckin() {
     document.getElementById("checkin-info").textContent =
       `${name}・${course}・開始時間：${now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}`;
 
-    // 產生 QR Code
-    const pageUrl = window.location.origin + "/checkin.html";
-    document.getElementById("qrcode-img").src =
-      "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(pageUrl);
-
     document.getElementById("sec-checkin").classList.add("hidden");
     document.getElementById("sec-form").classList.remove("hidden");
   } catch (e) {
