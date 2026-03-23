@@ -534,8 +534,19 @@ app.get("/records", async (req, res) => {
 });
 
 // ── 匯出 Excel ────────────────────────────────
+function safeSheetName(wb, name) {
+  // 移除 Excel 不允許的字元，限制 31 字
+  let base = (name || '無名').replace(/[\\/?*[\]:]/g, '').slice(0, 31).trim() || '無名';
+  // 避免與已存在的工作表名稱衝突（不分大小寫）
+  const exists = () => wb.worksheets.some(ws => ws.name.toLowerCase() === base.toLowerCase());
+  let i = 2;
+  const orig = base;
+  while (exists()) base = orig.slice(0, 29) + '_' + (i++);
+  return base;
+}
+
 function buildPersonSheet(wb, personName, records) {
-  const ws = wb.addWorksheet(personName);
+  const ws = wb.addWorksheet(safeSheetName(wb, personName));
 
   const bdr  = { top:{style:"thin"}, bottom:{style:"thin"}, left:{style:"thin"}, right:{style:"thin"} };
   const mid  = { horizontal:"center", vertical:"middle" };
