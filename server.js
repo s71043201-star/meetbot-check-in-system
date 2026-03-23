@@ -558,13 +558,13 @@ function buildPersonSheet(wb, personName, records) {
 
   // Row 1 大標題
   ws.mergeCells("B1:I1");
-  ws.getRow(1).height = 28;
+  ws.getRow(1).height = 42;
   ws.getCell("B1").value = "健康台灣深耕計畫專職人員出勤記錄表";
   ws.getCell("B1").style = { font:{...tk, size:14, bold:true}, alignment:mid };
 
   // Row 2 副標題
   ws.mergeCells("B2:I2");
-  ws.getRow(2).height = 24;
+  ws.getRow(2).height = 36;
   ws.getCell("B2").value = "臨時人員出勤記錄與工作內容說明";
   ws.getCell("B2").style = { font:{...tk, size:13, bold:true}, alignment:mid };
 
@@ -611,11 +611,19 @@ function buildPersonSheet(wb, personName, records) {
   // 合計列
   const tr = dataStart + records.length;
   ws.getRow(tr).height = 30;
-  ws.mergeCells(tr, 2, tr, 8);
-  ws.getCell(tr, 2).value = "累計";
-  ws.getCell(tr, 2).style = { font:{...tk, bold:true}, alignment:mid, border:bdr };
-  ws.getCell(tr, 9).value = Math.round(totalHours * 10) / 10;
-  ws.getCell(tr, 9).style = { font:{...tk, bold:true}, alignment:mid, border:bdr };
+  // 不使用 mergeCells，改為逐格設定邊線確保底線完整
+  for (let c = 2; c <= 9; c++) {
+    const cell = ws.getCell(tr, c);
+    if (c === 2) {
+      cell.value = "累計";
+      cell.style = { font:{...tk, bold:true}, alignment:mid, border:bdr };
+    } else if (c === 9) {
+      cell.value = Math.round(totalHours * 10) / 10;
+      cell.style = { font:{...tk, bold:true}, alignment:mid, border:bdr };
+    } else {
+      cell.style = { border:bdr };
+    }
+  }
 }
 
 app.get("/export", async (req, res) => {
