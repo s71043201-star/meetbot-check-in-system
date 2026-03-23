@@ -533,6 +533,16 @@ app.get("/records", async (req, res) => {
   }
 });
 
+// ── 刪除記錄 ──────────────────────────────────
+app.delete("/records/:id", async (req, res) => {
+  try {
+    await axios.delete(`${ATT_FB}/${req.params.id}.json`);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── 匯出 Excel ────────────────────────────────
 function safeSheetName(wb, name) {
   // 移除 Excel 不允許的字元，限制 31 字
