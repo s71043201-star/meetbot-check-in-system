@@ -264,6 +264,9 @@ input[type="checkbox"] {
 }
 .time-row span { color: #5f6368; font-size: 14px; }
 
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.hint { font-size: 12px; color: #888; margin-top: 4px; }
+
 .section-divider {
   border: none;
   border-top: 1px solid #e0e0e0;
@@ -437,8 +440,18 @@ input[type="checkbox"] {
   <!-- ===== Section 3a: 一般簽到表單 ===== -->
   <div id="sec-form-regular" class="hidden">
     <div class="card header-card">
-      <h1>一般簽到 ── 工作紀錄</h1>
+      <h1>一般簽到 ── 開課紀錄表</h1>
       <p class="subtitle" id="regular-info">--</p>
+      <div style="margin-top:14px;font-size:13px;color:#5f6368;line-height:1.8;border-top:1px solid #e8eaed;padding-top:14px">
+        <p>本會為衛生福利部「健康台灣深耕計畫」受補助單位，本表單為處方課程隨課人員之紀錄表單，請詳細填寫。</p>
+        <p style="margin-top:10px;font-weight:500;color:#202124">隨課人員協助項目：</p>
+        <p>□ 社區大學限定（開關教室、借用教具）</p>
+        <p>□ 協助報到</p>
+        <p>□ 協助課程中活動拍照記錄</p>
+        <p>□ 協助課後滿意度調查</p>
+        <p>□ 回報課程出席狀況</p>
+        <p>□ 簡述課程狀況與反應項目</p>
+      </div>
     </div>
 
     <div class="card">
@@ -448,40 +461,58 @@ input[type="checkbox"] {
     </div>
 
     <div class="card">
-      <div class="q-title required">課程預計時間</div>
-      <div class="time-row">
-        <input type="time" id="regular-time-start">
-        <span>至</span>
-        <input type="time" id="regular-time-end">
-      </div>
-      <div class="err hidden" id="err-regular-time">請填寫課程預計時間</div>
-    </div>
-
-    <div class="card">
-      <div class="q-title required">今日工作時段</div>
+      <div class="q-title required">課程預計時數</div>
       <div class="radio-group">
-        <label class="opt"><input type="radio" name="regular-shift" value="上午班"> 上午班</label>
-        <label class="opt"><input type="radio" name="regular-shift" value="下午班"> 下午班</label>
-        <label class="opt"><input type="radio" name="regular-shift" value="全天"> 全天</label>
+        <label class="opt"><input type="radio" name="regular-plannedHours" value="1小時（50-60分鐘）"> 1 小時（50-60 分鐘）</label>
+        <label class="opt"><input type="radio" name="regular-plannedHours" value="1.5小時"> 1.5 小時</label>
+        <label class="opt"><input type="radio" name="regular-plannedHours" value="2小時"> 2 小時</label>
+        <label class="opt"><input type="radio" name="regular-plannedHours" value="其他"> 其他</label>
       </div>
-      <div class="err hidden" id="err-regular-shift">請選擇工作時段</div>
+      <div class="err hidden" id="err-regular-plannedHours">請選擇課程預計時數</div>
     </div>
 
     <div class="card">
-      <div class="q-title required">工作內容（可複選）</div>
-      <div class="check-group" id="regular-content-group">
-        <label class="opt"><input type="checkbox" value="出缺勤影像資料紀錄"> 出缺勤影像資料紀錄</label>
-        <label class="opt"><input type="checkbox" value="任務執行查核業務"> 任務執行查核業務</label>
-        <label class="opt"><input type="checkbox" value="課程協助"> 課程協助</label>
-        <label class="opt"><input type="checkbox" value="資料整理"> 資料整理</label>
-        <label class="opt"><input type="checkbox" value="其他"> 其他</label>
+      <div class="q-title required">課程屬性</div>
+      <div class="radio-group">
+        <label class="opt"><input type="radio" name="regular-courseType" value="A.運動處方"> A. 運動處方</label>
+        <label class="opt"><input type="radio" name="regular-courseType" value="B.營養處方"> B. 營養處方</label>
+        <label class="opt"><input type="radio" name="regular-courseType" value="C.社會處方"> C. 社會處方</label>
+        <label class="opt"><input type="radio" name="regular-courseType" value="D.情緒調適處方"> D. 情緒調適處方</label>
       </div>
-      <div class="err hidden" id="err-regular-content">請至少勾選一項工作內容</div>
+      <div class="err hidden" id="err-regular-courseType">請選擇課程屬性</div>
     </div>
 
     <div class="card">
-      <div class="q-title">備註（選填）</div>
-      <textarea id="regular-note" rows="3" placeholder="如有其他說明，請填寫於此"></textarea>
+      <div class="q-title">課程老師</div>
+      <input type="text" id="regular-teacher" placeholder="請輸入課程老師姓名（非必填）">
+    </div>
+
+    <div class="card">
+      <div class="q-title required">出席人數</div>
+      <div class="row-2">
+        <div>
+          <div class="q-title required" style="font-size:13px;margin-bottom:8px;">系統報名人數</div>
+          <input type="number" id="regular-registeredCount" placeholder="請輸入數字" min="0">
+          <div class="err hidden" id="err-regular-reg">請填寫</div>
+        </div>
+        <div>
+          <div class="q-title required" style="font-size:13px;margin-bottom:8px;">線上報名實到人數</div>
+          <input type="number" id="regular-actualCount" placeholder="請輸入數字" min="0">
+          <div class="err hidden" id="err-regular-act">請填寫</div>
+        </div>
+      </div>
+      <div style="margin-top:16px;">
+        <div class="q-title required" style="font-size:13px;margin-bottom:8px;">無報名現場候補人數</div>
+        <input type="number" id="regular-walkInCount" placeholder="請輸入數字" min="0">
+        <div class="err hidden" id="err-regular-walk">請填寫</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="q-title required">簡述上課內容或回報狀況</div>
+      <textarea id="regular-summary" rows="4" placeholder="請簡述今日上課內容或狀況（100字內）" maxlength="100"></textarea>
+      <div class="hint"><span id="regular-char-count">0</span>/100 字</div>
+      <div class="err hidden" id="err-regular-summary">請填寫上課內容</div>
     </div>
 
     <div class="card clearfix">
@@ -492,8 +523,18 @@ input[type="checkbox"] {
   <!-- ===== Section 3b: 處方日簽到表單 ===== -->
   <div id="sec-form-prescription" class="hidden">
     <div class="card header-card">
-      <h1>處方日簽到 ── 工作紀錄</h1>
+      <h1>處方日簽到 ── 開課紀錄表</h1>
       <p class="subtitle" id="prescription-info">--</p>
+      <div style="margin-top:14px;font-size:13px;color:#5f6368;line-height:1.8;border-top:1px solid #e8eaed;padding-top:14px">
+        <p>本會為衛生福利部「健康台灣深耕計畫」受補助單位，本表單為處方課程隨課人員之紀錄表單，請詳細填寫。</p>
+        <p style="margin-top:10px;font-weight:500;color:#202124">隨課人員協助項目：</p>
+        <p>□ 社區大學限定（開關教室、借用教具）</p>
+        <p>□ 協助報到</p>
+        <p>□ 協助課程中活動拍照記錄</p>
+        <p>□ 協助課後滿意度調查</p>
+        <p>□ 回報課程出席狀況</p>
+        <p>□ 簡述課程狀況與反應項目</p>
+      </div>
     </div>
 
     <div class="card">
@@ -513,30 +554,47 @@ input[type="checkbox"] {
     </div>
 
     <div class="card">
-      <div class="q-title required">今日工作時段</div>
+      <div class="q-title required">課程屬性</div>
       <div class="radio-group">
-        <label class="opt"><input type="radio" name="prescription-shift" value="上午班"> 上午班</label>
-        <label class="opt"><input type="radio" name="prescription-shift" value="下午班"> 下午班</label>
-        <label class="opt"><input type="radio" name="prescription-shift" value="全天"> 全天</label>
+        <label class="opt"><input type="radio" name="prescription-courseType" value="A.運動處方"> A. 運動處方</label>
+        <label class="opt"><input type="radio" name="prescription-courseType" value="B.營養處方"> B. 營養處方</label>
+        <label class="opt"><input type="radio" name="prescription-courseType" value="C.社會處方"> C. 社會處方</label>
+        <label class="opt"><input type="radio" name="prescription-courseType" value="D.情緒調適處方"> D. 情緒調適處方</label>
       </div>
-      <div class="err hidden" id="err-prescription-shift">請選擇工作時段</div>
+      <div class="err hidden" id="err-prescription-courseType">請選擇課程屬性</div>
     </div>
 
     <div class="card">
-      <div class="q-title required">工作內容（可複選）</div>
-      <div class="check-group" id="prescription-content-group">
-        <label class="opt"><input type="checkbox" value="出缺勤影像資料紀錄"> 出缺勤影像資料紀錄</label>
-        <label class="opt"><input type="checkbox" value="任務執行查核業務"> 任務執行查核業務</label>
-        <label class="opt"><input type="checkbox" value="課程協助"> 課程協助</label>
-        <label class="opt"><input type="checkbox" value="資料整理"> 資料整理</label>
-        <label class="opt"><input type="checkbox" value="其他"> 其他</label>
-      </div>
-      <div class="err hidden" id="err-prescription-content">請至少勾選一項工作內容</div>
+      <div class="q-title">課程老師</div>
+      <input type="text" id="prescription-teacher" placeholder="請輸入課程老師姓名（非必填）">
     </div>
 
     <div class="card">
-      <div class="q-title">備註（選填）</div>
-      <textarea id="prescription-note" rows="3" placeholder="如有其他說明，請填寫於此"></textarea>
+      <div class="q-title required">出席人數</div>
+      <div class="row-2">
+        <div>
+          <div class="q-title required" style="font-size:13px;margin-bottom:8px;">系統報名人數</div>
+          <input type="number" id="prescription-registeredCount" placeholder="請輸入數字" min="0">
+          <div class="err hidden" id="err-prescription-reg">請填寫</div>
+        </div>
+        <div>
+          <div class="q-title required" style="font-size:13px;margin-bottom:8px;">線上報名實到人數</div>
+          <input type="number" id="prescription-actualCount" placeholder="請輸入數字" min="0">
+          <div class="err hidden" id="err-prescription-act">請填寫</div>
+        </div>
+      </div>
+      <div style="margin-top:16px;">
+        <div class="q-title required" style="font-size:13px;margin-bottom:8px;">無報名現場候補人數</div>
+        <input type="number" id="prescription-walkInCount" placeholder="請輸入數字" min="0">
+        <div class="err hidden" id="err-prescription-walk">請填寫</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="q-title required">簡述上課內容或回報狀況</div>
+      <textarea id="prescription-summary" rows="4" placeholder="請簡述今日上課內容或狀況（100字內）" maxlength="100"></textarea>
+      <div class="hint"><span id="prescription-char-count">0</span>/100 字</div>
+      <div class="err hidden" id="err-prescription-summary">請填寫上課內容</div>
     </div>
 
     <div class="card clearfix">
@@ -771,44 +829,67 @@ function removeCourse(btn) {
   });
 }
 
+// ── 字數計算 ──
+document.addEventListener("input", function(e) {
+  if (e.target.id === "regular-summary")
+    document.getElementById("regular-char-count").textContent = e.target.value.length;
+  if (e.target.id === "prescription-summary")
+    document.getElementById("prescription-char-count").textContent = e.target.value.length;
+});
+
 // ── Step 3: 簽退 ──
 async function doCheckout(type) {
   const sessionId = sessionStorage.getItem("sessionId");
   const name      = sessionStorage.getItem("name");
   if (!sessionId) { alert("找不到簽到記錄，請重新整理頁面後簽到"); return; }
 
-  let shift, workContent, note, course, courses, scheduledTime;
+  const p = type; // prefix
+  let course, courses, plannedHours, courseType, teacher,
+      registeredCount, actualCount, walkInCount, summary;
 
   if (type === "regular") {
-    course    = document.getElementById("regular-course").value.trim();
-    const ts  = document.getElementById("regular-time-start").value;
-    const te  = document.getElementById("regular-time-end").value;
-    shift     = document.querySelector('input[name="regular-shift"]:checked');
-    workContent = [...document.querySelectorAll('#regular-content-group input:checked')].map(el => el.value);
-    note      = document.getElementById("regular-note").value.trim();
+    course = document.getElementById("regular-course").value.trim();
+    const ph = document.querySelector('input[name="regular-plannedHours"]:checked');
+    const ct = document.querySelector('input[name="regular-courseType"]:checked');
+    teacher = document.getElementById("regular-teacher").value.trim();
+    registeredCount = document.getElementById("regular-registeredCount").value;
+    actualCount     = document.getElementById("regular-actualCount").value;
+    walkInCount     = document.getElementById("regular-walkInCount").value;
+    summary         = document.getElementById("regular-summary").value.trim();
 
-    showErr("err-regular-course",  !course);
-    showErr("err-regular-time",    !ts || !te);
-    showErr("err-regular-shift",   !shift);
-    showErr("err-regular-content", workContent.length === 0);
-    if (!course || !ts || !te || !shift || workContent.length === 0) return;
+    let valid = true;
+    showErr("err-regular-course",       !course);         if (!course) valid = false;
+    showErr("err-regular-plannedHours", !ph);             if (!ph) valid = false;
+    showErr("err-regular-courseType",    !ct);             if (!ct) valid = false;
+    showErr("err-regular-reg",          registeredCount === ""); if (registeredCount === "") valid = false;
+    showErr("err-regular-act",          actualCount === "");     if (actualCount === "") valid = false;
+    showErr("err-regular-walk",         walkInCount === "");     if (walkInCount === "") valid = false;
+    showErr("err-regular-summary",      !summary);        if (!summary) valid = false;
+    if (!valid) return;
 
-    scheduledTime = `${ts} - ${te}`;
-    shift = shift.value;
+    plannedHours = ph.value;
+    courseType   = ct.value;
   } else {
-    courses   = [...document.querySelectorAll(".prescription-course-name")]
-                  .map(el => el.value.trim()).filter(v => v);
-    shift     = document.querySelector('input[name="prescription-shift"]:checked');
-    workContent = [...document.querySelectorAll('#prescription-content-group input:checked')].map(el => el.value);
-    note      = document.getElementById("prescription-note").value.trim();
+    courses = [...document.querySelectorAll(".prescription-course-name")]
+                .map(el => el.value.trim()).filter(v => v);
+    const ct = document.querySelector('input[name="prescription-courseType"]:checked');
+    teacher = document.getElementById("prescription-teacher").value.trim();
+    registeredCount = document.getElementById("prescription-registeredCount").value;
+    actualCount     = document.getElementById("prescription-actualCount").value;
+    walkInCount     = document.getElementById("prescription-walkInCount").value;
+    summary         = document.getElementById("prescription-summary").value.trim();
 
-    showErr("err-prescription-course",  courses.length === 0);
-    showErr("err-prescription-shift",   !shift);
-    showErr("err-prescription-content", workContent.length === 0);
-    if (courses.length === 0 || !shift || workContent.length === 0) return;
+    let valid = true;
+    showErr("err-prescription-course",    courses.length === 0); if (courses.length === 0) valid = false;
+    showErr("err-prescription-courseType", !ct);                  if (!ct) valid = false;
+    showErr("err-prescription-reg",       registeredCount === ""); if (registeredCount === "") valid = false;
+    showErr("err-prescription-act",       actualCount === "");     if (actualCount === "") valid = false;
+    showErr("err-prescription-walk",      walkInCount === "");     if (walkInCount === "") valid = false;
+    showErr("err-prescription-summary",   !summary);               if (!summary) valid = false;
+    if (!valid) return;
 
-    course = courses.join("、");
-    shift  = shift.value;
+    course     = courses.join("、");
+    courseType  = ct.value;
   }
 
   try {
@@ -817,13 +898,16 @@ async function doCheckout(type) {
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({
         sessionId,
-        checkinType: type,
+        checkinType:     type,
         course,
-        courses: courses || [course],
-        scheduledTime: scheduledTime || "",
-        shift,
-        workContent,
-        note
+        courses:         courses || [course],
+        plannedHours:    plannedHours || "",
+        courseType,
+        teacher,
+        registeredCount: parseInt(registeredCount),
+        actualCount:     parseInt(actualCount),
+        walkInCount:     parseInt(walkInCount),
+        summary
       })
     });
     const data = await res.json();
