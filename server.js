@@ -822,79 +822,85 @@ app.get("/export-full", async (req, res) => {
     for (const [pName, pRecs] of Object.entries(grouped)) {
       const latest = pRecs.find(r => r.idNumber) || pRecs[0];
       const fa = Array.isArray(latest.feeTypes) ? latest.feeTypes : [];
-      const feeStr = allFeeTypes.map(ft => `${fa.includes(ft) ? "☑" : "☐"}${ft}`).join("　");
+      const feeStr = allFeeTypes.map(ft => `□${ft}`).join("");
       const pm = latest.payMethod || "";
       const bi = latest.bankInfo || {};
       const idNum = latest.idNumber || "";
-      const idBoxes = idNum
-        ? idNum.split("").map(c => `<td class="id-box">${c}</td>`).join("")
-        : Array(10).fill('<td class="id-box"></td>').join("");
-      const la = latest.liveAddress || latest.address || "";
-      const liveDisplay = (la && la === latest.address)
-        ? "☑同上　☐請另填：" : `☐同上　☑請另填：${la}`;
+      const idCells = Array.from({length:10}, (_,i) =>
+        `<td class="id-cell">${idNum[i] || ""}</td>`
+      ).join("");
+      const addr = latest.address || "";
+      const la = latest.liveAddress || "";
+      const sameAddr = !la || la === addr;
 
       pages += `
       <div class="page">
-        <h2>社團法人台北市醫師公會・領據（健康台灣深耕計畫）</h2>
+        <h2>社團法人台北市醫師公會　領據（健康台灣深耕計畫）</h2>
         <table>
           <tr>
-            <th style="width:110px;">領款人姓名</th>
-            <td style="width:160px;text-align:center;">${pName}</td>
-            <th style="width:130px;">事由或會議名稱</th>
-            <td>${latest.eventName || ""}</td>
+            <th class="lbl">領款人姓名</th>
+            <td class="val">${pName}</td>
+            <th class="lbl" colspan="3">事由或會議名稱</th>
+            <td class="val" colspan="5">${latest.eventName || ""}</td>
           </tr>
           <tr>
-            <th>費用別</th>
-            <td colspan="3">${feeStr}</td>
+            <th class="lbl">費用別</th>
+            <td colspan="9">${feeStr}</td>
           </tr>
           <tr>
-            <th>金額</th>
-            <td colspan="3">
-              <div style="margin-bottom:2px;">新臺幣</div>
-              <div class="amount-row">
-                <span class="amt-box"></span>萬
-                <span class="amt-box"></span>仟
-                <span class="amt-box"></span>佰
-                <span class="amt-box"></span>拾
-                <span class="amt-box"></span>元整
-                <span style="margin-left:16px;">（$＿＿＿＿＿＿）</span>
-              </div>
-            </td>
+            <th class="lbl">金額</th>
+            <td colspan="9">新臺幣＿＿＿萬＿＿＿仟＿＿＿佰＿＿＿拾＿＿＿元整（＄＿＿＿＿＿＿）</td>
           </tr>
           <tr>
-            <th rowspan="3">領款方式</th>
-            <td colspan="3">${pm === "現金" ? "☑" : "☐"}現金　　${pm === "匯款" ? "☑" : "☐"}匯款</td>
+            <th class="lbl" rowspan="4">領款方式</th>
+            <td colspan="9">□現金</td>
           </tr>
           <tr>
-            <td colspan="3">受款銀行名稱：${bi.bankName || "＿＿＿＿＿＿＿＿"}　　戶名：${bi.accountName || "＿＿＿＿＿＿"}</td>
+            <td colspan="9">□匯款</td>
           </tr>
           <tr>
-            <td colspan="3">帳號：${bi.account || "＿＿＿＿＿＿＿＿＿＿＿＿＿＿"}</td>
+            <td colspan="9">受款銀行名稱:${bi.bankName || ""}</td>
           </tr>
           <tr>
-            <th>領款日期</th>
-            <td colspan="2" style="text-align:center;">中華民國＿＿＿年＿＿月＿＿日</td>
-            <td style="text-align:center;">
-              <span style="font-weight:bold;color:#555;">領款人簽章</span><br><br><br>
-            </td>
+            <td colspan="4">戶名:${bi.accountName || ""}</td>
+            <td colspan="5">帳號:${bi.account || ""}</td>
           </tr>
           <tr>
-            <th>身分證號碼</th>
-            <td colspan="3">
-              <table class="id-table"><tr>${idBoxes}</tr></table>
-            </td>
+            <th class="lbl">領款日期</th>
+            <td colspan="4" style="text-align:center;">中華民國＿＿＿年＿＿月＿＿日</td>
+            <td colspan="2" style="text-align:center;font-weight:bold;">領款人簽章</td>
+            <td colspan="3" style="height:50px;"></td>
           </tr>
           <tr>
-            <th>戶籍地址</th>
-            <td colspan="3">${latest.address || ""}</td>
+            <th class="lbl">身分證號碼</th>
+            ${idCells}
           </tr>
           <tr>
-            <th>居住地址</th>
-            <td colspan="3">${liveDisplay}</td>
+            <th class="lbl" rowspan="2">戶籍地址</th>
+            <td colspan="2">${addr ? addr : ""}市縣</td>
+            <td colspan="2">區市鄉鎮</td>
+            <td colspan="2">里村</td>
+            <td>鄰</td>
+            <td colspan="2">路街</td>
           </tr>
           <tr>
-            <th>連絡電話</th>
-            <td colspan="3">${latest.phone || ""}</td>
+            <td colspan="2">段</td>
+            <td>巷</td>
+            <td>弄</td>
+            <td colspan="2">號</td>
+            <td>樓</td>
+            <td colspan="2">之</td>
+          </tr>
+          <tr>
+            <th class="lbl" rowspan="2">居住地址</th>
+            <td colspan="9">${sameAddr ? "☑" : "□"}同上　${sameAddr ? "□" : "☑"}請另填：${sameAddr ? "" : la}</td>
+          </tr>
+          <tr>
+            <td colspan="9" style="height:24px;"></td>
+          </tr>
+          <tr>
+            <th class="lbl">連絡電話</th>
+            <td colspan="9">${latest.phone || ""}</td>
           </tr>
         </table>
       </div>`;
@@ -905,20 +911,16 @@ app.get("/export-full", async (req, res) => {
   xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="UTF-8">
 <style>
-  @page { size: A4; margin: 2cm 2cm 2cm 2cm; }
-  body { font-family: "Microsoft JhengHei","微軟正黑體","Noto Sans TC",sans-serif; color: #1a1a2e; font-size: 12pt; }
+  @page { size: A4; margin: 2cm 1.5cm 2cm 1.5cm; }
+  body { font-family: "DFKai-SB","標楷體","Microsoft JhengHei",sans-serif; color: #000; font-size: 12pt; }
   .page { page-break-after: always; }
   .page:last-child { page-break-after: avoid; }
-  h2 { font-size: 14pt; text-align: center; margin-bottom: 14px; letter-spacing: 1px; }
-  table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-  th, td { border: 1px solid #333; padding: 8px 10px; font-size: 11pt; vertical-align: middle; }
-  th { background: #e8ecf2; font-weight: bold; text-align: center; }
+  h2 { font-size: 15pt; text-align: center; margin-bottom: 12px; font-weight: bold; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #000; padding: 6px 8px; font-size: 11pt; vertical-align: middle; }
+  th.lbl { background: #fff; font-weight: bold; text-align: center; width: 90px; }
   td { text-align: left; }
-  .id-table { border: none; width: auto; margin: 0 auto; }
-  .id-table td { width: 28px; height: 32px; text-align: center; font-size: 14pt; font-family: monospace; border: 1px solid #666; padding: 2px; }
-  .id-box { display: inline-block; }
-  .amount-row { letter-spacing: 1px; }
-  .amt-box { display: inline-block; width: 22px; height: 18px; border-bottom: 1px solid #333; text-align: center; margin: 0 2px; }
+  .id-cell { width: 30px; height: 30px; text-align: center; font-size: 14pt; font-family: "Courier New", monospace; }
 </style></head>
 <body>${pages}</body></html>`;
 
