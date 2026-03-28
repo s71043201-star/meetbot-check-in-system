@@ -191,24 +191,6 @@ input[type="checkbox"] {
 .bank-fields { margin-top: 12px; padding-left: 30px; }
 .bank-fields.hidden { display: none; }
 
-.addr-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-.addr-row input {
-  width: auto;
-  flex: 1;
-  min-width: 50px;
-}
-.addr-row span {
-  font-size: 13px;
-  color: #5f6368;
-  white-space: nowrap;
-}
-
 .same-addr-opt {
   display: flex;
   align-items: center;
@@ -397,21 +379,7 @@ input[type="checkbox"] {
     <!-- 戶籍地址 -->
     <div class="card">
       <div class="q-title required">戶籍地址</div>
-      <div class="addr-row">
-        <input type="text" id="addr-city" placeholder="市/縣" style="max-width:100px;">
-        <input type="text" id="addr-district" placeholder="區/市/鄉/鎮" style="max-width:120px;">
-        <input type="text" id="addr-village" placeholder="里/村" style="max-width:80px;">
-        <input type="text" id="addr-neighbor" placeholder="鄰" style="max-width:60px;">
-      </div>
-      <div class="addr-row">
-        <input type="text" id="addr-road" placeholder="路/街" style="max-width:120px;">
-        <input type="text" id="addr-section" placeholder="段" style="max-width:60px;">
-        <input type="text" id="addr-lane" placeholder="巷" style="max-width:60px;">
-        <input type="text" id="addr-alley" placeholder="弄" style="max-width:60px;">
-        <input type="text" id="addr-number" placeholder="號" style="max-width:60px;">
-        <input type="text" id="addr-floor" placeholder="樓" style="max-width:60px;">
-        <input type="text" id="addr-extra" placeholder="之" style="max-width:60px;">
-      </div>
+      <input type="text" id="address" placeholder="例：台北市北投區中央南路一段45號之1">
       <div class="err hidden" id="err-address">請填寫戶籍地址</div>
     </div>
 
@@ -422,21 +390,7 @@ input[type="checkbox"] {
         <input type="checkbox" id="sameAddr" onchange="toggleSameAddr()" checked> 同戶籍地址
       </label>
       <div id="live-addr-fields" class="hidden">
-        <div class="addr-row">
-          <input type="text" id="live-city" placeholder="市/縣" style="max-width:100px;">
-          <input type="text" id="live-district" placeholder="區/市/鄉/鎮" style="max-width:120px;">
-          <input type="text" id="live-village" placeholder="里/村" style="max-width:80px;">
-          <input type="text" id="live-neighbor" placeholder="鄰" style="max-width:60px;">
-        </div>
-        <div class="addr-row">
-          <input type="text" id="live-road" placeholder="路/街" style="max-width:120px;">
-          <input type="text" id="live-section" placeholder="段" style="max-width:60px;">
-          <input type="text" id="live-lane" placeholder="巷" style="max-width:60px;">
-          <input type="text" id="live-alley" placeholder="弄" style="max-width:60px;">
-          <input type="text" id="live-number" placeholder="號" style="max-width:60px;">
-          <input type="text" id="live-floor" placeholder="樓" style="max-width:60px;">
-          <input type="text" id="live-extra" placeholder="之" style="max-width:60px;">
-        </div>
+        <input type="text" id="liveAddress" placeholder="請輸入居住地址">
       </div>
     </div>
 
@@ -688,8 +642,13 @@ async function loadHistory() {
     // 身分證
     if (r.idNumber) document.getElementById("idNumber").value = r.idNumber;
 
-    // 地址（直接填入第一格，因為存的是合併字串）
-    if (r.address) document.getElementById("addr-city").value = r.address;
+    // 地址
+    if (r.address) document.getElementById("address").value = r.address;
+    if (r.liveAddress && r.liveAddress !== r.address) {
+      document.getElementById("sameAddr").checked = false;
+      toggleSameAddr();
+      document.getElementById("liveAddress").value = r.liveAddress;
+    }
 
     // 電話
     if (r.phone) document.getElementById("phone").value = r.phone;
@@ -702,17 +661,6 @@ async function loadHistory() {
   }
 }
 
-// ── 收集地址 ──
-function getAddress(prefix) {
-  const ids = ["city","district","village","neighbor","road","section","lane","alley","number","floor","extra"];
-  const labels = ["","","","鄰","","段","巷","弄","號","樓","之"];
-  const parts = [];
-  ids.forEach((id, i) => {
-    const v = document.getElementById(`${prefix}-${id}`).value.trim();
-    if (v) parts.push(v + labels[i]);
-  });
-  return parts.join("");
-}
 
 // ── Step 1: 簽到 ──
 async function doCheckin() {
@@ -722,7 +670,7 @@ async function doCheckin() {
   const feeTypes  = [...document.querySelectorAll('input[name="feeType"]:checked')].map(el => el.value);
   const payMethod = document.querySelector('input[name="payMethod"]:checked');
   const idNumber  = document.getElementById("idNumber").value.trim().toUpperCase();
-  const address   = getAddress("addr");
+  const address   = document.getElementById("address").value.trim();
   const phone     = document.getElementById("phone").value.trim();
 
   // 驗證
@@ -750,7 +698,7 @@ async function doCheckin() {
 
   // 居住地址
   const sameAddr    = document.getElementById("sameAddr").checked;
-  const liveAddress = sameAddr ? address : getAddress("live");
+  const liveAddress = sameAddr ? address : document.getElementById("liveAddress").value.trim();
 
   const receipt = {
     name,
