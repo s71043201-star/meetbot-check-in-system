@@ -307,7 +307,7 @@ tr:hover td { background: #f8f9fa; }
       <input type="text" id="receiptFilterName" placeholder="搜尋姓名" style="width:120px">
     </label>
     <button class="btn btn-primary" onclick="loadReceipts()">搜尋</button>
-    <button class="btn btn-success" onclick="exportAllReceipts()">匯出全部領據 Excel</button>
+    <button class="btn btn-success" onclick="exportAllReceipts()">匯出全部領據 Word</button>
   </div>
 
   <div id="receipt-list" class="receipt-cards">
@@ -475,7 +475,7 @@ async function loadReceipts() {
         <div class="receipt-card-header">
           <h3>${personName}（共 ${recs.length} 筆，${Math.round(totalHours * 10) / 10} 小時）</h3>
           <button class="btn btn-outline btn-sm" style="color:#fff;border-color:#fff;" onclick="window.location.href='/export-full?${qp.toString()}'">
-            匯出完整文件
+            匯出領據 Word
           </button>
         </div>
         <div class="receipt-card-body">

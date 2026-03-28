@@ -799,6 +799,7 @@ app.get("/test-me", async (req, res) => {
 });
 
 // ── 匯出領據 Excel ──────────────────────────────
+// ── 匯出領據 Word ───────────────────────────────
 app.get("/export-full", async (req, res) => {
   const { name, month, year } = req.query;
   try {
@@ -815,116 +816,119 @@ app.get("/export-full", async (req, res) => {
       grouped[r.name].push(r);
     });
 
-    const wb = new ExcelJS.Workbook();
-    const bdr = { top:{style:"thin"}, bottom:{style:"thin"}, left:{style:"thin"}, right:{style:"thin"} };
-    const mid = { horizontal:"center", vertical:"middle", wrapText:true };
-    const lft = { horizontal:"left", vertical:"middle", wrapText:true };
-    const thFill = { type:"pattern", pattern:"solid", fgColor:{ argb:"FFD9E1F2" } };
-    const thStyle = { font:{bold:true}, alignment:mid, border:bdr, fill:thFill };
+    const allFeeTypes = ["稿費","審查費","講座鐘點費","臨時人員費","出席費","交通差旅費","其他"];
 
+    let pages = "";
     for (const [pName, pRecs] of Object.entries(grouped)) {
       const latest = pRecs.find(r => r.idNumber) || pRecs[0];
-      const ws = wb.addWorksheet(safeSheetName(wb, pName));
+      const fa = Array.isArray(latest.feeTypes) ? latest.feeTypes : [];
+      const feeStr = allFeeTypes.map(ft => `${fa.includes(ft) ? "☑" : "☐"}${ft}`).join("　");
+      const pm = latest.payMethod || "";
+      const bi = latest.bankInfo || {};
+      const idNum = latest.idNumber || "";
+      const idBoxes = idNum
+        ? idNum.split("").map(c => `<td class="id-box">${c}</td>`).join("")
+        : Array(10).fill('<td class="id-box"></td>').join("");
+      const la = latest.liveAddress || latest.address || "";
+      const liveDisplay = (la && la === latest.address)
+        ? "☑同上　☐請另填：" : `☐同上　☑請另填：${la}`;
 
-      ws.mergeCells("A1:G1");
-      ws.getCell("A1").value = "社團法人台北市醫師公會 · 領據（健康台灣深耕計畫）";
-      ws.getCell("A1").style = { font:{bold:true,size:13}, alignment:mid, border:bdr };
-      ws.getRow(1).height = 32;
-
-      let row = 2;
-
-      // 領款人姓名 + 事由
-      ws.getCell(row,1).value = "領款人姓名"; ws.getCell(row,1).style = thStyle;
-      ws.mergeCells(row,2,row,3);
-      ws.getCell(row,2).value = pName; ws.getCell(row,2).style = {alignment:mid,border:bdr};
-      ws.getCell(row,4).value = "事由或會議名稱"; ws.getCell(row,4).style = thStyle;
-      ws.mergeCells(row,5,row,7);
-      ws.getCell(row,5).value = latest.eventName||""; ws.getCell(row,5).style = {alignment:mid,border:bdr};
-      row++;
-
-      // 費用別
-      ws.getCell(row,1).value = "費用別"; ws.getCell(row,1).style = thStyle;
-      ws.mergeCells(row,2,row,7);
-      const fa = Array.isArray(latest.feeTypes)?latest.feeTypes:[];
-      ws.getCell(row,2).value = ["稿費","審查費","講座鐘點費","臨時人員費","出席費","交通差旅費","其他"]
-        .map(ft=>(fa.includes(ft)?"☑":"☐")+ft).join("  ");
-      ws.getCell(row,2).style = {alignment:lft,border:bdr};
-      row++;
-
-      // 金額
-      ws.getCell(row,1).value = "金額"; ws.getCell(row,1).style = thStyle;
-      ws.mergeCells(row,2,row,7);
-      ws.getCell(row,2).value = "新臺幣　　萬　　仟　　佰　　拾　　元整（$　　　　　　）";
-      ws.getCell(row,2).style = {alignment:lft,border:bdr}; ws.getRow(row).height=24;
-      row++;
-
-      // 領款方式 (3 rows)
-      const pmStart = row;
-      ws.getCell(row,1).value = "領款方式"; ws.getCell(row,1).style = thStyle;
-      const pm = latest.payMethod||"";
-      ws.mergeCells(row,2,row,7);
-      ws.getCell(row,2).value = `${pm==="現金"?"☑":"☐"}現金　　${pm==="匯款"?"☑":"☐"}匯款`;
-      ws.getCell(row,2).style = {alignment:lft,border:bdr};
-      row++;
-      const bi = latest.bankInfo||{};
-      ws.mergeCells(row,2,row,7);
-      ws.getCell(row,2).value = `受款銀行名稱：${bi.bankName||""}　　戶名：${bi.accountName||""}`;
-      ws.getCell(row,2).style = {alignment:lft,border:bdr}; ws.getCell(row,1).style = {border:bdr};
-      row++;
-      ws.mergeCells(row,2,row,7);
-      ws.getCell(row,2).value = `帳號：${bi.account||""}`;
-      ws.getCell(row,2).style = {alignment:lft,border:bdr}; ws.getCell(row,1).style = {border:bdr};
-      row++;
-      ws.mergeCells(pmStart,1,pmStart+2,1);
-
-      // 領款日期 + 簽章
-      ws.getCell(row,1).value = "領款日期"; ws.getCell(row,1).style = thStyle;
-      ws.mergeCells(row,2,row,4);
-      ws.getCell(row,2).value = "中華民國　　年　　月　　日"; ws.getCell(row,2).style = {alignment:mid,border:bdr};
-      ws.getCell(row,5).value = "領款人簽章"; ws.getCell(row,5).style = thStyle;
-      ws.mergeCells(row,6,row,7);
-      ws.getCell(row,6).value = ""; ws.getCell(row,6).style = {border:bdr};
-      ws.getRow(row).height=28;
-      row++;
-
-      // 身分證
-      ws.getCell(row,1).value = "身分證號碼"; ws.getCell(row,1).style = thStyle;
-      ws.mergeCells(row,2,row,7);
-      const id = latest.idNumber||"";
-      ws.getCell(row,2).value = id?id.split("").join("   "):"";
-      ws.getCell(row,2).style = {alignment:mid,border:bdr,font:{family:3,size:14}};
-      ws.getRow(row).height=24;
-      row++;
-
-      // 戶籍地址
-      ws.getCell(row,1).value = "戶籍地址"; ws.getCell(row,1).style = thStyle;
-      ws.mergeCells(row,2,row,7);
-      ws.getCell(row,2).value = latest.address||""; ws.getCell(row,2).style = {alignment:lft,border:bdr};
-      row++;
-
-      // 居住地址
-      ws.getCell(row,1).value = "居住地址"; ws.getCell(row,1).style = thStyle;
-      ws.mergeCells(row,2,row,7);
-      const la = latest.liveAddress||latest.address||"";
-      ws.getCell(row,2).value = (la&&la===latest.address)?"☑同上　☐請另填":`☐同上　☑請另填：${la}`;
-      ws.getCell(row,2).style = {alignment:lft,border:bdr};
-      row++;
-
-      // 連絡電話
-      ws.getCell(row,1).value = "連絡電話"; ws.getCell(row,1).style = thStyle;
-      ws.mergeCells(row,2,row,7);
-      ws.getCell(row,2).value = latest.phone||""; ws.getCell(row,2).style = {alignment:lft,border:bdr};
-
-      [14,10,10,16,14,10,10].forEach((w,i)=>{ws.getColumn(i+1).width=w;});
+      pages += `
+      <div class="page">
+        <h2>社團法人台北市醫師公會・領據（健康台灣深耕計畫）</h2>
+        <table>
+          <tr>
+            <th style="width:110px;">領款人姓名</th>
+            <td style="width:160px;text-align:center;">${pName}</td>
+            <th style="width:130px;">事由或會議名稱</th>
+            <td>${latest.eventName || ""}</td>
+          </tr>
+          <tr>
+            <th>費用別</th>
+            <td colspan="3">${feeStr}</td>
+          </tr>
+          <tr>
+            <th>金額</th>
+            <td colspan="3">
+              <div style="margin-bottom:2px;">新臺幣</div>
+              <div class="amount-row">
+                <span class="amt-box"></span>萬
+                <span class="amt-box"></span>仟
+                <span class="amt-box"></span>佰
+                <span class="amt-box"></span>拾
+                <span class="amt-box"></span>元整
+                <span style="margin-left:16px;">（$＿＿＿＿＿＿）</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <th rowspan="3">領款方式</th>
+            <td colspan="3">${pm === "現金" ? "☑" : "☐"}現金　　${pm === "匯款" ? "☑" : "☐"}匯款</td>
+          </tr>
+          <tr>
+            <td colspan="3">受款銀行名稱：${bi.bankName || "＿＿＿＿＿＿＿＿"}　　戶名：${bi.accountName || "＿＿＿＿＿＿"}</td>
+          </tr>
+          <tr>
+            <td colspan="3">帳號：${bi.account || "＿＿＿＿＿＿＿＿＿＿＿＿＿＿"}</td>
+          </tr>
+          <tr>
+            <th>領款日期</th>
+            <td colspan="2" style="text-align:center;">中華民國＿＿＿年＿＿月＿＿日</td>
+            <td style="text-align:center;">
+              <span style="font-weight:bold;color:#555;">領款人簽章</span><br><br><br>
+            </td>
+          </tr>
+          <tr>
+            <th>身分證號碼</th>
+            <td colspan="3">
+              <table class="id-table"><tr>${idBoxes}</tr></table>
+            </td>
+          </tr>
+          <tr>
+            <th>戶籍地址</th>
+            <td colspan="3">${latest.address || ""}</td>
+          </tr>
+          <tr>
+            <th>居住地址</th>
+            <td colspan="3">${liveDisplay}</td>
+          </tr>
+          <tr>
+            <th>連絡電話</th>
+            <td colspan="3">${latest.phone || ""}</td>
+          </tr>
+        </table>
+      </div>`;
     }
 
-    const fn = `領據_${name||"全部人員"}.xlsx`;
-    res.setHeader("Content-Type","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition",`attachment; filename*=UTF-8''${encodeURIComponent(fn)}`);
-    await wb.xlsx.write(res); res.end();
-  } catch(e) {
-    console.error("export-full:",e.message);
-    res.status(500).json({error:e.message});
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+  xmlns:w="urn:schemas-microsoft-com:office:word"
+  xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="UTF-8">
+<style>
+  @page { size: A4; margin: 2cm 2cm 2cm 2cm; }
+  body { font-family: "Microsoft JhengHei","微軟正黑體","Noto Sans TC",sans-serif; color: #1a1a2e; font-size: 12pt; }
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: avoid; }
+  h2 { font-size: 14pt; text-align: center; margin-bottom: 14px; letter-spacing: 1px; }
+  table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+  th, td { border: 1px solid #333; padding: 8px 10px; font-size: 11pt; vertical-align: middle; }
+  th { background: #e8ecf2; font-weight: bold; text-align: center; }
+  td { text-align: left; }
+  .id-table { border: none; width: auto; margin: 0 auto; }
+  .id-table td { width: 28px; height: 32px; text-align: center; font-size: 14pt; font-family: monospace; border: 1px solid #666; padding: 2px; }
+  .id-box { display: inline-block; }
+  .amount-row { letter-spacing: 1px; }
+  .amt-box { display: inline-block; width: 22px; height: 18px; border-bottom: 1px solid #333; text-align: center; margin: 0 2px; }
+</style></head>
+<body>${pages}</body></html>`;
+
+    const fn = `領據_${name || "全部人員"}.doc`;
+    res.setHeader("Content-Type", "application/msword; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(fn)}`);
+    res.send("\uFEFF" + html);
+  } catch (e) {
+    console.error("export-full:", e.message);
+    res.status(500).json({ error: e.message });
   }
 });
 
