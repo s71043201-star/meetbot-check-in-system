@@ -287,6 +287,32 @@ input[type="checkbox"] {
   border-top: 1px solid #e0e0e0;
   margin: 16px 0;
 }
+
+.load-history-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  color: #1a73e8;
+  background: #e8f0fe;
+  border: 1px solid #c2d7f5;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.load-history-btn:hover { background: #d2e3fc; }
+
+.load-msg {
+  margin-top: 8px;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+.load-msg.success { background: #e6f4ea; color: #1e7e34; }
+.load-msg.fail { background: #fce8e6; color: #c5221f; }
 </style>
 </head>
 <body>
@@ -308,6 +334,8 @@ input[type="checkbox"] {
       </div>
       <input type="text" id="name" placeholder="請輸入您的完整全名">
       <div class="err hidden" id="err-name">請填寫姓名</div>
+      <button class="load-history-btn" onclick="loadHistory()">📂 帶入歷史資料</button>
+      <div class="load-msg hidden" id="load-msg"></div>
     </div>
 
     <!-- 事由或會議名稱 -->
@@ -607,6 +635,71 @@ function toggleBank(show) {
 function toggleSameAddr() {
   const same = document.getElementById("sameAddr").checked;
   document.getElementById("live-addr-fields").classList.toggle("hidden", same);
+}
+
+// ── 帶入歷史資料 ──
+async function loadHistory() {
+  const name = document.getElementById("name").value.trim();
+  const msgEl = document.getElementById("load-msg");
+  msgEl.classList.remove("hidden", "success", "fail");
+
+  if (!name) {
+    msgEl.textContent = "請先輸入姓名再查詢";
+    msgEl.classList.add("fail");
+    return;
+  }
+
+  try {
+    const res = await fetch(`/receipt-data?name=${encodeURIComponent(name)}`);
+    const data = await res.json();
+
+    if (!data.found) {
+      msgEl.textContent = `查無「${name}」的歷史資料，請手動填寫`;
+      msgEl.classList.add("fail");
+      return;
+    }
+
+    const r = data.record;
+
+    // 帶入各欄位
+    if (r.eventName) document.getElementById("eventName").value = r.eventName;
+    if (r.workDescription) document.getElementById("workDesc").value = r.workDescription;
+
+    // 費用別
+    if (Array.isArray(r.feeTypes)) {
+      document.querySelectorAll('input[name="feeType"]').forEach(cb => {
+        cb.checked = r.feeTypes.includes(cb.value);
+      });
+    }
+
+    // 領款方式
+    if (r.payMethod) {
+      const radio = document.querySelector(`input[name="payMethod"][value="${r.payMethod}"]`);
+      if (radio) { radio.checked = true; toggleBank(r.payMethod === "匯款"); }
+    }
+
+    // 銀行資訊
+    if (r.bankInfo) {
+      if (r.bankInfo.bankName) document.getElementById("bankName").value = r.bankInfo.bankName;
+      if (r.bankInfo.accountName) document.getElementById("bankAccountName").value = r.bankInfo.accountName;
+      if (r.bankInfo.account) document.getElementById("bankAccount").value = r.bankInfo.account;
+    }
+
+    // 身分證
+    if (r.idNumber) document.getElementById("idNumber").value = r.idNumber;
+
+    // 地址（直接填入第一格，因為存的是合併字串）
+    if (r.address) document.getElementById("addr-city").value = r.address;
+
+    // 電話
+    if (r.phone) document.getElementById("phone").value = r.phone;
+
+    msgEl.textContent = `✅ 已帶入「${name}」的歷史資料，請確認後簽到`;
+    msgEl.classList.add("success");
+  } catch (e) {
+    msgEl.textContent = "查詢失敗：" + e.message;
+    msgEl.classList.add("fail");
+  }
 }
 
 // ── 收集地址 ──

@@ -551,6 +551,38 @@ app.get("/active-session", async (req, res) => {
   }
 });
 
+// ── 查詢領據歷史資料（依姓名） ─────────────────
+app.get("/receipt-data", async (req, res) => {
+  const { name } = req.query;
+  if (!name) return res.status(400).json({ error: "缺少 name" });
+  try {
+    const data = await fbGet();
+    if (!data) return res.json({ found: false });
+    // 找該姓名最新一筆有身分證資料的紀錄
+    const entries = Object.entries(data)
+      .filter(([, r]) => r.name === name && r.idNumber)
+      .sort((a, b) => new Date(b[1].checkinTime) - new Date(a[1].checkinTime));
+    if (entries.length === 0) return res.json({ found: false });
+    const record = entries[0][1];
+    res.json({
+      found: true,
+      record: {
+        eventName: record.eventName,
+        workDescription: record.workDescription,
+        feeTypes: record.feeTypes,
+        payMethod: record.payMethod,
+        bankInfo: record.bankInfo,
+        idNumber: record.idNumber,
+        address: record.address,
+        liveAddress: record.liveAddress,
+        phone: record.phone,
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── 查詢記錄 ──────────────────────────────────
 app.get("/records", async (req, res) => {
   try {
