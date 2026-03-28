@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>臨時人員出缺勤系統</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "Google Sans", Roboto, "Noto Sans TC", sans-serif;
+  background: #f0f4f9;
+  min-height: 100vh;
+  padding: 24px 16px;
+}
+.container { max-width: 640px; margin: 0 auto; }
+
+.card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.12);
+}
+.header-card { border-top: 10px solid #1a73e8; }
+
+h1 { font-size: 26px; color: #202124; margin-bottom: 6px; }
+.subtitle { color: #5f6368; font-size: 14px; }
+
+.q-title {
+  font-size: 15px;
+  color: #202124;
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+.required::after { content: " *"; color: #d93025; }
+
+.warning-box {
+  background: #fef7e0;
+  border: 1px solid #f9ab00;
+  border-left: 4px solid #f9ab00;
+  border-radius: 4px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: #b06000;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.warning-box .highlight {
+  background: #ffeb3b;
+  padding: 1px 4px;
+  border-radius: 2px;
+  color: #d32f2f;
+}
+
+input[type="text"],
+input[type="tel"],
+input[type="time"],
+textarea,
+select {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid #dadce0;
+  padding: 8px 0;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  background: transparent;
+  transition: border-color .15s;
+}
+input[type="text"]:focus,
+input[type="tel"]:focus,
+input[type="time"]:focus,
+textarea:focus,
+select:focus { border-bottom: 2px solid #1a73e8; }
+
+.radio-group, .check-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #202124;
+  cursor: pointer;
+}
+input[type="radio"],
+input[type="checkbox"] {
+  width: 18px; height: 18px;
+  cursor: pointer;
+  accent-color: #1a73e8;
+  flex-shrink: 0;
+}
+
+.btn {
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 15px;
+  font-family: inherit;
+  padding: 11px 28px;
+  transition: background .15s;
+}
+.btn-primary { background: #1a73e8; color: #fff; }
+.btn-primary:hover { background: #1557b0; }
+.btn-submit { background: #1a73e8; color: #fff; float: right; }
+.btn-submit:hover { background: #1557b0; }
+
+.checkin-btn {
+  display: block;
+  width: 100%;
+  padding: 18px;
+  font-size: 20px;
+  font-weight: 500;
+  background: #34a853;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 16px;
+  transition: background .15s;
+}
+.checkin-btn:hover { background: #2d9348; }
+
+.type-btn {
+  display: flex;
+  width: 100%;
+  padding: 20px;
+  font-size: 17px;
+  font-weight: 500;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: background .15s, transform .1s;
+  align-items: center;
+  gap: 12px;
+}
+.type-btn:hover { transform: translateY(-1px); }
+.type-btn:active { transform: translateY(0); }
+.type-btn-regular { background: #1a73e8; }
+.type-btn-regular:hover { background: #1557b0; }
+.type-btn-prescription { background: #e8710a; }
+.type-btn-prescription:hover { background: #c45f08; }
+.type-btn-icon { font-size: 28px; }
+.type-btn-text { text-align: left; }
+.type-btn-text small { display: block; font-size: 12px; font-weight: 400; opacity: .85; margin-top: 2px; }
+
+.clock {
+  font-size: 52px;
+  font-weight: 300;
+  text-align: center;
+  color: #202124;
+  letter-spacing: 4px;
+  margin: 8px 0 4px;
+}
+.clock-label { text-align: center; color: #5f6368; font-size: 13px; margin-bottom: 8px; }
+
+.done-icon { text-align: center; font-size: 72px; margin: 20px 0; }
+.done-name { text-align: center; font-size: 22px; color: #202124; margin-bottom: 8px; }
+.done-hours {
+  text-align: center;
+  font-size: 36px;
+  font-weight: 300;
+  color: #1a73e8;
+  margin-bottom: 4px;
+}
+.done-note { text-align: center; color: #5f6368; font-size: 13px; margin-top: 16px; }
+
+.hidden { display: none !important; }
+.clearfix::after { content: ""; display: block; clear: both; }
+.err { color: #d93025; font-size: 13px; margin-top: 6px; }
+
+/* 領據欄位樣式 */
+.field-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.field-row > div { flex: 1; }
+.field-label {
+  font-size: 12px;
+  color: #5f6368;
+  margin-bottom: 4px;
+}
+
+.bank-fields { margin-top: 12px; padding-left: 30px; }
+.bank-fields.hidden { display: none; }
+
+.id-input-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.id-input-row input {
+  width: 32px;
+  text-align: center;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  padding: 8px 0;
+  font-size: 16px;
+  font-family: monospace;
+}
+.id-input-row input:focus {
+  border-color: #1a73e8;
+  border-width: 2px;
+}
+
+.addr-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.addr-row input {
+  width: auto;
+  flex: 1;
+  min-width: 50px;
+}
+.addr-row span {
+  font-size: 13px;
+  color: #5f6368;
+  white-space: nowrap;
+}
+
+.same-addr-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #202124;
+  cursor: pointer;
+}
+
+/* 課程項目 */
+.course-item {
+  background: #f8f9fa;
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 10px;
+  position: relative;
+}
+.course-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.course-item-header span {
+  font-size: 13px;
+  font-weight: 500;
+  color: #5f6368;
+}
+.course-remove {
+  background: none;
+  border: none;
+  color: #d93025;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.course-remove:hover { background: #fce8e6; }
+
+.btn-add-course {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a73e8;
+  background: #e8f0fe;
+  border: 2px dashed #1a73e8;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.btn-add-course:hover { background: #d2e3fc; }
+
+.time-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+.time-row input[type="time"] {
+  width: auto;
+  flex: 1;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+.time-row span { color: #5f6368; font-size: 14px; }
+
+.section-divider {
+  border: none;
+  border-top: 1px solid #e0e0e0;
+  margin: 16px 0;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ===== Section 1: 基本資料 + 領據欄位 ===== -->
+  <div id="sec-info">
+    <div class="card header-card">
+      <h1>臨時人員出缺勤系統</h1>
+      <p class="subtitle">社團法人台北市醫師公會 · 健康台灣深耕計畫</p>
+      <p class="subtitle" style="margin-top:4px;">請填寫以下資料，此資料將用於領據核銷</p>
+    </div>
+
+    <!-- 姓名 -->
+    <div class="card">
+      <div class="q-title required">領款人姓名</div>
+      <div class="warning-box">
+        ⚠️ 因需核銷用，<span class="highlight">務必填寫完整全名</span>，避免工資無法發放
+      </div>
+      <input type="text" id="name" placeholder="請輸入您的完整全名">
+      <div class="err hidden" id="err-name">請填寫姓名</div>
+    </div>
+
+    <!-- 事由或會議名稱 -->
+    <div class="card">
+      <div class="q-title required">事由或會議名稱</div>
+      <input type="text" id="eventName" placeholder="例：115年3月臨時人員">
+      <div class="err hidden" id="err-eventName">請填寫事由或會議名稱</div>
+    </div>
+
+    <!-- 活動名稱 / 工作內容 -->
+    <div class="card">
+      <div class="q-title required">工作內容說明</div>
+      <p style="font-size:13px;color:#5f6368;margin-bottom:10px;">請填寫本次工作內容概述，將用於出勤記錄表</p>
+      <textarea id="workDesc" rows="3" placeholder="例：行政庶務、資料建置與輸入、文件彙整、檔案整理及文書支援作業，資料建置、整理與建檔。"></textarea>
+      <div class="err hidden" id="err-workDesc">請填寫工作內容說明</div>
+    </div>
+
+    <!-- 費用別 -->
+    <div class="card">
+      <div class="q-title required">費用別</div>
+      <div class="check-group">
+        <label class="opt"><input type="checkbox" name="feeType" value="稿費"> 稿費</label>
+        <label class="opt"><input type="checkbox" name="feeType" value="審查費"> 審查費</label>
+        <label class="opt"><input type="checkbox" name="feeType" value="講座鐘點費"> 講座鐘點費</label>
+        <label class="opt"><input type="checkbox" name="feeType" value="臨時人員費" checked> 臨時人員費</label>
+        <label class="opt"><input type="checkbox" name="feeType" value="出席費"> 出席費</label>
+        <label class="opt"><input type="checkbox" name="feeType" value="交通差旅費"> 交通差旅費</label>
+        <label class="opt"><input type="checkbox" name="feeType" value="其他"> 其他</label>
+      </div>
+      <div class="err hidden" id="err-feeType">請至少勾選一項費用別</div>
+    </div>
+
+    <!-- 領款方式 -->
+    <div class="card">
+      <div class="q-title required">領款方式</div>
+      <div class="radio-group">
+        <label class="opt"><input type="radio" name="payMethod" value="現金" onclick="toggleBank(false)"> 現金</label>
+        <label class="opt"><input type="radio" name="payMethod" value="匯款" onclick="toggleBank(true)"> 匯款</label>
+      </div>
+      <div class="bank-fields hidden" id="bank-fields">
+        <hr class="section-divider">
+        <div class="field-label">受款銀行名稱</div>
+        <input type="text" id="bankName" placeholder="例：台北富邦銀行 ○○分行">
+        <div class="field-label" style="margin-top:10px;">戶名</div>
+        <input type="text" id="bankAccountName" placeholder="請輸入戶名">
+        <div class="field-label" style="margin-top:10px;">帳號</div>
+        <input type="text" id="bankAccount" placeholder="請輸入銀行帳號">
+      </div>
+      <div class="err hidden" id="err-payMethod">請選擇領款方式</div>
+    </div>
+
+    <!-- 身分證號碼 -->
+    <div class="card">
+      <div class="q-title required">身分證號碼</div>
+      <div class="id-input-row" id="id-row">
+        <input type="text" maxlength="1" data-idx="0">
+        <input type="text" maxlength="1" data-idx="1">
+        <input type="text" maxlength="1" data-idx="2">
+        <input type="text" maxlength="1" data-idx="3">
+        <input type="text" maxlength="1" data-idx="4">
+        <input type="text" maxlength="1" data-idx="5">
+        <input type="text" maxlength="1" data-idx="6">
+        <input type="text" maxlength="1" data-idx="7">
+        <input type="text" maxlength="1" data-idx="8">
+        <input type="text" maxlength="1" data-idx="9">
+      </div>
+      <div class="err hidden" id="err-idNumber">請填寫完整身分證號碼（10碼）</div>
+    </div>
+
+    <!-- 戶籍地址 -->
+    <div class="card">
+      <div class="q-title required">戶籍地址</div>
+      <div class="addr-row">
+        <input type="text" id="addr-city" placeholder="市/縣" style="max-width:100px;">
+        <input type="text" id="addr-district" placeholder="區/市/鄉/鎮" style="max-width:120px;">
+        <input type="text" id="addr-village" placeholder="里/村" style="max-width:80px;">
+        <input type="text" id="addr-neighbor" placeholder="鄰" style="max-width:60px;">
+      </div>
+      <div class="addr-row">
+        <input type="text" id="addr-road" placeholder="路/街" style="max-width:120px;">
+        <input type="text" id="addr-section" placeholder="段" style="max-width:60px;">
+        <input type="text" id="addr-lane" placeholder="巷" style="max-width:60px;">
+        <input type="text" id="addr-alley" placeholder="弄" style="max-width:60px;">
+        <input type="text" id="addr-number" placeholder="號" style="max-width:60px;">
+        <input type="text" id="addr-floor" placeholder="樓" style="max-width:60px;">
+        <input type="text" id="addr-extra" placeholder="之" style="max-width:60px;">
+      </div>
+      <div class="err hidden" id="err-address">請填寫戶籍地址</div>
+    </div>
+
+    <!-- 居住地址 -->
+    <div class="card">
+      <div class="q-title">居住地址</div>
+      <label class="same-addr-opt">
+        <input type="checkbox" id="sameAddr" onchange="toggleSameAddr()" checked> 同戶籍地址
+      </label>
+      <div id="live-addr-fields" class="hidden">
+        <div class="addr-row">
+          <input type="text" id="live-city" placeholder="市/縣" style="max-width:100px;">
+          <input type="text" id="live-district" placeholder="區/市/鄉/鎮" style="max-width:120px;">
+          <input type="text" id="live-village" placeholder="里/村" style="max-width:80px;">
+          <input type="text" id="live-neighbor" placeholder="鄰" style="max-width:60px;">
+        </div>
+        <div class="addr-row">
+          <input type="text" id="live-road" placeholder="路/街" style="max-width:120px;">
+          <input type="text" id="live-section" placeholder="段" style="max-width:60px;">
+          <input type="text" id="live-lane" placeholder="巷" style="max-width:60px;">
+          <input type="text" id="live-alley" placeholder="弄" style="max-width:60px;">
+          <input type="text" id="live-number" placeholder="號" style="max-width:60px;">
+          <input type="text" id="live-floor" placeholder="樓" style="max-width:60px;">
+          <input type="text" id="live-extra" placeholder="之" style="max-width:60px;">
+        </div>
+      </div>
+    </div>
+
+    <!-- 連絡電話 -->
+    <div class="card">
+      <div class="q-title required">連絡電話</div>
+      <input type="tel" id="phone" placeholder="請輸入連絡電話">
+      <div class="err hidden" id="err-phone">請填寫連絡電話</div>
+    </div>
+
+    <!-- 時鐘 + 簽到按鈕 -->
+    <div class="card">
+      <div class="clock" id="clock">00:00</div>
+      <div class="clock-label">現在時間</div>
+      <button class="checkin-btn" onclick="doCheckin()">✅ 簽到</button>
+    </div>
+  </div>
+
+  <!-- ===== Section 2: 選擇簽到類型 ===== -->
+  <div id="sec-type" class="hidden">
+    <div class="card header-card">
+      <h1>選擇簽到類型</h1>
+      <p class="subtitle" id="checkin-info">簽到時間：--</p>
+    </div>
+
+    <div class="card">
+      <button class="type-btn type-btn-regular" onclick="selectType('regular')">
+        <span class="type-btn-icon">📋</span>
+        <span class="type-btn-text">
+          一般簽到
+          <small>填寫單一課程名稱與預計時間</small>
+        </span>
+      </button>
+      <button class="type-btn type-btn-prescription" onclick="selectType('prescription')">
+        <span class="type-btn-icon">💊</span>
+        <span class="type-btn-text">
+          處方日簽到
+          <small>可新增多筆課程紀錄</small>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== Section 3a: 一般簽到表單 ===== -->
+  <div id="sec-form-regular" class="hidden">
+    <div class="card header-card">
+      <h1>一般簽到 ── 工作紀錄</h1>
+      <p class="subtitle" id="regular-info">--</p>
+    </div>
+
+    <div class="card">
+      <div class="q-title required">課程名稱</div>
+      <input type="text" id="regular-course" placeholder="請輸入今日課程名稱">
+      <div class="err hidden" id="err-regular-course">請填寫課程名稱</div>
+    </div>
+
+    <div class="card">
+      <div class="q-title required">課程預計時間</div>
+      <div class="time-row">
+        <input type="time" id="regular-time-start">
+        <span>至</span>
+        <input type="time" id="regular-time-end">
+      </div>
+      <div class="err hidden" id="err-regular-time">請填寫課程預計時間</div>
+    </div>
+
+    <div class="card">
+      <div class="q-title required">今日工作時段</div>
+      <div class="radio-group">
+        <label class="opt"><input type="radio" name="regular-shift" value="上午班"> 上午班</label>
+        <label class="opt"><input type="radio" name="regular-shift" value="下午班"> 下午班</label>
+        <label class="opt"><input type="radio" name="regular-shift" value="全天"> 全天</label>
+      </div>
+      <div class="err hidden" id="err-regular-shift">請選擇工作時段</div>
+    </div>
+
+    <div class="card">
+      <div class="q-title required">工作內容（可複選）</div>
+      <div class="check-group" id="regular-content-group">
+        <label class="opt"><input type="checkbox" value="出缺勤影像資料紀錄"> 出缺勤影像資料紀錄</label>
+        <label class="opt"><input type="checkbox" value="任務執行查核業務"> 任務執行查核業務</label>
+        <label class="opt"><input type="checkbox" value="課程協助"> 課程協助</label>
+        <label class="opt"><input type="checkbox" value="資料整理"> 資料整理</label>
+        <label class="opt"><input type="checkbox" value="其他"> 其他</label>
+      </div>
+      <div class="err hidden" id="err-regular-content">請至少勾選一項工作內容</div>
+    </div>
+
+    <div class="card">
+      <div class="q-title">備註（選填）</div>
+      <textarea id="regular-note" rows="3" placeholder="如有其他說明，請填寫於此"></textarea>
+    </div>
+
+    <div class="card clearfix">
+      <button class="btn btn-submit" onclick="doCheckout('regular')">送出並簽退</button>
+    </div>
+  </div>
+
+  <!-- ===== Section 3b: 處方日簽到表單 ===== -->
+  <div id="sec-form-prescription" class="hidden">
+    <div class="card header-card">
+      <h1>處方日簽到 ── 工作紀錄</h1>
+      <p class="subtitle" id="prescription-info">--</p>
+    </div>
+
+    <div class="card">
+      <div class="q-title required">課程名稱</div>
+      <div id="prescription-courses">
+        <div class="course-item" data-index="0">
+          <div class="course-item-header">
+            <span>課程 1</span>
+          </div>
+          <input type="text" class="prescription-course-name" placeholder="請輸入課程名稱">
+        </div>
+      </div>
+      <button class="btn-add-course" onclick="addCourse()">
+        <span>＋</span> 新增一筆課程
+      </button>
+      <div class="err hidden" id="err-prescription-course">請至少填寫一個課程名稱</div>
+    </div>
+
+    <div class="card">
+      <div class="q-title required">今日工作時段</div>
+      <div class="radio-group">
+        <label class="opt"><input type="radio" name="prescription-shift" value="上午班"> 上午班</label>
+        <label class="opt"><input type="radio" name="prescription-shift" value="下午班"> 下午班</label>
+        <label class="opt"><input type="radio" name="prescription-shift" value="全天"> 全天</label>
+      </div>
+      <div class="err hidden" id="err-prescription-shift">請選擇工作時段</div>
+    </div>
+
+    <div class="card">
+      <div class="q-title required">工作內容（可複選）</div>
+      <div class="check-group" id="prescription-content-group">
+        <label class="opt"><input type="checkbox" value="出缺勤影像資料紀錄"> 出缺勤影像資料紀錄</label>
+        <label class="opt"><input type="checkbox" value="任務執行查核業務"> 任務執行查核業務</label>
+        <label class="opt"><input type="checkbox" value="課程協助"> 課程協助</label>
+        <label class="opt"><input type="checkbox" value="資料整理"> 資料整理</label>
+        <label class="opt"><input type="checkbox" value="其他"> 其他</label>
+      </div>
+      <div class="err hidden" id="err-prescription-content">請至少勾選一項工作內容</div>
+    </div>
+
+    <div class="card">
+      <div class="q-title">備註（選填）</div>
+      <textarea id="prescription-note" rows="3" placeholder="如有其他說明，請填寫於此"></textarea>
+    </div>
+
+    <div class="card clearfix">
+      <button class="btn btn-submit" onclick="doCheckout('prescription')">送出並簽退</button>
+    </div>
+  </div>
+
+  <!-- ===== Section 4: 完成 ===== -->
+  <div id="sec-done" class="hidden">
+    <div class="card header-card">
+      <h1>簽退完成</h1>
+      <p class="subtitle">您的出缺勤記錄已儲存</p>
+    </div>
+    <div class="card">
+      <div class="done-icon">✅</div>
+      <div class="done-name" id="done-name"></div>
+      <div class="done-hours" id="done-hours"></div>
+      <div class="done-note">感謝今日的辛勞！</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── 時鐘 ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById("clock").textContent =
+    now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── UI 工具 ──
+function showErr(id, show) {
+  document.getElementById(id).classList.toggle("hidden", !show);
+}
+
+function showSection(id) {
+  ["sec-info", "sec-type", "sec-form-regular", "sec-form-prescription", "sec-done"]
+    .forEach(s => document.getElementById(s).classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function toggleBank(show) {
+  document.getElementById("bank-fields").classList.toggle("hidden", !show);
+}
+
+function toggleSameAddr() {
+  const same = document.getElementById("sameAddr").checked;
+  document.getElementById("live-addr-fields").classList.toggle("hidden", same);
+}
+
+// ── 身分證號碼自動跳格 ──
+document.querySelectorAll("#id-row input").forEach((inp, i, list) => {
+  inp.addEventListener("input", () => {
+    if (inp.value.length === 1 && i < list.length - 1) list[i + 1].focus();
+  });
+  inp.addEventListener("keydown", (e) => {
+    if (e.key === "Backspace" && inp.value === "" && i > 0) list[i - 1].focus();
+  });
+});
+
+// ── 收集地址 ──
+function getAddress(prefix) {
+  const ids = ["city","district","village","neighbor","road","section","lane","alley","number","floor","extra"];
+  const labels = ["","","","鄰","","段","巷","弄","號","樓","之"];
+  const parts = [];
+  ids.forEach((id, i) => {
+    const v = document.getElementById(`${prefix}-${id}`).value.trim();
+    if (v) parts.push(v + labels[i]);
+  });
+  return parts.join("");
+}
+
+// ── 收集身分證 ──
+function getIdNumber() {
+  return [...document.querySelectorAll("#id-row input")].map(el => el.value.trim()).join("");
+}
+
+// ── Step 1: 簽到 ──
+async function doCheckin() {
+  const name      = document.getElementById("name").value.trim();
+  const eventName = document.getElementById("eventName").value.trim();
+  const workDesc  = document.getElementById("workDesc").value.trim();
+  const feeTypes  = [...document.querySelectorAll('input[name="feeType"]:checked')].map(el => el.value);
+  const payMethod = document.querySelector('input[name="payMethod"]:checked');
+  const idNumber  = getIdNumber();
+  const address   = getAddress("addr");
+  const phone     = document.getElementById("phone").value.trim();
+
+  // 驗證
+  let valid = true;
+  showErr("err-name",      !name);      if (!name) valid = false;
+  showErr("err-eventName", !eventName); if (!eventName) valid = false;
+  showErr("err-workDesc",  !workDesc);  if (!workDesc) valid = false;
+  showErr("err-feeType",   feeTypes.length === 0); if (feeTypes.length === 0) valid = false;
+  showErr("err-payMethod", !payMethod); if (!payMethod) valid = false;
+  showErr("err-idNumber",  idNumber.length !== 10); if (idNumber.length !== 10) valid = false;
+  showErr("err-address",   !address);   if (!address) valid = false;
+  showErr("err-phone",     !phone);     if (!phone) valid = false;
+
+  if (!valid) return;
+
+  // 匯款資訊
+  let bankInfo = null;
+  if (payMethod.value === "匯款") {
+    bankInfo = {
+      bankName:    document.getElementById("bankName").value.trim(),
+      accountName: document.getElementById("bankAccountName").value.trim(),
+      account:     document.getElementById("bankAccount").value.trim()
+    };
+  }
+
+  // 居住地址
+  const sameAddr    = document.getElementById("sameAddr").checked;
+  const liveAddress = sameAddr ? address : getAddress("live");
+
+  const receipt = {
+    name,
+    eventName,
+    workDescription: workDesc,
+    feeTypes,
+    payMethod: payMethod.value,
+    bankInfo,
+    idNumber,
+    address,
+    liveAddress,
+    phone
+  };
+
+  try {
+    const res  = await fetch("/checkin", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(receipt)
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+
+    sessionStorage.setItem("sessionId", data.sessionId);
+    sessionStorage.setItem("name", name);
+
+    const now     = new Date();
+    const timeStr = now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
+    const infoText = `${name} 已於 ${timeStr} 簽到`;
+
+    document.getElementById("checkin-info").textContent      = infoText;
+    document.getElementById("regular-info").textContent      = infoText;
+    document.getElementById("prescription-info").textContent = infoText;
+
+    showSection("sec-type");
+  } catch (e) {
+    alert("簽到失敗：" + e.message);
+  }
+}
+
+// ── Step 2: 選擇類型 ──
+function selectType(type) {
+  sessionStorage.setItem("checkinType", type);
+  showSection(type === "regular" ? "sec-form-regular" : "sec-form-prescription");
+}
+
+// ── 處方日：新增/移除課程 ──
+let courseCount = 1;
+
+function addCourse() {
+  courseCount++;
+  const container = document.getElementById("prescription-courses");
+  const div = document.createElement("div");
+  div.className = "course-item";
+  div.dataset.index = courseCount;
+  div.innerHTML = `
+    <div class="course-item-header">
+      <span>課程 ${courseCount}</span>
+      <button class="course-remove" onclick="removeCourse(this)">✕ 移除</button>
+    </div>
+    <input type="text" class="prescription-course-name" placeholder="請輸入課程名稱">
+  `;
+  container.appendChild(div);
+}
+
+function removeCourse(btn) {
+  btn.closest(".course-item").remove();
+  document.querySelectorAll("#prescription-courses .course-item").forEach((el, i) => {
+    el.querySelector(".course-item-header span").textContent = `課程 ${i + 1}`;
+  });
+}
+
+// ── Step 3: 簽退 ──
+async function doCheckout(type) {
+  const sessionId = sessionStorage.getItem("sessionId");
+  const name      = sessionStorage.getItem("name");
+  if (!sessionId) { alert("找不到簽到記錄，請重新整理頁面後簽到"); return; }
+
+  let shift, workContent, note, course, courses, scheduledTime;
+
+  if (type === "regular") {
+    course    = document.getElementById("regular-course").value.trim();
+    const ts  = document.getElementById("regular-time-start").value;
+    const te  = document.getElementById("regular-time-end").value;
+    shift     = document.querySelector('input[name="regular-shift"]:checked');
+    workContent = [...document.querySelectorAll('#regular-content-group input:checked')].map(el => el.value);
+    note      = document.getElementById("regular-note").value.trim();
+
+    showErr("err-regular-course",  !course);
+    showErr("err-regular-time",    !ts || !te);
+    showErr("err-regular-shift",   !shift);
+    showErr("err-regular-content", workContent.length === 0);
+    if (!course || !ts || !te || !shift || workContent.length === 0) return;
+
+    scheduledTime = `${ts} - ${te}`;
+    shift = shift.value;
+  } else {
+    courses   = [...document.querySelectorAll(".prescription-course-name")]
+                  .map(el => el.value.trim()).filter(v => v);
+    shift     = document.querySelector('input[name="prescription-shift"]:checked');
+    workContent = [...document.querySelectorAll('#prescription-content-group input:checked')].map(el => el.value);
+    note      = document.getElementById("prescription-note").value.trim();
+
+    showErr("err-prescription-course",  courses.length === 0);
+    showErr("err-prescription-shift",   !shift);
+    showErr("err-prescription-content", workContent.length === 0);
+    if (courses.length === 0 || !shift || workContent.length === 0) return;
+
+    course = courses.join("、");
+    shift  = shift.value;
+  }
+
+  try {
+    const res = await fetch("/checkout", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({
+        sessionId,
+        checkinType: type,
+        course,
+        courses: courses || [course],
+        scheduledTime: scheduledTime || "",
+        shift,
+        workContent,
+        note
+      })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+
+    document.getElementById("done-name").textContent  = `謝謝 ${name}！`;
+    document.getElementById("done-hours").textContent = `今日工作時數：${data.hours} 小時`;
+
+    showSection("sec-done");
+    sessionStorage.clear();
+  } catch (e) {
+    alert("簽退失敗：" + e.message);
+  }
+}
+</script>
+</body>
+</html>
