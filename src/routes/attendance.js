@@ -57,7 +57,7 @@ router.post("/checkout", async (req, res) => {
     const record      = await fbGet(`/${sessionId}`);
     if (!record) return res.status(404).json({ error: "找不到簽到記錄" });
     const checkinTime = new Date(record.checkinTime);
-    const hours       = Math.round((now - checkinTime) / 3600000 * 10) / 10;
+    const hours       = Math.ceil((now - checkinTime) / 3600000 * 2) / 2;
     const { courseType, teacher, plannedHours, registeredCount, actualCount, walkInCount, summary } = req.body;
     const course      = req.body.course || "";
     const checkinStr  = toTaipei(checkinTime).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
