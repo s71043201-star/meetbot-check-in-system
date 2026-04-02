@@ -72,20 +72,8 @@ function buildExportFullHtml(grouped) {
     ${idCells}
   </tr>
   <tr>
-    <td ${SL} rowspan="2">戶籍地址</td>
-    <td ${S} colspan="2">&nbsp;&nbsp;市縣</td>
-    <td ${S} colspan="2">區市鄉鎮</td>
-    <td ${S} colspan="2">里村</td>
-    <td ${S}>鄰</td>
-    <td ${S} colspan="3">路街</td>
-  </tr>
-  <tr>
-    <td ${S} colspan="2">段</td>
-    <td ${S}>巷</td>
-    <td ${S}>弄</td>
-    <td ${S} colspan="2">號</td>
-    <td ${S}>樓</td>
-    <td ${S} colspan="3">之</td>
+    <td ${SL}>戶籍地址</td>
+    <td ${S} colspan="10">${addr}</td>
   </tr>
   <tr>
     <td ${SL}>居住地址</td>
