@@ -105,7 +105,7 @@ xmlns:w="urn:schemas-microsoft-com:office:word"
 xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="UTF-8">
 <style>
-  @page { size: A4; margin: 2cm 1.5cm; }
+  @page { size: A4; margin: 1.27cm; }
   body { font-family: "DFKai-SB","標楷體","Microsoft JhengHei",sans-serif; }
 </style></head>
 <body>${body}</body></html>`;
