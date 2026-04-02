@@ -27,7 +27,8 @@ function buildExportFullHtml(grouped) {
     // 身分證行用 10 個獨立 td
     pages.push(`
 <p align="center" style="font-size:16pt;font-weight:bold;font-family:DFKai-SB,標楷體">社團法人台北市醫師公會  領據（健康台灣深耕計畫）</p>
-<table border="1" cellpadding="5" cellspacing="0" width="100%" style="border-collapse:collapse;font-family:DFKai-SB,標楷體;font-size:12pt">
+<table border="1" cellpadding="5" cellspacing="0" width="100%" style="border-collapse:collapse;font-family:DFKai-SB,標楷體;font-size:12pt;table-layout:fixed">
+  <col width="80"><col width="58"><col width="58"><col width="58"><col width="58"><col width="58"><col width="58"><col width="58"><col width="58"><col width="58"><col width="58">
   <tr>
     <td width="80" align="center" rowspan="1"><b>領款人姓名</b></td>
     <td colspan="4">${pName}</td>
