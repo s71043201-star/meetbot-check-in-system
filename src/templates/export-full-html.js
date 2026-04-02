@@ -19,7 +19,7 @@ function buildExportFullHtml(grouped) {
 
     pages += `
       <div class="page">
-        <p class="title">社團法人台北市醫師公會　領據<br>（健康台灣深耕計畫）</p>
+        <p class="title">社團法人台北市醫師公會　領據（健康台灣深耕計畫）</p>
         <table>
           <tr>
             <td class="lbl" width="80">領款人姓名</td>
@@ -86,7 +86,7 @@ function buildExportFullHtml(grouped) {
   body { font-family: "DFKai-SB","標楷體","Microsoft JhengHei",sans-serif; color: #000; font-size: 12pt; }
   .page { page-break-after: always; }
   .page:last-child { page-break-after: avoid; }
-  .title { font-size: 16pt; text-align: center; margin-bottom: 10px; font-weight: bold; letter-spacing: 2pt; }
+  .title { font-size: 14pt; text-align: center; margin-bottom: 10px; font-weight: bold; }
   table { border-collapse: collapse; width: 100%; margin: 0; }
   td { border: 1px solid #000; padding: 6px 8px; font-size: 12pt; vertical-align: middle; }
   td.lbl { font-weight: bold; text-align: center; width: 80px; }
