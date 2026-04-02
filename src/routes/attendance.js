@@ -179,12 +179,16 @@ router.get("/records", async (req, res) => {
   }
 });
 
-// ── 批量刪除記錄 ─────────────────────────────
+// ── 批量軟刪除記錄 ─────────────────────────────
 router.post("/records/batch-delete", async (req, res) => {
   const { ids } = req.body;
   if (!ids || !ids.length) return res.status(400).json({ error: "缺少 ids" });
   try {
-    for (const id of ids) await fbDelete(`/${id}`);
+    const now = new Date().toISOString();
+    for (const id of ids) {
+      const existing = await fbGet(`/${id}`);
+      if (existing) await fbPut(`/${id}`, { ...existing, deleted: true, deletedAt: now });
+    }
     res.json({ ok: true, deleted: ids.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -204,10 +208,25 @@ router.put("/records/:id", async (req, res) => {
   }
 });
 
-// ── 刪除記錄 ──────────────────────────────────
+// ── 軟刪除記錄（標記 deleted） ──────────────────
 router.delete("/records/:id", async (req, res) => {
   try {
-    await axios.delete(`${ATT_FB}/${req.params.id}.json`);
+    const existing = await fbGet(`/${req.params.id}`);
+    if (!existing) return res.status(404).json({ error: "not found" });
+    await fbPut(`/${req.params.id}`, { ...existing, deleted: true, deletedAt: new Date().toISOString() });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── 還原已刪除記錄 ──────────────────────────────
+router.post("/records/:id/restore", async (req, res) => {
+  try {
+    const existing = await fbGet(`/${req.params.id}`);
+    if (!existing) return res.status(404).json({ error: "not found" });
+    const { deleted, deletedAt, ...rest } = existing;
+    await fbPut(`/${req.params.id}`, rest);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

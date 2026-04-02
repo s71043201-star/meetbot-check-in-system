@@ -44,12 +44,19 @@
 
     try {
       var res = await fetch("/records");
-      var records = await res.json();
-      cachedRecords = records;
+      var allRecords = await res.json();
+      cachedRecords = allRecords;
+
+      // 分離已刪除和正常記錄
+      var deletedRecords = allRecords.filter(function (r) { return r.deleted; });
+      var records = allRecords.filter(function (r) { return !r.deleted; });
 
       if (year)  records = records.filter(function (r) { return r.year  === parseInt(year); });
       if (month) records = records.filter(function (r) { return r.month === parseInt(month); });
       if (name)  records = records.filter(function (r) { return r.name && r.name.includes(name); });
+
+      // 更新已刪除區塊
+      renderDeletedRecords(deletedRecords);
 
       records.sort(function (a, b) { return new Date(a.checkinTime) - new Date(b.checkinTime); });
 
@@ -235,6 +242,40 @@
     }
   }
 
+  // ── 已刪除記錄顯示與還原 ──
+  function renderDeletedRecords(deletedRecords) {
+    var container = document.getElementById("deleted-section");
+    if (!container) return;
+    if (deletedRecords.length === 0) {
+      container.classList.add("hidden");
+      return;
+    }
+    container.classList.remove("hidden");
+    var count = container.querySelector(".deleted-count");
+    if (count) count.textContent = deletedRecords.length;
+    var list = container.querySelector(".deleted-list");
+    if (!list) return;
+    list.innerHTML = deletedRecords.map(function (r) {
+      var dateStr = r.year ? r.year + "/" + r.month + "/" + r.day : "-";
+      return '<div class="deleted-item">' +
+        '<span><b>' + escapeHtml(r.name || "-") + '</b> — ' + dateStr + ' — ' + escapeHtml(r.course || "-") + '</span>' +
+        '<button class="btn-restore" data-id="' + r.id + '">還原</button>' +
+        '</div>';
+    }).join("");
+  }
+
+  async function restoreRecord(id) {
+    try {
+      var res = await fetch("/records/" + id + "/restore", { method: "POST" });
+      var data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      showToast("記錄已還原", "success");
+      loadRecords();
+    } catch (e) {
+      showToast("還原失敗：" + e.message, "error");
+    }
+  }
+
   // ── Inline edit helpers ──
   function startEdit(id, row) {
     confirmingDelete = true; // pause auto-refresh
@@ -414,6 +455,12 @@
       if (deleteBtn) {
         var id = deleteBtn.dataset.id;
         deleteRecord(id);
+        return;
+      }
+
+      var restoreBtn = e.target.closest(".btn-restore");
+      if (restoreBtn) {
+        restoreRecord(restoreBtn.dataset.id);
         return;
       }
     });
