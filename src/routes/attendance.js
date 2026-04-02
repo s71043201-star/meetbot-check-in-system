@@ -112,14 +112,19 @@ router.post("/checkout", async (req, res) => {
 });
 
 // ── 檔案上傳（行政庶務）─────────────────────────
-// TODO: Implement actual file storage (Firebase Storage or similar)
-// For now, return empty files array as placeholder
-router.post("/upload-files", async (req, res) => {
+const multer = require("multer");
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const { uploadFile } = require("../storage");
+
+router.post("/upload-files", upload.array("files", 10), async (req, res) => {
   try {
-    // Placeholder: actual file upload needs multer + storage setup
-    // const multer = require("multer");
-    // const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
-    res.json({ ok: true, files: [] });
+    const sessionId = req.body.sessionId || "unknown";
+    const results = [];
+    for (const file of (req.files || [])) {
+      const result = await uploadFile(file.buffer, file.originalname, file.mimetype, sessionId);
+      results.push(result);
+    }
+    res.json({ ok: true, files: results });
   } catch (e) {
     console.error("upload-files:", e.message);
     res.status(500).json({ error: e.message });
