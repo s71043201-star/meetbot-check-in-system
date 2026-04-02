@@ -114,7 +114,8 @@ textarea::placeholder {
 
 /* ── Radio & Checkbox Groups ── */
 .radio-group,
-.check-group {
+.check-group,
+.checkbox-group {
   display: flex;
   flex-direction: column;
   gap: 10px;

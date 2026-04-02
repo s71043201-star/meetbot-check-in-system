@@ -40,9 +40,20 @@
     <!-- 活動名稱 / 工作內容 -->
     <div class="card">
       <div class="q-title required">工作內容說明</div>
-      <p style="font-size:13px;color:#5f6368;margin-bottom:10px;">請填寫本次工作內容概述，將用於出勤記錄表</p>
-      <textarea id="workDesc" rows="3" placeholder="例：行政庶務、資料建置與輸入、文件彙整、檔案整理及文書支援作業，資料建置、整理與建檔。"></textarea>
-      <div class="err hidden" id="err-workDesc">請填寫工作內容說明</div>
+      <p style="font-size:13px;color:#5f6368;margin-bottom:10px;">請勾選本次工作內容（可多選），將用於出勤記錄表</p>
+      <div class="checkbox-group" id="workDescOptions">
+        <label class="opt"><input type="checkbox" value="行政庶務"> 行政庶務</label>
+        <label class="opt"><input type="checkbox" value="資料建置與輸入"> 資料建置與輸入</label>
+        <label class="opt"><input type="checkbox" value="文件彙整"> 文件彙整</label>
+        <label class="opt"><input type="checkbox" value="檔案整理及文書支援作業"> 檔案整理及文書支援作業</label>
+        <label class="opt"><input type="checkbox" value="資料建置、整理與建檔"> 資料建置、整理與建檔</label>
+        <label class="opt"><input type="checkbox" value="處方日課程現場協助"> 處方日課程現場協助</label>
+        <label class="opt"><input type="checkbox" value="週報表統計製作"> 週報表統計製作</label>
+        <label class="opt"><input type="checkbox" value="系統程式開發與維護"> 系統程式開發與維護</label>
+        <label class="opt"><input type="checkbox" id="workDesc-other-cb" value="其他"> 其他</label>
+      </div>
+      <input type="text" id="workDesc-other-text" class="hidden" placeholder="請輸入其他工作內容" style="margin-top:8px">
+      <div class="err hidden" id="err-workDesc">請至少勾選一項工作內容</div>
     </div>
 
     <!-- 費用別 -->

@@ -60,7 +60,19 @@
 
       // Populate fields
       if (r.eventName) document.getElementById("eventName").value = r.eventName;
-      if (r.workDescription) document.getElementById("workDesc").value = r.workDescription;
+      if (r.workDescription) {
+        var items = r.workDescription.split("、");
+        document.querySelectorAll('#workDescOptions input[type="checkbox"]').forEach(function (cb) {
+          if (items.includes(cb.value)) cb.checked = true;
+        });
+        var knownValues = [].slice.call(document.querySelectorAll('#workDescOptions input[type="checkbox"]')).map(function (cb) { return cb.value; });
+        var otherItems = items.filter(function (v) { return !knownValues.includes(v); });
+        if (otherItems.length > 0) {
+          document.getElementById("workDesc-other-cb").checked = true;
+          document.getElementById("workDesc-other-text").classList.remove("hidden");
+          document.getElementById("workDesc-other-text").value = otherItems.join("、");
+        }
+      }
 
       // Fee types
       if (Array.isArray(r.feeTypes)) {
@@ -108,7 +120,15 @@
   async function doCheckin() {
     var name      = document.getElementById("name").value.trim();
     var eventName = document.getElementById("eventName").value.trim();
-    var workDesc  = document.getElementById("workDesc").value.trim();
+    var workDescChecked = [].slice.call(document.querySelectorAll('#workDescOptions input[type="checkbox"]:checked')).map(function (el) { return el.value; });
+    var workDescOther = document.getElementById("workDesc-other-text").value.trim();
+    if (workDescChecked.includes("其他") && workDescOther) {
+      workDescChecked = workDescChecked.filter(function (v) { return v !== "其他"; });
+      workDescChecked.push(workDescOther);
+    } else {
+      workDescChecked = workDescChecked.filter(function (v) { return v !== "其他"; });
+    }
+    var workDesc = workDescChecked.join("、");
     var feeTypes  = [].slice.call(document.querySelectorAll('input[name="feeType"]:checked')).map(function (el) { return el.value; });
     var payMethod = document.querySelector('input[name="payMethod"]:checked');
     var idNumber  = document.getElementById("idNumber").value.trim().toUpperCase();
@@ -119,7 +139,7 @@
     var valid = true;
     showErr("err-name",      !name);      if (!name) valid = false;
     showErr("err-eventName", !eventName); if (!eventName) valid = false;
-    showErr("err-workDesc",  !workDesc);  if (!workDesc) valid = false;
+    showErr("err-workDesc",  workDescChecked.length === 0);  if (workDescChecked.length === 0) valid = false;
     showErr("err-feeType",   feeTypes.length === 0); if (feeTypes.length === 0) valid = false;
     showErr("err-payMethod", !payMethod); if (!payMethod) valid = false;
     showErr("err-idNumber",  idNumber.length !== 10); if (idNumber.length !== 10) valid = false;
@@ -456,6 +476,12 @@
     // Same address checkbox
     var sameAddrCb = document.getElementById("sameAddr");
     if (sameAddrCb) sameAddrCb.addEventListener("change", toggleSameAddr);
+
+    // 工作內容「其他」toggle
+    var workDescOtherCb = document.getElementById("workDesc-other-cb");
+    if (workDescOtherCb) workDescOtherCb.addEventListener("change", function () {
+      document.getElementById("workDesc-other-text").classList.toggle("hidden", !this.checked);
+    });
 
     // Check-in button
     var checkinBtn = document.getElementById("btn-checkin");
