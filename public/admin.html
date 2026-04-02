@@ -4,58 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>出缺勤後台管理</title>
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: "Noto Sans TC", sans-serif; background: #f5f5f5; padding: 24px; }
-h1 { font-size: 20px; color: #333; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
-.live-dot { width: 10px; height: 10px; background: #34a853; border-radius: 50%; animation: pulse 2s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-.last-update { font-size: 12px; color: #aaa; font-weight: 400; }
-
-.filter-bar {
-  background: #fff; padding: 14px 18px; border-radius: 8px;
-  margin-bottom: 12px; display: flex; gap: 12px; align-items: center;
-  flex-wrap: wrap; box-shadow: 0 1px 3px rgba(0,0,0,.08);
-}
-.filter-bar label { font-size: 13px; color: #555; display: flex; align-items: center; gap: 6px; }
-.filter-bar input, .filter-bar select {
-  padding: 5px 9px; border: 1px solid #ddd; border-radius: 4px;
-  font-size: 13px; font-family: inherit;
-}
-.btn { padding: 7px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-family: inherit; }
-.btn-primary { background: #1a73e8; color: #fff; }
-.btn-primary:hover { background: #1557b0; }
-.btn-success { background: #34a853; color: #fff; }
-.btn-success:hover { background: #2d9348; }
-.btn-danger { background: #ea4335; color: #fff; padding: 3px 10px; font-size: 12px; border: none; border-radius: 3px; cursor: pointer; }
-.btn-danger:hover { background: #c5221f; }
-
-.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 10px; margin-bottom: 12px; }
-.stat-card { background: #fff; padding: 14px; border-radius: 8px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-.stat-num { font-size: 28px; font-weight: 700; color: #1a73e8; }
-.stat-label { font-size: 11px; color: #888; margin-top: 4px; }
-
-.table-wrap { background: #fff; border-radius: 8px; overflow: auto; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 820px; }
-th { background: #1a73e8; color: #fff; padding: 10px 11px; text-align: center; font-weight: 500; white-space: nowrap; }
-td { padding: 8px 11px; border-bottom: 1px solid #f0f0f0; text-align: center; color: #333; }
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: #f8f9fa; }
-.tag { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 11px; }
-.tag-done { background: #e8f5e9; color: #2e7d32; }
-.tag-in   { background: #fff3e0; color: #e65100; }
-.empty { text-align: center; color: #aaa; padding: 28px; }
-</style>
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/admin.css">
 </head>
 <body>
 <h1>
-  📋 臨時人員出缺勤後台
+  臨時人員出缺勤後台
   <div class="live-dot" title="即時更新中"></div>
   <span class="last-update" id="last-update"></span>
 </h1>
 
 <div class="filter-bar">
-  <label>年份 <input type="number" id="filterYear" placeholder="115" style="width:68px"></label>
+  <label>年份 <input type="number" id="filterYear" placeholder="115" style="width:72px"></label>
   <label>月份
     <select id="filterMonth">
       <option value="">全部</option>
@@ -66,8 +26,8 @@ tr:hover td { background: #f8f9fa; }
     </select>
   </label>
   <label>姓名 <input type="text" id="filterName" placeholder="搜尋姓名" style="width:110px"></label>
-  <button class="btn btn-primary" onclick="loadRecords()">搜尋</button>
-  <button class="btn btn-success" onclick="exportExcel()">匯出 Excel</button>
+  <button class="btn btn-primary" id="btn-search">搜尋</button>
+  <button class="btn btn-success" id="btn-export">匯出 Excel</button>
 </div>
 
 <div class="stats">
@@ -81,109 +41,16 @@ tr:hover td { background: #f8f9fa; }
   <table>
     <thead>
       <tr>
-        <th>#</th><th>姓名</th><th>課程名稱</th><th>課程屬性</th><th>日期（民國）</th>
+        <th>#</th><th>姓名</th><th>課程</th><th>屬性</th><th>日期</th>
         <th>簽到</th><th>簽退</th><th>時數</th>
-        <th>老師</th><th>報名</th><th>實到</th><th>候補</th><th>上課內容</th><th>狀態</th><th>操作</th>
+        <th>老師</th><th>報名</th><th>實到</th><th>候補</th><th>內容</th><th>狀態</th><th>操作</th>
       </tr>
     </thead>
     <tbody id="tbody"><tr><td colspan="15" class="empty">載入中…</td></tr></tbody>
   </table>
 </div>
 
-<script>
-function fmt(iso) {
-  if (!iso) return "-";
-  return new Date(iso).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
-}
-
-async function loadRecords() {
-  const year  = document.getElementById("filterYear").value;
-  const month = document.getElementById("filterMonth").value;
-  const name  = document.getElementById("filterName").value.trim();
-
-  try {
-    const res = await fetch("/records");
-    let all = await res.json();
-
-    let records = all;
-    if (year)  records = records.filter(r => r.year  === parseInt(year));
-    if (month) records = records.filter(r => r.month === parseInt(month));
-    if (name)  records = records.filter(r => r.name && r.name.includes(name));
-    records.sort((a, b) => new Date(b.checkinTime) - new Date(a.checkinTime));
-
-    const done    = records.filter(r => r.status === "checked-out");
-    const active  = records.filter(r => r.status === "checked-in");
-    const total   = done.reduce((s, r) => s + (r.hours || 0), 0);
-    const people  = new Set(records.map(r => r.name)).size;
-
-    document.getElementById("stat-count").textContent  = records.length;
-    document.getElementById("stat-hours").textContent  = Math.round(total * 10) / 10;
-    document.getElementById("stat-people").textContent = people;
-    document.getElementById("stat-active").textContent = active.length;
-    document.getElementById("last-update").textContent =
-      "更新：" + new Date().toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-
-    const tbody = document.getElementById("tbody");
-    if (records.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="15" class="empty">查無記錄</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = records.map((r, i) => {
-      const dateStr = r.year ? `${r.year}/${r.month}/${r.day}` : "-";
-      const content = Array.isArray(r.workContent) ? r.workContent.join("、") : "-";
-      const tag = r.status === "checked-out"
-        ? '<span class="tag tag-done">已完成</span>'
-        : '<span class="tag tag-in">簽到中</span>';
-      return `<tr>
-        <td>${i+1}</td>
-        <td><b>${r.name||"-"}</b></td>
-        <td>${r.course||"-"}</td>
-        <td>${r.courseType||"-"}</td>
-        <td>${dateStr}</td>
-        <td>${fmt(r.checkinTime)}</td>
-        <td>${fmt(r.checkoutTime)}</td>
-        <td>${r.hours != null ? r.hours+" 時" : "-"}</td>
-        <td>${r.teacher||"-"}</td>
-        <td>${r.registeredCount != null ? r.registeredCount : "-"}</td>
-        <td>${r.actualCount != null ? r.actualCount : "-"}</td>
-        <td>${r.walkInCount != null ? r.walkInCount : "-"}</td>
-        <td style="text-align:left;max-width:200px">${r.summary||"-"}</td>
-        <td>${tag}</td>
-        <td><button class="btn-danger" onclick="deleteRecord('${r.id}')">刪除</button></td>
-      </tr>`;
-    }).join("");
-  } catch (e) {
-    document.getElementById("tbody").innerHTML =
-      `<tr><td colspan="14" style="color:red;text-align:center;padding:20px">載入失敗：${e.message}</td></tr>`;
-  }
-}
-
-function exportExcel() {
-  const params = new URLSearchParams();
-  const year   = document.getElementById("filterYear").value;
-  const month  = document.getElementById("filterMonth").value;
-  const name   = document.getElementById("filterName").value.trim();
-  if (year)  params.set("year",  year);
-  if (month) params.set("month", month);
-  if (name)  params.set("name",  name);
-  window.location.href = "/export?" + params.toString();
-}
-
-async function deleteRecord(id) {
-  if (!confirm("確定刪除此筆記錄？")) return;
-  try {
-    const res = await fetch(`/records/${id}`, { method: "DELETE" });
-    if (!res.ok) throw new Error((await res.json()).error);
-    loadRecords();
-  } catch (e) {
-    alert("刪除失敗：" + e.message);
-  }
-}
-
-// 每 5 秒自動更新
-loadRecords();
-setInterval(loadRecords, 5000);
-</script>
+<script src="js/shared.js"></script>
+<script src="js/admin.js"></script>
 </body>
 </html>

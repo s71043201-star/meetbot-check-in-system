@@ -4,108 +4,49 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>臨時人員出缺勤系統</title>
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: "Noto Sans TC", "Google Sans", Roboto, sans-serif; background: #f0f4f9; min-height: 100vh; padding: 24px 16px; }
-.container { max-width: 640px; margin: 0 auto; }
-.card { background: #fff; border-radius: 8px; padding: 24px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
-.header-card { border-top: 10px solid #1a73e8; }
-h1 { font-size: 22px; color: #202124; margin-bottom: 6px; font-weight: 600; }
-.sub { color: #5f6368; font-size: 13px; line-height: 1.6; }
-.q-title { font-size: 15px; color: #202124; font-weight: 500; margin-bottom: 14px; }
-.required::after { content: " *"; color: #d93025; }
-input[type="text"], input[type="number"], textarea {
-  width: 100%; border: none; border-bottom: 1px solid #dadce0;
-  padding: 8px 0; font-size: 14px; font-family: inherit;
-  outline: none; background: transparent; transition: border-color .15s;
-}
-input[type="text"]:focus, input[type="number"]:focus, textarea:focus { border-bottom: 2px solid #1a73e8; }
-.radio-group { display: flex; flex-direction: column; gap: 12px; }
-.opt { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; color: #202124; cursor: pointer; line-height: 1.5; }
-input[type="radio"] { width: 18px; height: 18px; cursor: pointer; accent-color: #1a73e8; flex-shrink: 0; margin-top: 2px; }
-.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.checkin-btn {
-  display: block; width: 100%; padding: 16px; font-size: 20px; font-weight: 500;
-  background: #34a853; color: #fff; border: none; border-radius: 8px;
-  cursor: pointer; margin-top: 16px; font-family: inherit; transition: background .15s;
-}
-.checkin-btn:hover { background: #2d9348; }
-.checkin-btn:disabled { background: #aaa; cursor: not-allowed; }
-.submit-btn {
-  background: #1a73e8; color: #fff; border: none; border-radius: 4px;
-  padding: 12px 32px; font-size: 15px; font-family: inherit; cursor: pointer;
-  float: right; transition: background .15s;
-}
-.submit-btn:hover { background: #1557b0; }
-.submit-btn:disabled { background: #aaa; cursor: not-allowed; }
-.clock { font-size: 52px; font-weight: 300; text-align: center; color: #202124; letter-spacing: 4px; margin: 8px 0 4px; }
-.clock-label { text-align: center; color: #5f6368; font-size: 13px; margin-bottom: 8px; }
-.done-icon { text-align: center; font-size: 72px; margin: 20px 0; }
-.done-name { text-align: center; font-size: 22px; color: #202124; margin-bottom: 8px; }
-.done-hours { text-align: center; font-size: 36px; font-weight: 300; color: #1a73e8; margin-bottom: 4px; }
-.done-note { text-align: center; color: #5f6368; font-size: 13px; margin-top: 16px; }
-.err { color: #d93025; font-size: 12px; margin-top: 6px; display: none; }
-.clearfix::after { content: ""; display: block; clear: both; }
-.hidden { display: none !important; }
-.hint { font-size: 12px; color: #888; margin-top: 4px; }
-.recover-bar {
-  background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px;
-  padding: 14px 18px; margin-bottom: 12px; font-size: 13px; color: #5d4037;
-}
-.recover-bar strong { display: block; margin-bottom: 8px; font-size: 14px; color: #e65100; }
-.recover-bar .recover-btns { display: flex; gap: 10px; margin-top: 10px; }
-.btn-recover { padding: 8px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-family: inherit; }
-.btn-yes { background: #ff8f00; color: #fff; }
-.btn-yes:hover { background: #e65100; }
-.btn-no  { background: #eee; color: #555; }
-.btn-no:hover { background: #ddd; }
-</style>
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/checkin.css">
 </head>
 <body>
 <div class="container">
 
-  <!-- 回復提示列（localStorage 偵測） -->
+  <!-- 回復提示列 -->
   <div id="recover-bar" class="recover-bar hidden">
-    <strong>⚠️ 發現未完成的簽退記錄</strong>
+    <strong>發現未完成的簽退記錄</strong>
     <span id="recover-info"></span>
     <div class="recover-btns">
-      <button class="btn-recover btn-yes" onclick="restoreSession()">繼續填寫簽退表單</button>
-      <button class="btn-recover btn-no"  onclick="discardRecover()">忽略，重新簽到</button>
+      <button class="btn-recover btn-yes" id="btn-restore">繼續填寫簽退表單</button>
+      <button class="btn-recover btn-no" id="btn-discard">忽略，重新簽到</button>
     </div>
   </div>
 
   <!-- Section 1: 簽到 -->
-  <div id="sec-checkin">
+  <section id="sec-checkin">
     <div class="card header-card">
       <h1>台北市醫師公會健康台灣深耕計畫</h1>
       <p class="sub">臺北市慢性病防治全人健康智慧整合照護計畫<br>處方課程・開課紀錄表</p>
     </div>
     <div class="card">
       <div class="q-title required">填表人（您的姓名）</div>
-      <input type="text" id="name" placeholder="請輸入您的姓名">
+      <input type="text" class="input" id="name" placeholder="請輸入您的姓名">
       <div class="err" id="err-name">請填寫姓名</div>
-    </div>
-    <div class="card">
-      <div class="q-title required">課程名稱</div>
-      <input type="text" id="course" placeholder="請輸入今日課程名稱">
-      <div class="err" id="err-course">請填寫課程名稱</div>
     </div>
     <div class="card">
       <div class="clock" id="clock">--:--</div>
       <div class="clock-label">現在時間（按下後記錄為課程開始時間）</div>
-      <button class="checkin-btn" id="checkin-btn" onclick="doCheckin()">✅ 簽到・開始上課</button>
+      <button class="btn btn--checkin" id="checkin-btn">簽到・開始上課</button>
     </div>
-  </div>
+  </section>
 
   <!-- Section 2: 課程記錄表單 -->
-  <div id="sec-form" class="hidden">
+  <section id="sec-form" class="hidden">
     <div class="card header-card">
       <h1>台北市醫師公會健康台灣深耕計畫</h1>
       <p class="sub">臺北市慢性病防治全人健康智慧整合照護計畫・處方課程・開課紀錄表</p>
-      <p class="sub" id="checkin-info" style="margin-top:6px;color:#1a73e8"></p>
-      <div style="margin-top:14px;font-size:13px;color:#5f6368;line-height:1.8;border-top:1px solid #e8eaed;padding-top:14px">
+      <p class="sub" id="checkin-info" style="margin-top:var(--space-2);color:var(--color-primary);font-weight:500"></p>
+      <div class="info-section">
         <p>本會為衛生福利部「健康台灣深耕計畫」受補助單位，為進行台北市醫師公會「健康台灣深耕計畫」臺北市慢性病防治全人健康智慧整合照護計畫，本表單為處方課程隨課人員之紀錄表單，請詳細填寫，以利掌握課程間的狀況。</p>
-        <p style="margin-top:10px;font-weight:500;color:#202124">隨課人員協助項目：</p>
+        <p style="font-weight:600;color:var(--color-text);margin-top:var(--space-3)">隨課人員協助項目：</p>
         <p>□ 社區大學限定（說明：開關教室、借用教具，請至辦公室接洽社大工作人員）</p>
         <p>□ 協助報到（請講師登入健康處方管理系統：https://healthcheck-rx.delixir.cc/login）<br>
            　　　　　（密碼：手機10碼或身分證字號）</p>
@@ -113,7 +54,7 @@ input[type="radio"] { width: 18px; height: 18px; cursor: pointer; accent-color: 
         <p>□ 協助課後滿意度調查</p>
         <p>□ 回報課程出席狀況</p>
         <p>□ 簡述課程狀況與反應項目</p>
-        <p style="margin-top:10px;color:#202124">
+        <p style="margin-top:var(--space-3);color:var(--color-text)">
           台北市醫師公會 健康台灣深耕計畫團隊<br>
           社區計畫駐點辦公室<br>
           連絡電話：02-2891-7453<br>
@@ -122,95 +63,39 @@ input[type="radio"] { width: 18px; height: 18px; cursor: pointer; accent-color: 
       </div>
     </div>
 
-    <!-- 三個 QR Code -->
+    <!-- QR Codes -->
     <div class="card">
-      <div class="q-title" style="margin-bottom:18px">相關連結</div>
-      <div style="display:flex;justify-content:space-around;flex-wrap:wrap;gap:16px;text-align:center">
+      <div class="q-title" style="margin-bottom:var(--space-4)">相關連結</div>
+      <div class="qr-grid">
         <div>
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https%3A%2F%2Fhealthcheck-rx.delixir.cc%2Fdoctor"
-               alt="健康處方管理系統" style="width:150px;height:150px;border-radius:6px;border:1px solid #eee">
-          <p style="font-size:12px;color:#444;margin-top:6px;font-weight:500">健康處方管理系統</p>
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https%3A%2F%2Fhealthcheck-rx.delixir.cc%2Fdoctor" alt="健康處方管理系統">
+          <p>健康處方管理系統</p>
         </div>
         <div>
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https%3A%2F%2Flin.ee%2FnU1fTzAx"
-               alt="台北市醫師公會官方LINE" style="width:150px;height:150px;border-radius:6px;border:1px solid #eee">
-          <p style="font-size:12px;color:#444;margin-top:6px;font-weight:500">台北市醫師公會官方 LINE</p>
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https%3A%2F%2Flin.ee%2FnU1fTzAx" alt="台北市醫師公會官方LINE">
+          <p>台北市醫師公會官方 LINE</p>
         </div>
         <div>
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https%3A%2F%2Fdocs.google.com%2Fforms%2Fd%2Fe%2F1FAIpQLSeJT2bLkHxFmIP1YjjYu_TNuyKU5BqQeS4JTz0OJWg7gGnlTA%2Fviewform"
-               alt="滿意度調查問卷" style="width:150px;height:150px;border-radius:6px;border:1px solid #eee">
-          <p style="font-size:12px;color:#444;margin-top:6px;font-weight:500">滿意度調查問卷</p>
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https%3A%2F%2Fdocs.google.com%2Fforms%2Fd%2Fe%2F1FAIpQLSeJT2bLkHxFmIP1YjjYu_TNuyKU5BqQeS4JTz0OJWg7gGnlTA%2Fviewform" alt="滿意度調查問卷">
+          <p>滿意度調查問卷</p>
         </div>
       </div>
     </div>
 
-    <!-- 課程預計時數 -->
+    <!-- 課程區塊容器 -->
     <div class="card">
-      <div class="q-title required">課程預計時數</div>
-      <div class="radio-group">
-        <label class="opt"><input type="radio" name="plannedHours" value="1小時（50-60分鐘）"> 1 小時（50-60 分鐘）</label>
-        <label class="opt"><input type="radio" name="plannedHours" value="1.5小時"> 1.5 小時</label>
-        <label class="opt"><input type="radio" name="plannedHours" value="2小時"> 2 小時</label>
-        <label class="opt"><input type="radio" name="plannedHours" value="其他"> 其他</label>
-      </div>
-      <div class="err" id="err-plannedHours">請選擇課程預計時數</div>
-    </div>
-
-    <!-- 課程屬性 -->
-    <div class="card">
-      <div class="q-title required">課程屬性</div>
-      <div class="radio-group">
-        <label class="opt"><input type="radio" name="courseType" value="A.運動處方"> A. 運動處方</label>
-        <label class="opt"><input type="radio" name="courseType" value="B.營養處方"> B. 營養處方</label>
-        <label class="opt"><input type="radio" name="courseType" value="C.社會處方"> C. 社會處方</label>
-        <label class="opt"><input type="radio" name="courseType" value="D.情緒調適處方"> D. 情緒調適處方</label>
-      </div>
-      <div class="err" id="err-courseType">請選擇課程屬性</div>
-    </div>
-
-    <!-- 課程老師 -->
-    <div class="card">
-      <div class="q-title">課程老師</div>
-      <input type="text" id="teacher" placeholder="請輸入課程老師姓名（非必填）">
-    </div>
-
-    <!-- 人數 -->
-    <div class="card">
-      <div class="q-title required">出席人數</div>
-      <div class="row-2">
-        <div>
-          <div class="q-title required" style="font-size:13px; margin-bottom:8px;">系統報名人數</div>
-          <input type="number" id="registeredCount" placeholder="請輸入數字" min="0">
-          <div class="err" id="err-reg">請填寫</div>
-        </div>
-        <div>
-          <div class="q-title required" style="font-size:13px; margin-bottom:8px;">線上報名實到人數</div>
-          <input type="number" id="actualCount" placeholder="請輸入數字" min="0">
-          <div class="err" id="err-act">請填寫</div>
-        </div>
-      </div>
-      <div style="margin-top:16px;">
-        <div class="q-title required" style="font-size:13px; margin-bottom:8px;">無報名現場候補人數</div>
-        <input type="number" id="walkInCount" placeholder="請輸入數字" min="0">
-        <div class="err" id="err-walk">請填寫</div>
-      </div>
-    </div>
-
-    <!-- 上課內容 -->
-    <div class="card">
-      <div class="q-title required">簡述上課內容或回報狀況</div>
-      <textarea id="summary" rows="4" placeholder="請簡述今日上課內容或狀況（100字內）" maxlength="100"></textarea>
-      <div class="hint"><span id="char-count">0</span>/100 字</div>
-      <div class="err" id="err-summary">請填寫上課內容</div>
+      <div class="q-title required" style="margin-bottom:var(--space-4)">課程資料</div>
+      <div id="courses-container"></div>
+      <button class="add-course-btn" id="add-course-btn">+ 新增一筆課程</button>
     </div>
 
     <div class="card clearfix">
-      <button class="submit-btn" id="submit-btn" onclick="doCheckout()">送出並簽退</button>
+      <button class="btn btn--submit" id="submit-btn">送出並簽退</button>
     </div>
-  </div>
+  </section>
 
   <!-- Section 3: 完成 -->
-  <div id="sec-done" class="hidden">
+  <section id="sec-done" class="hidden">
     <div class="card header-card">
       <h1>簽退完成</h1>
       <p class="sub">課程記錄已儲存，感謝您的填寫</p>
@@ -221,185 +106,10 @@ input[type="radio"] { width: 18px; height: 18px; cursor: pointer; accent-color: 
       <div class="done-hours" id="done-hours"></div>
       <div class="done-note">感謝今日的辛勞！</div>
     </div>
-  </div>
+  </section>
 
 </div>
-<script>
-(function tick() {
-  const now = new Date();
-  document.getElementById("clock").textContent =
-    now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
-  setTimeout(tick, 1000);
-})();
-
-// 字數計算
-document.addEventListener("input", function(e) {
-  if (e.target.id === "summary") {
-    document.getElementById("char-count").textContent = e.target.value.length;
-  }
-});
-
-function showErr(id, show) {
-  document.getElementById(id).style.display = show ? "block" : "none";
-}
-
-// ── 回復機制：頁面載入時檢查 localStorage ──────
-(async function checkRecover() {
-  const savedId = localStorage.getItem("sessionId");
-  if (!savedId) return;
-  try {
-    const res  = await fetch("/session/" + savedId);
-    if (!res.ok) { localStorage.clear(); return; }
-    const data = await res.json();
-    if (!data.record || data.record.status !== "checked-in") { localStorage.clear(); return; }
-    const r   = data.record;
-    const t   = new Date(r.checkinTime).toLocaleTimeString("zh-TW", { hour:"2-digit", minute:"2-digit" });
-    document.getElementById("recover-info").textContent =
-      `姓名：${r.name}　課程：${r.course}　簽到時間：${t}`;
-    document.getElementById("recover-bar").classList.remove("hidden");
-  } catch { localStorage.clear(); }
-})();
-
-// 姓名欄失焦時：查詢是否有進行中的簽到（跨裝置回復）
-document.getElementById("name").addEventListener("blur", async function() {
-  const name = this.value.trim();
-  if (!name) return;
-  // 若 localStorage 已有相同 session 就不重複提示
-  if (localStorage.getItem("sessionId")) return;
-  try {
-    const res  = await fetch("/active-session?name=" + encodeURIComponent(name));
-    const data = await res.json();
-    if (!data.found) return;
-    const r = data.record;
-    const t = new Date(r.checkinTime).toLocaleTimeString("zh-TW", { hour:"2-digit", minute:"2-digit" });
-    // 存入 localStorage 並顯示回復提示
-    localStorage.setItem("sessionId", data.sessionId);
-    localStorage.setItem("name", r.name);
-    localStorage.setItem("course", r.course);
-    document.getElementById("recover-info").textContent =
-      `姓名：${r.name}　課程：${r.course}　簽到時間：${t}`;
-    document.getElementById("recover-bar").classList.remove("hidden");
-  } catch {}
-});
-
-function restoreSession() {
-  const sessionId = localStorage.getItem("sessionId");
-  const name      = localStorage.getItem("name");
-  const course    = localStorage.getItem("course");
-  if (!sessionId) return;
-  fetch("/session/" + sessionId).then(r => r.json()).then(data => {
-    if (!data.record || data.record.status !== "checked-in") {
-      alert("此簽到記錄已完成或不存在，請重新簽到");
-      localStorage.clear();
-      document.getElementById("recover-bar").classList.add("hidden");
-      return;
-    }
-    const r = data.record;
-    const t = new Date(r.checkinTime).toLocaleTimeString("zh-TW", { hour:"2-digit", minute:"2-digit" });
-    document.getElementById("checkin-info").textContent =
-      `${r.name}・${r.course}・開始時間：${t}`;
-    document.getElementById("recover-bar").classList.add("hidden");
-    document.getElementById("sec-checkin").classList.add("hidden");
-    document.getElementById("sec-form").classList.remove("hidden");
-  }).catch(() => alert("回復失敗，請重新簽到"));
-}
-
-function discardRecover() {
-  localStorage.clear();
-  document.getElementById("recover-bar").classList.add("hidden");
-}
-
-async function doCheckin() {
-  const name   = document.getElementById("name").value.trim();
-  const course = document.getElementById("course").value.trim();
-  showErr("err-name",   !name);
-  showErr("err-course", !course);
-  if (!name || !course) return;
-
-  const btn = document.getElementById("checkin-btn");
-  btn.disabled = true;
-  btn.textContent = "簽到中…";
-
-  try {
-    const res  = await fetch("/checkin", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, course })
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
-
-    localStorage.setItem("sessionId", data.sessionId);
-    localStorage.setItem("name", name);
-    localStorage.setItem("course", course);
-
-    const now = new Date();
-    document.getElementById("checkin-info").textContent =
-      `${name}・${course}・開始時間：${now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}`;
-
-    document.getElementById("recover-bar").classList.add("hidden");
-    document.getElementById("sec-checkin").classList.add("hidden");
-    document.getElementById("sec-form").classList.remove("hidden");
-  } catch (e) {
-    alert("簽到失敗：" + e.message);
-    btn.disabled = false;
-    btn.textContent = "✅ 簽到・開始上課";
-  }
-}
-
-async function doCheckout() {
-  const sessionId = localStorage.getItem("sessionId");
-  const name      = localStorage.getItem("name");
-  if (!sessionId) { alert("找不到簽到記錄，請重新整理頁面後簽到"); return; }
-
-  const plannedHours    = document.querySelector('input[name="plannedHours"]:checked');
-  const courseType      = document.querySelector('input[name="courseType"]:checked');
-  const registeredCount = document.getElementById("registeredCount").value;
-  const actualCount     = document.getElementById("actualCount").value;
-  const walkInCount     = document.getElementById("walkInCount").value;
-  const summary         = document.getElementById("summary").value.trim();
-
-  let valid = true;
-  showErr("err-plannedHours", !plannedHours); if (!plannedHours) valid = false;
-  showErr("err-courseType",   !courseType);   if (!courseType)   valid = false;
-  showErr("err-reg",  registeredCount === ""); if (registeredCount === "") valid = false;
-  showErr("err-act",  actualCount === "");     if (actualCount === "") valid = false;
-  showErr("err-walk", walkInCount === "");     if (walkInCount === "") valid = false;
-  showErr("err-summary", !summary);            if (!summary) valid = false;
-  if (!valid) return;
-
-  const teacher = document.getElementById("teacher").value.trim();
-  const btn     = document.getElementById("submit-btn");
-  btn.disabled  = true;
-  btn.textContent = "送出中…";
-
-  try {
-    const res  = await fetch("/checkout", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId,
-        plannedHours:    plannedHours.value,
-        courseType:      courseType.value,
-        teacher,
-        registeredCount: parseInt(registeredCount),
-        actualCount:     parseInt(actualCount),
-        walkInCount:     parseInt(walkInCount),
-        summary
-      })
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
-
-    document.getElementById("done-name").textContent  = `謝謝 ${name}！`;
-    document.getElementById("done-hours").textContent = `今日工作時數：${data.hours} 小時`;
-    document.getElementById("sec-form").classList.add("hidden");
-    document.getElementById("sec-done").classList.remove("hidden");
-    localStorage.clear();
-  } catch (e) {
-    alert("送出失敗：" + e.message);
-    btn.disabled = false;
-    btn.textContent = "送出並簽退";
-  }
-}
-</script>
+<script src="js/shared.js"></script>
+<script src="js/checkin.js"></script>
 </body>
 </html>
