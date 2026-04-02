@@ -19,7 +19,7 @@ function buildExportFullHtml(grouped) {
 
     pages += `
       <div class="page">
-        <p class="title">社團法人台北市醫師公會　領據（健康台灣深耕計畫）</p>
+        <p class="title">社團法人台北市醫師公會　領據<br>（健康台灣深耕計畫）</p>
         <table>
           <tr>
             <td class="lbl" width="80">領款人姓名</td>
@@ -55,19 +55,14 @@ function buildExportFullHtml(grouped) {
             <td class="lbl">領款人簽章</td>
             <td style="height:50px"></td>
           </tr>
-        </table>
-        <table class="id-table">
           <tr>
-            <td class="lbl" width="80" rowspan="2">身分證號碼</td>
-            ${Array.from({length:10}, (_,i) => `<td class="id-cell">${idNum[i] || ""}</td>`).join("")}
+            <td class="lbl">身分證號碼</td>
+            <td colspan="3" class="id-row">${Array.from({length:10}, (_,i) =>
+              `<span class="id-box">${idNum[i] || ""}</span>`
+            ).join("")}</td>
           </tr>
           <tr>
-            ${Array.from({length:10}, () => `<td class="id-cell-empty"></td>`).join("")}
-          </tr>
-        </table>
-        <table>
-          <tr>
-            <td class="lbl" width="80">戶籍地址</td>
+            <td class="lbl">戶籍地址</td>
             <td colspan="3">${addr}</td>
           </tr>
           <tr>
@@ -95,9 +90,8 @@ function buildExportFullHtml(grouped) {
   table { border-collapse: collapse; width: 100%; margin: 0; }
   td { border: 1px solid #000; padding: 6px 8px; font-size: 12pt; vertical-align: middle; }
   td.lbl { font-weight: bold; text-align: center; width: 80px; }
-  .id-table { margin: 0; }
-  .id-cell { text-align: center; font-size: 14pt; font-family: "Courier New", monospace; height: 35px; width: 9%; }
-  .id-cell-empty { height: 8px; border-top: none; }
+  .id-row { letter-spacing: 0; }
+  .id-box { display: inline-block; width: 28px; height: 28px; border: 1px solid #000; text-align: center; line-height: 28px; font-size: 14pt; font-family: "Courier New", monospace; margin: 0 2px; }
 </style></head>
 <body>${pages}</body></html>`;
 
