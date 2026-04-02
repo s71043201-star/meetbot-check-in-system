@@ -23,7 +23,7 @@ function buildExportFullHtml(grouped) {
 
     // 身分證 10 格 — 每格 8% 寬
     const idCells = Array.from({length:10}, (_,i) =>
-      `<td width="8%" align="center" style="${B}height:36px;font-size:14pt;font-family:Courier New;padding:2px">${idNum[i] || "&nbsp;"}</td>`
+      `<td align="center" style="${B}height:36px;font-size:14pt;font-family:Courier New;padding:2px">${idNum[i] || "&nbsp;"}</td>`
     ).join("");
 
     // 整張表格用 20 欄結構：
@@ -36,7 +36,7 @@ function buildExportFullHtml(grouped) {
 
     pages.push(`
 <p align="center" style="font-size:16pt;font-weight:bold;font-family:DFKai-SB,標楷體;margin-bottom:4px">社團法人台北市醫師公會  領據（健康台灣深耕計畫）</p>
-<table border="1" cellpadding="5" cellspacing="0" width="100%" style="border-collapse:collapse;font-family:DFKai-SB,標楷體;font-size:12pt">
+<table border="1" cellpadding="5" cellspacing="0" width="100%" style="border-collapse:collapse;font-family:DFKai-SB,標楷體;font-size:12pt;page-break-inside:avoid;mso-table-lspace:0pt;mso-table-rspace:0pt">
   <tr>
     <td ${SL} width="12%">領款人姓名</td>
     <td ${S} colspan="4">${pName}</td>
