@@ -44,7 +44,9 @@ function buildPersonSheet(wb, personName, records) {
   ws.getCell("C3").style = { font:tk, alignment:mid, border:bdr };
   ws.getCell("E3").value = "工作內容";
   ws.getCell("E3").style = { font:tk, alignment:mid, border:bdr };
-  ws.getCell("F3").value = "協助處方課執行期間\n場地協助、報到協助、出席紀錄、活動影像紀錄、課後滿意度調查提醒等";
+  // 使用簽到時填寫的工作內容說明，取第一筆非空值
+  const workDesc = records.find(r => r.workDescription)?.workDescription || "";
+  ws.getCell("F3").value = workDesc;
   ws.getCell("F3").style = { font:tk, alignment:lmid, border:bdr };
 
   // Row 4 欄位標題
