@@ -141,6 +141,13 @@
           <small>可新增多筆課程紀錄</small>
         </span>
       </button>
+      <button class="type-btn type-btn-admin" id="btn-type-admin">
+        <span class="type-btn-icon">📋</span>
+        <span class="type-btn-text">
+          行政庶務
+          <small>工作紀錄與檔案回傳</small>
+        </span>
+      </button>
     </div>
   </div>
 
@@ -312,6 +319,52 @@
 
     <div class="card clearfix">
       <button class="btn btn-submit" id="btn-checkout-prescription">送出並簽退</button>
+    </div>
+  </div>
+
+  <!-- ===== Section 3c: 行政庶務表單 ===== -->
+  <div id="sec-form-admin" class="hidden">
+    <div class="card header-card">
+      <h1>行政庶務 —— 工作紀錄表</h1>
+      <p class="subtitle" id="admin-checkin-info"></p>
+    </div>
+
+    <div class="card">
+      <div class="q-title required">工作名稱</div>
+      <select id="admin-workName" class="input-select">
+        <option value="">請選擇工作名稱</option>
+        <option value="行政庶務">行政庶務</option>
+        <option value="處方日電話聯繫">處方日電話聯繫</option>
+        <option value="資料整理">資料整理</option>
+        <option value="其他">其他</option>
+      </select>
+      <input type="text" id="admin-workNameOther" class="hidden" placeholder="請輸入工作名稱" style="margin-top:8px">
+      <div class="err hidden" id="err-admin-workName">請選擇或填寫工作名稱</div>
+    </div>
+
+    <div class="card">
+      <div class="q-title required">工作項目</div>
+      <textarea id="admin-workItems" rows="4" placeholder="請描述今日執行的工作項目"></textarea>
+      <div class="err hidden" id="err-admin-workItems">請填寫工作項目</div>
+    </div>
+
+    <div class="card">
+      <div class="q-title">工作完成之檔案回傳（選填）</div>
+      <p class="hint" style="margin-bottom:8px">可上傳 Word、PDF、Excel 等檔案，支援多檔上傳</p>
+      <label class="file-upload-label" id="file-upload-label">
+        <span>📎 選擇檔案</span>
+        <input type="file" id="admin-files" multiple accept=".doc,.docx,.pdf,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.jpg,.png" style="display:none">
+      </label>
+      <div id="file-list" class="file-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="q-title">工作期間遇到的困難與回饋（選填）</div>
+      <textarea id="admin-feedback" rows="3" placeholder="如有任何困難或建議，請在此填寫"></textarea>
+    </div>
+
+    <div class="card clearfix">
+      <button class="btn btn-submit" id="btn-checkout-admin">送出並簽退</button>
     </div>
   </div>
 

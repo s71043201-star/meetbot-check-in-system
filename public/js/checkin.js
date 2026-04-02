@@ -19,7 +19,7 @@
   }
 
   function showSection(id) {
-    ["sec-info", "sec-type", "sec-form-regular", "sec-form-prescription", "sec-done"]
+    ["sec-info", "sec-type", "sec-form-regular", "sec-form-prescription", "sec-form-admin", "sec-done"]
       .forEach(function (s) { document.getElementById(s).classList.add("hidden"); });
     document.getElementById(id).classList.remove("hidden");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -171,9 +171,10 @@
       var timeStr = now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
       var infoText = name + " \u5DF2\u65BC " + timeStr + " \u7C3D\u5230";
 
-      document.getElementById("checkin-info").textContent      = infoText;
-      document.getElementById("regular-info").textContent      = infoText;
-      document.getElementById("prescription-info").textContent = infoText;
+      document.getElementById("checkin-info").textContent        = infoText;
+      document.getElementById("regular-info").textContent        = infoText;
+      document.getElementById("prescription-info").textContent   = infoText;
+      document.getElementById("admin-checkin-info").textContent   = infoText;
 
       showSection("sec-type");
     } catch (e) {
@@ -190,7 +191,11 @@
         addCourse();
       }
     }
-    showSection(type === "regular" ? "sec-form-regular" : "sec-form-prescription");
+    if (type === "admin-tasks") {
+      showSection("sec-form-admin");
+    } else {
+      showSection(type === "regular" ? "sec-form-regular" : "sec-form-prescription");
+    }
   }
 
   // ── Prescription: Add / Remove Course (完整表單) ──
@@ -373,6 +378,68 @@
     }
   }
 
+  // ── Step 3b: Check-out (Admin Tasks) ──
+  async function doCheckoutAdmin() {
+    var sessionId = sessionStorage.getItem("sessionId");
+    if (!sessionId) { showToast("\u627E\u4E0D\u5230\u7C3D\u5230\u8A18\u9304", "error"); return; }
+
+    var workNameSelect = document.getElementById("admin-workName").value;
+    var workNameOther = document.getElementById("admin-workNameOther").value.trim();
+    var workName = workNameSelect === "\u5176\u4ED6" ? workNameOther : workNameSelect;
+    var workItems = document.getElementById("admin-workItems").value.trim();
+    var feedback = document.getElementById("admin-feedback").value.trim();
+
+    // Validation
+    if (!workName) { showErr("err-admin-workName", true); return; }
+    showErr("err-admin-workName", false);
+    if (!workItems) { showErr("err-admin-workItems", true); return; }
+    showErr("err-admin-workItems", false);
+
+    // File upload - collect file names
+    var fileInput = document.getElementById("admin-files");
+    var fileNames = [];
+    if (fileInput.files.length > 0) {
+      fileNames = Array.from(fileInput.files).map(function (f) { return f.name; });
+    }
+
+    try {
+      // Upload files if any
+      var uploadedFiles = [];
+      if (fileInput.files.length > 0) {
+        var formData = new FormData();
+        for (var i = 0; i < fileInput.files.length; i++) {
+          formData.append("files", fileInput.files[i]);
+        }
+        formData.append("sessionId", sessionId);
+        var uploadRes = await fetch("/upload-files", { method: "POST", body: formData });
+        var uploadData = await uploadRes.json();
+        if (uploadData.ok) uploadedFiles = uploadData.files;
+      }
+
+      var res = await fetch("/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: sessionId,
+          checkinType: "\u884C\u653F\u5EB6\u52D9",
+          course: workName,
+          workContent: workItems,
+          note: feedback,
+          uploadedFiles: uploadedFiles
+        })
+      });
+      var data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+
+      document.getElementById("done-name").textContent = "\u8B1D\u8B1D " + sessionStorage.getItem("name") + "\uFF01";
+      document.getElementById("done-hours").textContent = "\u4ECA\u65E5\u5DE5\u4F5C\u6642\u6578\uFF1A" + data.hours + " \u5C0F\u6642";
+      showSection("sec-done");
+      sessionStorage.clear();
+    } catch (e) {
+      showToast("\u7C3D\u9000\u5931\u6557\uFF1A" + e.message, "error");
+    }
+  }
+
   // ── Wire up event listeners (replacing inline onclick) ──
   document.addEventListener("DOMContentLoaded", function () {
     // Load history button
@@ -419,6 +486,29 @@
 
     var checkoutPrescriptionBtn = document.getElementById("btn-checkout-prescription");
     if (checkoutPrescriptionBtn) checkoutPrescriptionBtn.addEventListener("click", function () { doCheckout("prescription"); });
+
+    // Admin tasks type button
+    var adminBtn = document.getElementById("btn-type-admin");
+    if (adminBtn) adminBtn.addEventListener("click", function () { selectType("admin-tasks"); });
+
+    // Admin work name select - show/hide "other" input
+    var workNameSelect = document.getElementById("admin-workName");
+    if (workNameSelect) workNameSelect.addEventListener("change", function () {
+      document.getElementById("admin-workNameOther").classList.toggle("hidden", this.value !== "\u5176\u4ED6");
+    });
+
+    // File input - show file list
+    var fileInput = document.getElementById("admin-files");
+    if (fileInput) fileInput.addEventListener("change", function () {
+      var list = document.getElementById("file-list");
+      list.innerHTML = Array.from(this.files).map(function (f) {
+        return '<div class="file-item"><span>\uD83D\uDCC4 ' + f.name + ' (' + (f.size / 1024).toFixed(1) + ' KB)</span></div>';
+      }).join("");
+    });
+
+    // Admin checkout button
+    var adminCheckoutBtn = document.getElementById("btn-checkout-admin");
+    if (adminCheckoutBtn) adminCheckoutBtn.addEventListener("click", doCheckoutAdmin);
   });
 
 })();

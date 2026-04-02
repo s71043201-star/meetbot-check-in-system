@@ -258,6 +258,14 @@ input[type="checkbox"] {
   background: #c45f08;
 }
 
+.type-btn-admin {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+.type-btn-admin:hover {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+}
+
 .type-btn-icon {
   font-size: 28px;
 }
@@ -529,4 +537,63 @@ input[type="checkbox"] {
 .load-msg.fail {
   background: var(--color-danger-light);
   color: var(--color-danger);
+}
+
+/* ── Select Input ── */
+.input-select {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  background: var(--color-surface);
+  color: var(--color-text);
+  transition: border-color var(--transition-fast);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+.input-select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+/* ── File Upload ── */
+.file-upload-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--color-primary);
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.file-upload-label:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.file-list {
+  margin-top: 8px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin-bottom: 4px;
 }

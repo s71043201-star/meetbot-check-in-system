@@ -47,7 +47,7 @@ router.post("/checkin", async (req, res) => {
 
 // ── 簽退 ──────────────────────────────────────
 router.post("/checkout", async (req, res) => {
-  const { sessionId, shift, workContent, note, checkinType, courses, scheduledTime } = req.body;
+  const { sessionId, shift, workContent, note, checkinType, courses, scheduledTime, uploadedFiles } = req.body;
   if (!sessionId) return res.status(400).json({ error: "缺少 sessionId" });
 
   const now    = new Date();
@@ -63,7 +63,7 @@ router.post("/checkout", async (req, res) => {
     const checkinStr  = toTaipei(checkinTime).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
     const checkoutStr = taipei.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
     const dateStr     = `${record.year}/${record.month}/${record.day}`;
-    const typeLabel   = checkinType === "處方日" ? "處方日" : "一般";
+    const typeLabel   = checkinType === "處方日" ? "處方日" : checkinType === "行政庶務" ? "行政庶務" : "一般";
 
     const updated = {
       ...record,
@@ -79,6 +79,9 @@ router.post("/checkout", async (req, res) => {
       actualCount:      actualCount ?? "",
       walkInCount:      walkInCount ?? "",
       summary:          summary || "",
+      workContent:      workContent || "",
+      note:             note || "",
+      uploadedFiles:    uploadedFiles || [],
       hours,
       status: "checked-out"
     };
@@ -104,6 +107,21 @@ router.post("/checkout", async (req, res) => {
     res.json({ ok: true, hours });
   } catch (e) {
     console.error("checkout:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── 檔案上傳（行政庶務）─────────────────────────
+// TODO: Implement actual file storage (Firebase Storage or similar)
+// For now, return empty files array as placeholder
+router.post("/upload-files", async (req, res) => {
+  try {
+    // Placeholder: actual file upload needs multer + storage setup
+    // const multer = require("multer");
+    // const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+    res.json({ ok: true, files: [] });
+  } catch (e) {
+    console.error("upload-files:", e.message);
     res.status(500).json({ error: e.message });
   }
 });
