@@ -4,301 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>臨時人員出缺勤系統</title>
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: "Google Sans", Roboto, "Noto Sans TC", sans-serif;
-  background: #f0f4f9;
-  min-height: 100vh;
-  padding: 24px 16px;
-}
-.container { max-width: 640px; margin: 0 auto; }
-
-.card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 24px;
-  margin-bottom: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.12);
-}
-.header-card { border-top: 10px solid #1a73e8; }
-
-h1 { font-size: 26px; color: #202124; margin-bottom: 6px; }
-.subtitle { color: #5f6368; font-size: 14px; }
-
-.q-title {
-  font-size: 15px;
-  color: #202124;
-  font-weight: 500;
-  margin-bottom: 14px;
-}
-.required::after { content: " *"; color: #d93025; }
-
-.warning-box {
-  background: #fef7e0;
-  border: 1px solid #f9ab00;
-  border-left: 4px solid #f9ab00;
-  border-radius: 4px;
-  padding: 12px 14px;
-  margin-bottom: 14px;
-  font-size: 13px;
-  color: #b06000;
-  font-weight: 600;
-  line-height: 1.5;
-}
-.warning-box .highlight {
-  background: #ffeb3b;
-  padding: 1px 4px;
-  border-radius: 2px;
-  color: #d32f2f;
-}
-
-input[type="text"],
-input[type="tel"],
-input[type="time"],
-textarea,
-select {
-  width: 100%;
-  border: none;
-  border-bottom: 1px solid #dadce0;
-  padding: 8px 0;
-  font-size: 14px;
-  font-family: inherit;
-  outline: none;
-  background: transparent;
-  transition: border-color .15s;
-}
-input[type="text"]:focus,
-input[type="tel"]:focus,
-input[type="time"]:focus,
-textarea:focus,
-select:focus { border-bottom: 2px solid #1a73e8; }
-
-.radio-group, .check-group {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.opt {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 14px;
-  color: #202124;
-  cursor: pointer;
-}
-input[type="radio"],
-input[type="checkbox"] {
-  width: 18px; height: 18px;
-  cursor: pointer;
-  accent-color: #1a73e8;
-  flex-shrink: 0;
-}
-
-.btn {
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 15px;
-  font-family: inherit;
-  padding: 11px 28px;
-  transition: background .15s;
-}
-.btn-primary { background: #1a73e8; color: #fff; }
-.btn-primary:hover { background: #1557b0; }
-.btn-submit { background: #1a73e8; color: #fff; float: right; }
-.btn-submit:hover { background: #1557b0; }
-
-.checkin-btn {
-  display: block;
-  width: 100%;
-  padding: 18px;
-  font-size: 20px;
-  font-weight: 500;
-  background: #34a853;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  margin-top: 16px;
-  transition: background .15s;
-}
-.checkin-btn:hover { background: #2d9348; }
-
-.type-btn {
-  display: flex;
-  width: 100%;
-  padding: 20px;
-  font-size: 17px;
-  font-weight: 500;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  margin-bottom: 10px;
-  transition: background .15s, transform .1s;
-  align-items: center;
-  gap: 12px;
-}
-.type-btn:hover { transform: translateY(-1px); }
-.type-btn:active { transform: translateY(0); }
-.type-btn-regular { background: #1a73e8; }
-.type-btn-regular:hover { background: #1557b0; }
-.type-btn-prescription { background: #e8710a; }
-.type-btn-prescription:hover { background: #c45f08; }
-.type-btn-icon { font-size: 28px; }
-.type-btn-text { text-align: left; }
-.type-btn-text small { display: block; font-size: 12px; font-weight: 400; opacity: .85; margin-top: 2px; }
-
-.clock {
-  font-size: 52px;
-  font-weight: 300;
-  text-align: center;
-  color: #202124;
-  letter-spacing: 4px;
-  margin: 8px 0 4px;
-}
-.clock-label { text-align: center; color: #5f6368; font-size: 13px; margin-bottom: 8px; }
-
-.done-icon { text-align: center; font-size: 72px; margin: 20px 0; }
-.done-name { text-align: center; font-size: 22px; color: #202124; margin-bottom: 8px; }
-.done-hours {
-  text-align: center;
-  font-size: 36px;
-  font-weight: 300;
-  color: #1a73e8;
-  margin-bottom: 4px;
-}
-.done-note { text-align: center; color: #5f6368; font-size: 13px; margin-top: 16px; }
-
-.hidden { display: none !important; }
-.clearfix::after { content: ""; display: block; clear: both; }
-.err { color: #d93025; font-size: 13px; margin-top: 6px; }
-
-/* 領據欄位樣式 */
-.field-row {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 4px;
-}
-.field-row > div { flex: 1; }
-.field-label {
-  font-size: 12px;
-  color: #5f6368;
-  margin-bottom: 4px;
-}
-
-.bank-fields { margin-top: 12px; padding-left: 30px; }
-.bank-fields.hidden { display: none; }
-
-.same-addr-opt {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-  font-size: 14px;
-  color: #202124;
-  cursor: pointer;
-}
-
-/* 課程項目 */
-.course-item {
-  background: #f8f9fa;
-  border: 1px solid #e8eaed;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 10px;
-  position: relative;
-}
-.course-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-.course-item-header span {
-  font-size: 13px;
-  font-weight: 500;
-  color: #5f6368;
-}
-.course-remove {
-  background: none;
-  border: none;
-  color: #d93025;
-  cursor: pointer;
-  font-size: 13px;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-.course-remove:hover { background: #fce8e6; }
-
-.btn-add-course {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #1a73e8;
-  background: #e8f0fe;
-  border: 2px dashed #1a73e8;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background .15s;
-}
-.btn-add-course:hover { background: #d2e3fc; }
-
-.time-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-}
-.time-row input[type="time"] {
-  width: auto;
-  flex: 1;
-  border: 1px solid #dadce0;
-  border-radius: 4px;
-  padding: 6px 8px;
-}
-.time-row span { color: #5f6368; font-size: 14px; }
-
-.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.hint { font-size: 12px; color: #888; margin-top: 4px; }
-
-.section-divider {
-  border: none;
-  border-top: 1px solid #e0e0e0;
-  margin: 16px 0;
-}
-
-.load-history-btn {
-  display: block;
-  width: 100%;
-  margin-top: 12px;
-  padding: 10px;
-  font-size: 14px;
-  font-weight: 500;
-  font-family: inherit;
-  color: #1a73e8;
-  background: #e8f0fe;
-  border: 1px solid #c2d7f5;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background .15s;
-}
-.load-history-btn:hover { background: #d2e3fc; }
-
-.load-msg {
-  margin-top: 8px;
-  font-size: 13px;
-  padding: 8px 12px;
-  border-radius: 4px;
-}
-.load-msg.success { background: #e6f4ea; color: #1e7e34; }
-.load-msg.fail { background: #fce8e6; color: #c5221f; }
-</style>
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/checkin.css">
 </head>
 <body>
 <div class="container">
@@ -319,7 +26,7 @@ input[type="checkbox"] {
       </div>
       <input type="text" id="name" placeholder="請輸入您的完整全名">
       <div class="err hidden" id="err-name">請填寫姓名</div>
-      <button class="load-history-btn" onclick="loadHistory()">📂 帶入歷史資料</button>
+      <button class="load-history-btn" id="btn-load-history">📂 帶入歷史資料</button>
       <div class="load-msg hidden" id="load-msg"></div>
     </div>
 
@@ -357,8 +64,8 @@ input[type="checkbox"] {
     <div class="card">
       <div class="q-title required">領款方式</div>
       <div class="radio-group">
-        <label class="opt"><input type="radio" name="payMethod" value="現金" onclick="toggleBank(false)"> 現金</label>
-        <label class="opt"><input type="radio" name="payMethod" value="匯款" onclick="toggleBank(true)"> 匯款</label>
+        <label class="opt"><input type="radio" name="payMethod" value="現金"> 現金</label>
+        <label class="opt"><input type="radio" name="payMethod" value="匯款"> 匯款</label>
       </div>
       <div class="bank-fields hidden" id="bank-fields">
         <hr class="section-divider">
@@ -390,7 +97,7 @@ input[type="checkbox"] {
     <div class="card">
       <div class="q-title">居住地址</div>
       <label class="same-addr-opt">
-        <input type="checkbox" id="sameAddr" onchange="toggleSameAddr()" checked> 同戶籍地址
+        <input type="checkbox" id="sameAddr" checked> 同戶籍地址
       </label>
       <div id="live-addr-fields" class="hidden">
         <input type="text" id="liveAddress" placeholder="請輸入居住地址">
@@ -408,7 +115,7 @@ input[type="checkbox"] {
     <div class="card">
       <div class="clock" id="clock">00:00</div>
       <div class="clock-label">現在時間</div>
-      <button class="checkin-btn" onclick="doCheckin()">✅ 簽到</button>
+      <button class="checkin-btn" id="btn-checkin">✅ 簽到</button>
     </div>
   </div>
 
@@ -420,14 +127,14 @@ input[type="checkbox"] {
     </div>
 
     <div class="card">
-      <button class="type-btn type-btn-regular" onclick="selectType('regular')">
+      <button class="type-btn type-btn-regular" id="btn-type-regular">
         <span class="type-btn-icon">📋</span>
         <span class="type-btn-text">
           一般簽到
           <small>填寫單一課程名稱與預計時間</small>
         </span>
       </button>
-      <button class="type-btn type-btn-prescription" onclick="selectType('prescription')">
+      <button class="type-btn type-btn-prescription" id="btn-type-prescription">
         <span class="type-btn-icon">💊</span>
         <span class="type-btn-text">
           處方日簽到
@@ -543,7 +250,7 @@ input[type="checkbox"] {
     </div>
 
     <div class="card clearfix">
-      <button class="btn btn-submit" onclick="doCheckout('regular')">送出並簽退</button>
+      <button class="btn btn-submit" id="btn-checkout-regular">送出並簽退</button>
     </div>
   </div>
 
@@ -601,7 +308,7 @@ input[type="checkbox"] {
           <input type="text" class="prescription-course-name" placeholder="請輸入課程名稱">
         </div>
       </div>
-      <button class="btn-add-course" onclick="addCourse()">
+      <button class="btn-add-course" id="btn-add-course">
         <span>＋</span> 新增一筆課程
       </button>
       <div class="err hidden" id="err-prescription-course">請至少填寫一個課程名稱</div>
@@ -652,7 +359,7 @@ input[type="checkbox"] {
     </div>
 
     <div class="card clearfix">
-      <button class="btn btn-submit" onclick="doCheckout('prescription')">送出並簽退</button>
+      <button class="btn btn-submit" id="btn-checkout-prescription">送出並簽退</button>
     </div>
   </div>
 
@@ -672,310 +379,7 @@ input[type="checkbox"] {
 
 </div>
 
-<script>
-// ── 時鐘 ──
-function updateClock() {
-  const now = new Date();
-  document.getElementById("clock").textContent =
-    now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
-}
-setInterval(updateClock, 1000);
-updateClock();
-
-// ── UI 工具 ──
-function showErr(id, show) {
-  document.getElementById(id).classList.toggle("hidden", !show);
-}
-
-function showSection(id) {
-  ["sec-info", "sec-type", "sec-form-regular", "sec-form-prescription", "sec-done"]
-    .forEach(s => document.getElementById(s).classList.add("hidden"));
-  document.getElementById(id).classList.remove("hidden");
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-function toggleBank(show) {
-  document.getElementById("bank-fields").classList.toggle("hidden", !show);
-}
-
-function toggleSameAddr() {
-  const same = document.getElementById("sameAddr").checked;
-  document.getElementById("live-addr-fields").classList.toggle("hidden", same);
-}
-
-// ── 帶入歷史資料 ──
-async function loadHistory() {
-  const name = document.getElementById("name").value.trim();
-  const msgEl = document.getElementById("load-msg");
-  msgEl.classList.remove("hidden", "success", "fail");
-
-  if (!name) {
-    msgEl.textContent = "請先輸入姓名再查詢";
-    msgEl.classList.add("fail");
-    return;
-  }
-
-  try {
-    const res = await fetch(`/receipt-data?name=${encodeURIComponent(name)}`);
-    const data = await res.json();
-
-    if (!data.found) {
-      msgEl.textContent = `查無「${name}」的歷史資料，請手動填寫`;
-      msgEl.classList.add("fail");
-      return;
-    }
-
-    const r = data.record;
-
-    // 帶入各欄位
-    if (r.eventName) document.getElementById("eventName").value = r.eventName;
-    if (r.workDescription) document.getElementById("workDesc").value = r.workDescription;
-
-    // 費用別
-    if (Array.isArray(r.feeTypes)) {
-      document.querySelectorAll('input[name="feeType"]').forEach(cb => {
-        cb.checked = r.feeTypes.includes(cb.value);
-      });
-    }
-
-    // 領款方式
-    if (r.payMethod) {
-      const radio = document.querySelector(`input[name="payMethod"][value="${r.payMethod}"]`);
-      if (radio) { radio.checked = true; toggleBank(r.payMethod === "匯款"); }
-    }
-
-    // 銀行資訊
-    if (r.bankInfo) {
-      if (r.bankInfo.bankName) document.getElementById("bankName").value = r.bankInfo.bankName;
-      if (r.bankInfo.accountName) document.getElementById("bankAccountName").value = r.bankInfo.accountName;
-      if (r.bankInfo.account) document.getElementById("bankAccount").value = r.bankInfo.account;
-    }
-
-    // 身分證
-    if (r.idNumber) document.getElementById("idNumber").value = r.idNumber;
-
-    // 地址
-    if (r.address) document.getElementById("address").value = r.address;
-    if (r.liveAddress && r.liveAddress !== r.address) {
-      document.getElementById("sameAddr").checked = false;
-      toggleSameAddr();
-      document.getElementById("liveAddress").value = r.liveAddress;
-    }
-
-    // 電話
-    if (r.phone) document.getElementById("phone").value = r.phone;
-
-    msgEl.textContent = `✅ 已帶入「${name}」的歷史資料，請確認後簽到`;
-    msgEl.classList.add("success");
-  } catch (e) {
-    msgEl.textContent = "查詢失敗：" + e.message;
-    msgEl.classList.add("fail");
-  }
-}
-
-
-// ── Step 1: 簽到 ──
-async function doCheckin() {
-  const name      = document.getElementById("name").value.trim();
-  const eventName = document.getElementById("eventName").value.trim();
-  const workDesc  = document.getElementById("workDesc").value.trim();
-  const feeTypes  = [...document.querySelectorAll('input[name="feeType"]:checked')].map(el => el.value);
-  const payMethod = document.querySelector('input[name="payMethod"]:checked');
-  const idNumber  = document.getElementById("idNumber").value.trim().toUpperCase();
-  const address   = document.getElementById("address").value.trim();
-  const phone     = document.getElementById("phone").value.trim();
-
-  // 驗證
-  let valid = true;
-  showErr("err-name",      !name);      if (!name) valid = false;
-  showErr("err-eventName", !eventName); if (!eventName) valid = false;
-  showErr("err-workDesc",  !workDesc);  if (!workDesc) valid = false;
-  showErr("err-feeType",   feeTypes.length === 0); if (feeTypes.length === 0) valid = false;
-  showErr("err-payMethod", !payMethod); if (!payMethod) valid = false;
-  showErr("err-idNumber",  idNumber.length !== 10); if (idNumber.length !== 10) valid = false;
-  showErr("err-address",   !address);   if (!address) valid = false;
-  showErr("err-phone",     !phone);     if (!phone) valid = false;
-
-  if (!valid) return;
-
-  // 匯款資訊
-  let bankInfo = null;
-  if (payMethod.value === "匯款") {
-    bankInfo = {
-      bankName:    document.getElementById("bankName").value.trim(),
-      accountName: document.getElementById("bankAccountName").value.trim(),
-      account:     document.getElementById("bankAccount").value.trim()
-    };
-  }
-
-  // 居住地址
-  const sameAddr    = document.getElementById("sameAddr").checked;
-  const liveAddress = sameAddr ? address : document.getElementById("liveAddress").value.trim();
-
-  const receipt = {
-    name,
-    eventName,
-    workDescription: workDesc,
-    feeTypes,
-    payMethod: payMethod.value,
-    bankInfo,
-    idNumber,
-    address,
-    liveAddress,
-    phone
-  };
-
-  try {
-    const res  = await fetch("/checkin", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify(receipt)
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
-
-    sessionStorage.setItem("sessionId", data.sessionId);
-    sessionStorage.setItem("name", name);
-
-    const now     = new Date();
-    const timeStr = now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
-    const infoText = `${name} 已於 ${timeStr} 簽到`;
-
-    document.getElementById("checkin-info").textContent      = infoText;
-    document.getElementById("regular-info").textContent      = infoText;
-    document.getElementById("prescription-info").textContent = infoText;
-
-    showSection("sec-type");
-  } catch (e) {
-    alert("簽到失敗：" + e.message);
-  }
-}
-
-// ── Step 2: 選擇類型 ──
-function selectType(type) {
-  sessionStorage.setItem("checkinType", type);
-  showSection(type === "regular" ? "sec-form-regular" : "sec-form-prescription");
-}
-
-// ── 處方日：新增/移除課程 ──
-let courseCount = 1;
-
-function addCourse() {
-  courseCount++;
-  const container = document.getElementById("prescription-courses");
-  const div = document.createElement("div");
-  div.className = "course-item";
-  div.dataset.index = courseCount;
-  div.innerHTML = `
-    <div class="course-item-header">
-      <span>課程 ${courseCount}</span>
-      <button class="course-remove" onclick="removeCourse(this)">✕ 移除</button>
-    </div>
-    <input type="text" class="prescription-course-name" placeholder="請輸入課程名稱">
-  `;
-  container.appendChild(div);
-}
-
-function removeCourse(btn) {
-  btn.closest(".course-item").remove();
-  document.querySelectorAll("#prescription-courses .course-item").forEach((el, i) => {
-    el.querySelector(".course-item-header span").textContent = `課程 ${i + 1}`;
-  });
-}
-
-// ── 字數計算 ──
-document.addEventListener("input", function(e) {
-  if (e.target.id === "regular-summary")
-    document.getElementById("regular-char-count").textContent = e.target.value.length;
-  if (e.target.id === "prescription-summary")
-    document.getElementById("prescription-char-count").textContent = e.target.value.length;
-});
-
-// ── Step 3: 簽退 ──
-async function doCheckout(type) {
-  const sessionId = sessionStorage.getItem("sessionId");
-  const name      = sessionStorage.getItem("name");
-  if (!sessionId) { alert("找不到簽到記錄，請重新整理頁面後簽到"); return; }
-
-  const p = type; // prefix
-  let course, courses, plannedHours, courseType, teacher,
-      registeredCount, actualCount, walkInCount, summary;
-
-  if (type === "regular") {
-    course = document.getElementById("regular-course").value.trim();
-    const ph = document.querySelector('input[name="regular-plannedHours"]:checked');
-    const ct = document.querySelector('input[name="regular-courseType"]:checked');
-    teacher = document.getElementById("regular-teacher").value.trim();
-    registeredCount = document.getElementById("regular-registeredCount").value;
-    actualCount     = document.getElementById("regular-actualCount").value;
-    walkInCount     = document.getElementById("regular-walkInCount").value;
-    summary         = document.getElementById("regular-summary").value.trim();
-
-    let valid = true;
-    showErr("err-regular-course",       !course);         if (!course) valid = false;
-    showErr("err-regular-plannedHours", !ph);             if (!ph) valid = false;
-    showErr("err-regular-courseType",    !ct);             if (!ct) valid = false;
-    showErr("err-regular-reg",          registeredCount === ""); if (registeredCount === "") valid = false;
-    showErr("err-regular-act",          actualCount === "");     if (actualCount === "") valid = false;
-    showErr("err-regular-walk",         walkInCount === "");     if (walkInCount === "") valid = false;
-    showErr("err-regular-summary",      !summary);        if (!summary) valid = false;
-    if (!valid) return;
-
-    plannedHours = ph.value;
-    courseType   = ct.value;
-  } else {
-    courses = [...document.querySelectorAll(".prescription-course-name")]
-                .map(el => el.value.trim()).filter(v => v);
-    const ct = document.querySelector('input[name="prescription-courseType"]:checked');
-    teacher = document.getElementById("prescription-teacher").value.trim();
-    registeredCount = document.getElementById("prescription-registeredCount").value;
-    actualCount     = document.getElementById("prescription-actualCount").value;
-    walkInCount     = document.getElementById("prescription-walkInCount").value;
-    summary         = document.getElementById("prescription-summary").value.trim();
-
-    let valid = true;
-    showErr("err-prescription-course",    courses.length === 0); if (courses.length === 0) valid = false;
-    showErr("err-prescription-courseType", !ct);                  if (!ct) valid = false;
-    showErr("err-prescription-reg",       registeredCount === ""); if (registeredCount === "") valid = false;
-    showErr("err-prescription-act",       actualCount === "");     if (actualCount === "") valid = false;
-    showErr("err-prescription-walk",      walkInCount === "");     if (walkInCount === "") valid = false;
-    showErr("err-prescription-summary",   !summary);               if (!summary) valid = false;
-    if (!valid) return;
-
-    course     = courses.join("、");
-    courseType  = ct.value;
-  }
-
-  try {
-    const res = await fetch("/checkout", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({
-        sessionId,
-        checkinType:     type,
-        course,
-        courses:         courses || [course],
-        plannedHours:    plannedHours || "",
-        courseType,
-        teacher,
-        registeredCount: parseInt(registeredCount),
-        actualCount:     parseInt(actualCount),
-        walkInCount:     parseInt(walkInCount),
-        summary
-      })
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
-
-    document.getElementById("done-name").textContent  = `謝謝 ${name}！`;
-    document.getElementById("done-hours").textContent = `今日工作時數：${data.hours} 小時`;
-
-    showSection("sec-done");
-    sessionStorage.clear();
-  } catch (e) {
-    alert("簽退失敗：" + e.message);
-  }
-}
-</script>
+<script src="js/shared.js"></script>
+<script src="js/checkin.js"></script>
 </body>
 </html>
