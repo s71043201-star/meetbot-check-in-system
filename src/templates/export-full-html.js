@@ -104,11 +104,18 @@ function buildExportFullHtml(grouped) {
 xmlns:w="urn:schemas-microsoft-com:office:word"
 xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="UTF-8">
+<!--[if gte mso 9]><xml>
+<w:WordDocument>
+<w:View>Print</w:View>
+<w:Zoom>100</w:Zoom>
+</w:WordDocument>
+</xml><![endif]-->
 <style>
-  @page { size: A4; margin: 1.27cm; }
-  body { font-family: "DFKai-SB","標楷體","Microsoft JhengHei",sans-serif; }
+  @page { size: A4; margin: 1.27cm 1.27cm 1.27cm 1.27cm; mso-header-margin:0; mso-footer-margin:0; mso-paper-source:0; }
+  div.Section1 { page:Section1; }
+  body { font-family: "DFKai-SB","標楷體","Microsoft JhengHei",sans-serif; margin:0; }
 </style></head>
-<body>${body}</body></html>`;
+<body><div class="Section1">${body}</div></body></html>`;
 }
 
 module.exports = { buildExportFullHtml };
