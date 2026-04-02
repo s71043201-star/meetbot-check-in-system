@@ -57,10 +57,16 @@
     </div>
   </div>
 
+  <div id="batch-bar" class="batch-bar hidden">
+    <span id="batch-count">0</span> 筆已選取
+    <button class="btn btn-danger-sm" id="btn-batch-delete">批量刪除</button>
+  </div>
+
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
+          <th><input type="checkbox" id="select-all"></th>
           <th>#</th>
           <th>姓名</th>
           <th>類型</th>
@@ -73,10 +79,11 @@
           <th>工作內容</th>
           <th>備註</th>
           <th>狀態</th>
+          <th>操作</th>
         </tr>
       </thead>
       <tbody id="tbody">
-        <tr><td colspan="12" class="empty">載入中…</td></tr>
+        <tr><td colspan="14" class="empty">載入中…</td></tr>
       </tbody>
     </table>
   </div>

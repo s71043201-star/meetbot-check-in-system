@@ -3,7 +3,7 @@ const axios = require("axios");
 const router = express.Router();
 const { ATT_FB, ATT_NOTIFY_IDS } = require("../config");
 const { toTaipei, toROCYear, storeDoc } = require("../utils");
-const { fbGet, fbPost, fbPut } = require("../firebase");
+const { fbGet, fbPost, fbPut, fbDelete } = require("../firebase");
 const { sendLine } = require("../line");
 const { generateRecordHtml } = require("../templates/record-html");
 
@@ -174,6 +174,31 @@ router.get("/records", async (req, res) => {
     const data    = await fbGet();
     const records = data ? Object.entries(data).map(([id, r]) => ({ id, ...r })) : [];
     res.json(records);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── 批量刪除記錄 ─────────────────────────────
+router.post("/records/batch-delete", async (req, res) => {
+  const { ids } = req.body;
+  if (!ids || !ids.length) return res.status(400).json({ error: "缺少 ids" });
+  try {
+    for (const id of ids) await fbDelete(`/${id}`);
+    res.json({ ok: true, deleted: ids.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── 更新單筆記錄 ─────────────────────────────
+router.put("/records/:id", async (req, res) => {
+  try {
+    const existing = await fbGet(`/${req.params.id}`);
+    if (!existing) return res.status(404).json({ error: "not found" });
+    const updated = { ...existing, ...req.body };
+    await fbPut(`/${req.params.id}`, updated);
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

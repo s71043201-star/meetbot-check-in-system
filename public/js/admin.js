@@ -63,7 +63,7 @@
 
       var tbody = document.getElementById("tbody");
       if (records.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" class="empty">\u67E5\u7121\u8A18\u9304</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="14" class="empty">\u67E5\u7121\u8A18\u9304</td></tr>';
         return;
       }
 
@@ -76,24 +76,34 @@
         var tag = r.status === "checked-out"
           ? '<span class="tag tag-done">\u5B8C\u6210</span>'
           : '<span class="tag tag-in">\u7C3D\u5230\u4E2D</span>';
-        return '<tr>' +
+        return '<tr data-id="' + r.id + '">' +
+          '<td><input type="checkbox" class="row-check" data-id="' + r.id + '"></td>' +
           '<td>' + (i + 1) + '</td>' +
           '<td>' + escapeHtml(r.name || "-") + '</td>' +
           '<td>' + escapeHtml(typeLabel) + '</td>' +
-          '<td>' + escapeHtml(courseStr) + '</td>' +
+          '<td class="cell-course">' + escapeHtml(courseStr) + '</td>' +
           '<td>' + escapeHtml(dateStr) + '</td>' +
           '<td>' + fmt(r.checkinTime) + '</td>' +
           '<td>' + fmt(r.checkoutTime) + '</td>' +
-          '<td>' + (r.hours != null ? r.hours + " \u6642" : "-") + '</td>' +
-          '<td>' + escapeHtml(r.shift || "-") + '</td>' +
-          '<td style="text-align:left">' + escapeHtml(content) + '</td>' +
-          '<td style="text-align:left">' + escapeHtml(r.note || "-") + '</td>' +
+          '<td class="cell-hours">' + (r.hours != null ? r.hours + " \u6642" : "-") + '</td>' +
+          '<td class="cell-shift">' + escapeHtml(r.shift || "-") + '</td>' +
+          '<td class="cell-workContent" style="text-align:left">' + escapeHtml(content) + '</td>' +
+          '<td class="cell-note" style="text-align:left">' + escapeHtml(r.note || "-") + '</td>' +
           '<td>' + tag + '</td>' +
+          '<td class="action-cell" style="white-space:nowrap">' +
+            '<button class="btn-edit" data-id="' + r.id + '">\u7DE8\u8F2F</button> ' +
+            '<button class="btn-row-delete" data-id="' + r.id + '">\u522A\u9664</button>' +
+          '</td>' +
         '</tr>';
       }).join("");
+
+      // Reset select-all checkbox and batch bar after reload
+      var selectAll = document.getElementById("select-all");
+      if (selectAll) selectAll.checked = false;
+      updateBatchBar();
     } catch (e) {
       document.getElementById("tbody").innerHTML =
-        '<tr><td colspan="12" style="color:red;text-align:center;padding:20px">\u8F09\u5165\u5931\u6557\uFF1A' + escapeHtml(e.message) + '</td></tr>';
+        '<tr><td colspan="14" style="color:red;text-align:center;padding:20px">\u8F09\u5165\u5931\u6557\uFF1A' + escapeHtml(e.message) + '</td></tr>';
     }
   }
 
@@ -212,6 +222,107 @@
     }, 30000);
   }
 
+  // ── Batch selection ──
+  function updateBatchBar() {
+    var checked = document.querySelectorAll(".row-check:checked");
+    var bar = document.getElementById("batch-bar");
+    var count = document.getElementById("batch-count");
+    if (checked.length > 0) {
+      bar.classList.remove("hidden");
+      count.textContent = checked.length;
+    } else {
+      bar.classList.add("hidden");
+    }
+  }
+
+  // ── Inline edit helpers ──
+  function startEdit(id, row) {
+    confirmingDelete = true; // pause auto-refresh
+    row.dataset.editing = "true";
+    var cells = row.querySelectorAll("td");
+
+    // cells index: 0=checkbox, 1=#, 2=name, 3=type, 4=course, 5=date, 6=checkin, 7=checkout,
+    //              8=hours, 9=shift, 10=workContent, 11=note, 12=status, 13=action
+    var hoursCell = row.querySelector(".cell-hours");
+    var courseCell = row.querySelector(".cell-course");
+    var shiftCell = row.querySelector(".cell-shift");
+    var workContentCell = row.querySelector(".cell-workContent");
+    var noteCell = row.querySelector(".cell-note");
+
+    var origHours = (hoursCell.textContent || "").replace(/\s*\u6642$/, "").trim();
+    var origCourse = courseCell.textContent.trim();
+    var origShift = shiftCell.textContent.trim();
+    var origWorkContent = workContentCell.textContent.trim();
+    var origNote = noteCell.textContent.trim();
+
+    if (origCourse === "-") origCourse = "";
+    if (origShift === "-") origShift = "";
+    if (origWorkContent === "-") origWorkContent = "";
+    if (origNote === "-") origNote = "";
+
+    hoursCell.innerHTML = '<input type="number" class="edit-input" data-field="hours" value="' + escapeHtml(origHours) + '" step="0.5" style="width:60px">';
+    courseCell.innerHTML = '<input type="text" class="edit-input" data-field="course" value="' + escapeHtml(origCourse) + '" style="width:100px">';
+    shiftCell.innerHTML = '<input type="text" class="edit-input" data-field="shift" value="' + escapeHtml(origShift) + '" style="width:80px">';
+    workContentCell.innerHTML = '<input type="text" class="edit-input" data-field="workContent" value="' + escapeHtml(origWorkContent) + '" style="width:120px">';
+    noteCell.innerHTML = '<input type="text" class="edit-input" data-field="note" value="' + escapeHtml(origNote) + '" style="width:120px">';
+
+    var actionCell = row.querySelector(".action-cell");
+    actionCell.innerHTML = '<button class="btn-save" data-id="' + id + '">\u5132\u5B58</button> <button class="btn-edit-cancel">\u53D6\u6D88</button>';
+  }
+
+  async function saveEdit(id, row) {
+    var inputs = row.querySelectorAll(".edit-input");
+    var payload = {};
+    inputs.forEach(function (inp) {
+      var field = inp.dataset.field;
+      var val = inp.value.trim();
+      if (field === "hours") {
+        payload[field] = val ? parseFloat(val) : 0;
+      } else {
+        payload[field] = val;
+      }
+    });
+
+    try {
+      var res = await fetch("/records/" + id, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      var data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      showToast("\u5DF2\u5132\u5B58\u8B8A\u66F4", "success");
+      confirmingDelete = false;
+      loadRecords();
+    } catch (e) {
+      showToast("\u5132\u5B58\u5931\u6557\uFF1A" + e.message, "error");
+    }
+  }
+
+  function cancelEdit() {
+    confirmingDelete = false;
+    loadRecords();
+  }
+
+  async function deleteRecord(id) {
+    confirmingDelete = true;
+    if (!confirm("\u78BA\u5B9A\u8981\u522A\u9664\u6B64\u7B46\u8A18\u9304\uFF1F")) {
+      confirmingDelete = false;
+      return;
+    }
+    try {
+      var res = await fetch("/records/" + id, { method: "DELETE" });
+      var data = await res.json();
+      if (!data.ok) throw new Error(data.error || "delete failed");
+      showToast("\u5DF2\u522A\u9664\u8A18\u9304", "success");
+      confirmingDelete = false;
+      loadRecords();
+    } catch (e) {
+      showToast("\u522A\u9664\u5931\u6557\uFF1A" + e.message, "error");
+      confirmingDelete = false;
+    }
+  }
+
   // ── Wire up event listeners ──
   document.addEventListener("DOMContentLoaded", function () {
     // Tab buttons
@@ -240,6 +351,70 @@
       var target = e.target.closest('[data-action="export-receipt"]');
       if (target) {
         window.location.href = "/export-full?" + target.getAttribute("data-params");
+      }
+    });
+
+    // ── Select all checkbox ──
+    document.getElementById("select-all").addEventListener("change", function () {
+      var checked = this.checked;
+      document.querySelectorAll(".row-check").forEach(function (cb) { cb.checked = checked; });
+      updateBatchBar();
+    });
+
+    // ── Delegate for individual checkboxes ──
+    document.addEventListener("change", function (e) {
+      if (e.target.classList.contains("row-check")) updateBatchBar();
+    });
+
+    // ── Batch delete ──
+    document.getElementById("btn-batch-delete").addEventListener("click", async function () {
+      var ids = [].slice.call(document.querySelectorAll(".row-check:checked")).map(function (cb) { return cb.dataset.id; });
+      if (ids.length === 0) return;
+      if (!confirm("\u78BA\u5B9A\u8981\u522A\u9664 " + ids.length + " \u7B46\u8A18\u9304\uFF1F")) return;
+      try {
+        var res = await fetch("/records/batch-delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: ids })
+        });
+        var data = await res.json();
+        if (!data.ok) throw new Error(data.error);
+        showToast("\u5DF2\u522A\u9664 " + ids.length + " \u7B46\u8A18\u9304", "success");
+        loadRecords();
+      } catch (e) {
+        showToast("\u6279\u91CF\u522A\u9664\u5931\u6557\uFF1A" + e.message, "error");
+      }
+    });
+
+    // ── Delegated clicks for edit, save, cancel, delete buttons ──
+    document.addEventListener("click", function (e) {
+      var editBtn = e.target.closest(".btn-edit");
+      if (editBtn) {
+        var id = editBtn.dataset.id;
+        var row = editBtn.closest("tr");
+        startEdit(id, row);
+        return;
+      }
+
+      var saveBtn = e.target.closest(".btn-save");
+      if (saveBtn) {
+        var id = saveBtn.dataset.id;
+        var row = saveBtn.closest("tr");
+        saveEdit(id, row);
+        return;
+      }
+
+      var cancelBtn = e.target.closest(".btn-edit-cancel");
+      if (cancelBtn) {
+        cancelEdit();
+        return;
+      }
+
+      var deleteBtn = e.target.closest(".btn-row-delete");
+      if (deleteBtn) {
+        var id = deleteBtn.dataset.id;
+        deleteRecord(id);
+        return;
       }
     });
 

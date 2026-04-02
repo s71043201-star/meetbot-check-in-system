@@ -211,7 +211,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  min-width: 800px;
+  min-width: 960px;
 }
 
 th {
@@ -372,4 +372,113 @@ tr:hover td {
 
 .masked {
   color: var(--color-text-muted);
+}
+
+/* ── Batch Action Bar ── */
+.batch-bar {
+  background: var(--color-primary-light);
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.btn-danger-sm {
+  background: var(--color-danger);
+  color: #fff;
+  border: none;
+  padding: 5px 14px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  transition: background var(--transition-fast);
+}
+
+.btn-danger-sm:hover {
+  background: #b91c1c;
+}
+
+/* ── Inline Edit ── */
+.edit-input {
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.edit-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.btn-edit {
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  transition: background var(--transition-fast);
+}
+
+.btn-edit:hover {
+  background: var(--color-primary-hover);
+}
+
+.btn-save {
+  background: var(--color-success);
+  color: #fff;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  transition: background var(--transition-fast);
+}
+
+.btn-save:hover {
+  background: var(--color-success-hover);
+}
+
+.btn-edit-cancel {
+  background: #eee;
+  color: #666;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  transition: background var(--transition-fast);
+}
+
+.btn-edit-cancel:hover {
+  background: #ddd;
+}
+
+.btn-row-delete {
+  background: var(--color-danger);
+  color: #fff;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  transition: background var(--transition-fast);
+}
+
+.btn-row-delete:hover {
+  background: #b91c1c;
 }

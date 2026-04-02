@@ -34,6 +34,11 @@ async function fbPut(subPath, record) {
   return data;
 }
 
+async function fbDelete(subPath) {
+  const { data } = await axios.delete(`${ATT_FB}${subPath}.json`);
+  return data;
+}
+
 async function fetchAttendance() {
   return new Promise((resolve) => {
     https.get(`${ATT_FB}.json`, (res) => {
@@ -54,5 +59,6 @@ module.exports = {
   fbGet,
   fbPost,
   fbPut,
+  fbDelete,
   fetchAttendance,
 };
