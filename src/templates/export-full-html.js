@@ -1,7 +1,7 @@
 function buildExportFullHtml(grouped) {
   const allFeeTypes = ["稿費","審查費","講座鐘點費","臨時人員費","出席費","交通差旅費","其他"];
 
-  let pages = "";
+  let pages = [];
   for (const [pName, pRecs] of Object.entries(grouped)) {
     const latest = pRecs.find(r => r.idNumber) || pRecs[0];
     const fa = Array.isArray(latest.feeTypes) ? latest.feeTypes : [];
@@ -17,85 +17,81 @@ function buildExportFullHtml(grouped) {
     const bankAccName = bi.bankAccountName || bi.accountName || "";
     const bankAcc = bi.bankAccount || bi.account || "";
 
-    pages += `
-      <div class="page">
-        <p class="title">社團法人台北市醫師公會　領據（健康台灣深耕計畫）</p>
-        <table>
-          <tr>
-            <td class="lbl" width="80">領款人姓名</td>
-            <td width="200">${pName}</td>
-            <td class="lbl" width="80">事由或會議名稱</td>
-            <td>${latest.eventName || ""}</td>
-          </tr>
-          <tr>
-            <td class="lbl">費用別</td>
-            <td colspan="3">${feeStr}</td>
-          </tr>
-          <tr>
-            <td class="lbl">金額</td>
-            <td colspan="3">新臺幣______萬______仟______佰______拾______元整（＄____________）</td>
-          </tr>
-          <tr>
-            <td class="lbl" rowspan="4">領款方式</td>
-            <td colspan="3">${pm === "現金" ? "☑" : "□"}現金</td>
-          </tr>
-          <tr>
-            <td colspan="3">${pm === "匯款" ? "☑" : "□"}匯款</td>
-          </tr>
-          <tr>
-            <td colspan="3">受款銀行名稱及分行：${bankName}</td>
-          </tr>
-          <tr>
-            <td>戶名：${bankAccName}</td>
-            <td colspan="2">帳號：${bankAcc}</td>
-          </tr>
-          <tr>
-            <td class="lbl">領款日期</td>
-            <td>中華民國______年____月____日</td>
-            <td class="lbl">領款人簽章</td>
-            <td style="height:50px"></td>
-          </tr>
-          <tr>
-            <td class="lbl">身分證號碼</td>
-            <td colspan="3" class="id-row">${Array.from({length:10}, (_,i) =>
-              `<span class="id-box">${idNum[i] || ""}</span>`
-            ).join("")}</td>
-          </tr>
-          <tr>
-            <td class="lbl">戶籍地址</td>
-            <td colspan="3">${addr}</td>
-          </tr>
-          <tr>
-            <td class="lbl">居住地址</td>
-            <td colspan="3">${sameAddr ? "☑同戶籍地址" : "□同戶籍地址　☑請另填：" + la}</td>
-          </tr>
-          <tr>
-            <td class="lbl">連絡電話</td>
-            <td colspan="3">${phone}</td>
-          </tr>
-        </table>
-      </div>`;
+    // 身分證號碼：巢狀表格 10 格
+    const idInnerTable = `<table border="1" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0"><tr>${
+      Array.from({length:10}, (_,i) =>
+        `<td width="32" height="30" align="center" style="border:1px solid #000;font-size:14pt;font-family:Courier New">${idNum[i] || "&nbsp;"}</td>`
+      ).join("")
+    }</tr></table>`;
+
+    pages.push(`
+<p align="center" style="font-size:16pt;font-weight:bold;font-family:DFKai-SB,標楷體">社團法人台北市醫師公會&emsp;領據（健康台灣深耕計畫）</p>
+<table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;font-family:DFKai-SB,標楷體;font-size:12pt">
+  <tr>
+    <td width="80" align="center"><b>領款人姓名</b></td>
+    <td width="180">${pName}</td>
+    <td width="80" align="center"><b>事由或會議名稱</b></td>
+    <td>${latest.eventName || ""}</td>
+  </tr>
+  <tr>
+    <td align="center"><b>費用別</b></td>
+    <td colspan="3">${feeStr}</td>
+  </tr>
+  <tr>
+    <td align="center"><b>金額</b></td>
+    <td colspan="3">新臺幣______萬______仟______佰______拾______元整（＄____________）</td>
+  </tr>
+  <tr>
+    <td rowspan="4" align="center"><b>領款方式</b></td>
+    <td colspan="3">${pm === "現金" ? "☑" : "□"}現金</td>
+  </tr>
+  <tr>
+    <td colspan="3">${pm === "匯款" ? "☑" : "□"}匯款</td>
+  </tr>
+  <tr>
+    <td colspan="3">受款銀行名稱及分行：${bankName}</td>
+  </tr>
+  <tr>
+    <td>戶名：${bankAccName}</td>
+    <td colspan="2">帳號：${bankAcc}</td>
+  </tr>
+  <tr>
+    <td align="center"><b>領款日期</b></td>
+    <td>中華民國______年____月____日</td>
+    <td align="center"><b>領款人簽章</b></td>
+    <td height="50">&nbsp;</td>
+  </tr>
+  <tr>
+    <td align="center"><b>身分證號碼</b></td>
+    <td colspan="3">${idInnerTable}</td>
+  </tr>
+  <tr>
+    <td align="center"><b>戶籍地址</b></td>
+    <td colspan="3">${addr}</td>
+  </tr>
+  <tr>
+    <td align="center"><b>居住地址</b></td>
+    <td colspan="3">${sameAddr ? "☑同戶籍地址" : "□同戶籍地址 ☑請另填：" + la}</td>
+  </tr>
+  <tr>
+    <td align="center"><b>連絡電話</b></td>
+    <td colspan="3">${phone}</td>
+  </tr>
+</table>`);
   }
 
-  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
-  xmlns:w="urn:schemas-microsoft-com:office:word"
-  xmlns="http://www.w3.org/TR/REC-html40">
+  // 多人時用分頁符號隔開
+  const body = pages.join('\n<p style="page-break-before:always">&nbsp;</p>\n');
+
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="UTF-8">
 <style>
   @page { size: A4; margin: 2cm 1.5cm; }
-  body { font-family: "DFKai-SB","標楷體","Microsoft JhengHei",sans-serif; color: #000; font-size: 12pt; }
-  .page { page-break-after: always; }
-  .page:last-child { page-break-after: avoid; }
-  .title { font-size: 14pt; text-align: center; margin-bottom: 10px; font-weight: bold; }
-  table { border-collapse: collapse; width: 100%; margin: 0; }
-  td { border: 1px solid #000; padding: 6px 8px; font-size: 12pt; vertical-align: middle; }
-  td.lbl { font-weight: bold; text-align: center; width: 80px; }
-  .id-row { letter-spacing: 0; }
-  .id-box { display: inline-block; width: 28px; height: 28px; border: 1px solid #000; text-align: center; line-height: 28px; font-size: 14pt; font-family: "Courier New", monospace; margin: 0 2px; }
+  body { font-family: "DFKai-SB","標楷體","Microsoft JhengHei",sans-serif; }
 </style></head>
-<body>${pages}</body></html>`;
-
-  return html;
+<body>${body}</body></html>`;
 }
 
 module.exports = { buildExportFullHtml };
