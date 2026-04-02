@@ -187,7 +187,7 @@ router.post("/records/batch-delete", async (req, res) => {
     const now = new Date().toISOString();
     for (const id of ids) {
       const existing = await fbGet(`/${id}`);
-      if (existing) await fbPut(`/${id}`, { ...existing, deleted: true, deletedAt: now });
+      if (existing) await fbPut(`/${id}`, { ...existing, attendanceDeleted: true, deletedAt: now });
     }
     res.json({ ok: true, deleted: ids.length });
   } catch (e) {
@@ -213,7 +213,7 @@ router.delete("/records/:id", async (req, res) => {
   try {
     const existing = await fbGet(`/${req.params.id}`);
     if (!existing) return res.status(404).json({ error: "not found" });
-    await fbPut(`/${req.params.id}`, { ...existing, deleted: true, deletedAt: new Date().toISOString() });
+    await fbPut(`/${req.params.id}`, { ...existing, attendanceDeleted: true, deletedAt: new Date().toISOString() });
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -225,7 +225,7 @@ router.post("/records/:id/restore", async (req, res) => {
   try {
     const existing = await fbGet(`/${req.params.id}`);
     if (!existing) return res.status(404).json({ error: "not found" });
-    const { deleted, deletedAt, ...rest } = existing;
+    const { attendanceDeleted, deletedAt, ...rest } = existing;
     await fbPut(`/${req.params.id}`, rest);
     res.json({ ok: true });
   } catch (e) {

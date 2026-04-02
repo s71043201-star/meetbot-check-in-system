@@ -48,8 +48,8 @@
       cachedRecords = allRecords;
 
       // 分離已刪除和正常記錄
-      var deletedRecords = allRecords.filter(function (r) { return r.deleted; });
-      var records = allRecords.filter(function (r) { return !r.deleted; });
+      var deletedRecords = allRecords.filter(function (r) { return r.attendanceDeleted; });
+      var records = allRecords.filter(function (r) { return !r.attendanceDeleted; });
 
       if (year)  records = records.filter(function (r) { return r.year  === parseInt(year); });
       if (month) records = records.filter(function (r) { return r.month === parseInt(month); });
