@@ -84,11 +84,17 @@ router.post("/checkout", async (req, res) => {
     };
     await fbPut(`/${sessionId}`, updated);
 
-    // 產生課程記錄頁
+    // 產生課程記錄頁（支援多課程分區顯示）
+    // courses 可能是完整物件陣列（處方日新格式）或字串陣列（舊格式）
+    let coursesForHtml = null;
+    if (courses && courses.length > 0 && typeof courses[0] === "object") {
+      coursesForHtml = courses;
+    }
     const recordHtml = generateRecordHtml({
       name: record.name, course: course, date: dateStr,
       checkinStr, checkoutStr, hours, plannedHours, courseType,
-      teacher, registeredCount, actualCount, walkInCount, summary
+      teacher, registeredCount, actualCount, walkInCount, summary,
+      courses: coursesForHtml,
     });
     const uid = storeDoc(recordHtml, `課程記錄_${record.name}`);
     const downloadUrl = `${process.env.BASE_URL || "https://meetbot-check-in-system.onrender.com"}/download/${uid}`;
