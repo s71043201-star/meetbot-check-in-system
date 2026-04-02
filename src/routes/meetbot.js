@@ -1,9 +1,9 @@
 const express = require("express");
 const axios = require("axios");
 const router = express.Router();
-const { TEAM, MEMBERS } = require("../config");
+const { TEAM, MEMBERS, ANTHROPIC_API_KEY } = require("../config");
 const { daysLeft } = require("../utils");
-const { sendLine } = require("../line");
+const { sendSlack, slackMention } = require("../slack");
 
 // ── AI 解析會議記錄 ────────────────────────────
 router.post("/parse-meeting", async (req, res) => {
@@ -30,23 +30,28 @@ router.post("/check-reminders", async (req, res) => {
   if (!tasks || !reminders) return res.status(400).json({ error: "缺少參數" });
   const hour = new Date().getHours();
   let sent = 0;
+  const slackByPerson = {};
   for (const task of tasks) {
     if (task.done) continue;
-    const dl     = daysLeft(task.deadline);
-    const userId = MEMBERS[task.assignee];
-    if (!userId) continue;
+    const dl = daysLeft(task.deadline);
     if (reminders.dayBefore?.on && dl === reminders.dayBefore.days && hour === reminders.dayBefore.hour) {
-      await sendLine(userId, `📋 任務提醒 - MeetBot\n\n「${task.title}」\n\n負責人：${task.assignee}\n截止日期：${task.deadline}（剩 ${dl} 天）\n\n請記得完成 ✓`);
+      if (!slackByPerson[task.assignee]) slackByPerson[task.assignee] = [];
+      slackByPerson[task.assignee].push(`📋 「${task.title}」— 截止：${task.deadline}（剩 ${dl} 天）`);
       sent++;
     }
     if (reminders.hourBefore?.on && dl === 0 && hour === (23 - reminders.hourBefore.hours)) {
-      await sendLine(userId, `⚡ 緊急提醒 - MeetBot\n\n「${task.title}」\n\n負責人：${task.assignee}\n今天截止！剩約 ${reminders.hourBefore.hours} 小時\n\n請盡快完成 🔥`);
+      if (!slackByPerson[task.assignee]) slackByPerson[task.assignee] = [];
+      slackByPerson[task.assignee].push(`⚡ 「${task.title}」— 今天截止！`);
       sent++;
     }
     if (reminders.overdueAlert?.on && dl < 0) {
-      await sendLine(userId, `🚨 逾期警示 - MeetBot\n\n「${task.title}」\n\n負責人：${task.assignee}\n已逾期 ${Math.abs(dl)} 天！\n\n請盡快處理 ⚠️`);
+      if (!slackByPerson[task.assignee]) slackByPerson[task.assignee] = [];
+      slackByPerson[task.assignee].push(`🚨 「${task.title}」— 已逾期 ${Math.abs(dl)} 天！`);
       sent++;
     }
+  }
+  for (const [name, items] of Object.entries(slackByPerson)) {
+    await sendSlack(`📬 任務提醒 - MeetBot\n\n${slackMention(name)} 你有 ${items.length} 項任務需注意：\n\n${items.join("\n")}\n\n請盡快處理 ✓`);
   }
   res.json({ ok: true, sent });
 });
@@ -58,7 +63,7 @@ router.post("/notify-new-task", async (req, res) => {
   const userId = MEMBERS[task.assignee];
   if (!userId) return res.json({ ok: false, reason: "找不到成員" });
   try {
-    await sendLine(userId, `📋 新任務指派 - MeetBot\n\n你有一項新任務：\n「${task.title}」\n\n截止日期：${task.deadline}\n來源會議：${task.meeting}\n\n請記得在期限前完成 ✓`);
+    await sendSlack(`📋 新任務指派 - MeetBot\n\n${slackMention(task.assignee)} 有一項新任務：\n「${task.title}」\n\n截止日期：${task.deadline}\n來源會議：${task.meeting}\n\n請記得在期限前完成 ✓`);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -72,7 +77,7 @@ router.post("/notify-task-done", async (req, res) => {
   const userId = MEMBERS[task.assignee];
   if (!userId) return res.json({ ok: false, reason: "找不到成員" });
   try {
-    await sendLine(userId, `🎉 恭喜 ${task.assignee}！\n\n「${task.title}」已完成！\n\n辛苦了，繼續保持 💪`);
+    await sendSlack(`🎉 恭喜 ${slackMention(task.assignee)}！\n\n「${task.title}」已完成！\n\n辛苦了，繼續保持 💪`);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

@@ -42,6 +42,19 @@ const ATT_NOTIFY_IDS = [
 const TASKS_FB = "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/meetbot/tasks.json";
 const ATT_FB   = "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/attendance";
 
+const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
+
+const SLACK_MEMBERS = {
+  "許雅淇": "U0AEEJQNG2G",
+  "蔡蕙芳": "U0AEV9KQ9D1",
+  "張鈺微": "U0AE4K3EAQ3",
+  "吳承儒": "U0AFPKJT80N",
+  "黃琴茹": "U0AE4K4A0BG",
+  "吳亞璇": "U0AFJ9QMVNX",
+  "戴豐逸": "U0AFCSWKYB1",
+  "陳佩研": "U0AFRH2PB56",
+};
+
 module.exports = {
   TOKEN,
   TEAM,
@@ -53,4 +66,6 @@ module.exports = {
   ATT_NOTIFY_IDS,
   TASKS_FB,
   ATT_FB,
+  SLACK_WEBHOOK_URL,
+  SLACK_MEMBERS,
 };

@@ -1,10 +1,10 @@
 const express = require("express");
 const axios = require("axios");
 const router = express.Router();
-const { ATT_FB, ATT_NOTIFY_IDS } = require("../config");
+const { ATT_FB } = require("../config");
 const { toTaipei, toROCYear, storeDoc } = require("../utils");
 const { fbGet, fbPost, fbPut, fbDelete } = require("../firebase");
-const { sendLine } = require("../line");
+const { sendSlack } = require("../slack");
 const { generateRecordHtml } = require("../templates/record-html");
 
 // ── 簽到 ──────────────────────────────────────
@@ -37,7 +37,7 @@ router.post("/checkin", async (req, res) => {
     const sessionId = result.name;
     const timeStr   = taipei.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
     const msg = `✅ 臨時人員簽到\n\n👤 姓名：${name}\n📋 活動：${eventName || "-"}\n⏰ 簽到時間：${timeStr}`;
-    for (const uid of ATT_NOTIFY_IDS) await sendLine(uid, msg).catch(() => {});
+    await sendSlack(msg);
     res.json({ ok: true, sessionId });
   } catch (e) {
     console.error("checkin:", e.message);
@@ -100,7 +100,7 @@ router.post("/checkout", async (req, res) => {
     const downloadUrl = `${process.env.BASE_URL || "https://meetbot-check-in-system.onrender.com"}/download/${uid}`;
 
     const msg = `🔚 臨時人員簽退\n\n👤 姓名：${record.name}\n🏷 類型：${typeLabel}\n📚 課程：${course || "-"}\n🏷 屬性：${courseType || "-"}\n⏰ 簽到：${checkinStr}　簽退：${checkoutStr}\n⏱ 時數：${hours} 小時\n👥 實到：${actualCount ?? "-"} 人\n\n📄 課程記錄（可列印/存PDF）：\n${downloadUrl}`;
-    for (const notifyId of ATT_NOTIFY_IDS) await sendLine(notifyId, msg).catch(() => {});
+    await sendSlack(msg);
     res.json({ ok: true, hours });
   } catch (e) {
     console.error("checkout:", e.message);
