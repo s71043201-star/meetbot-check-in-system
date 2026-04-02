@@ -34,17 +34,16 @@ function buildPersonSheet(wb, personName, records) {
   ws.getCell("B2").value = "臨時人員出勤記錄與工作內容說明";
   ws.getCell("B2").style = { font:{...tk, size:13, bold:true}, alignment:mid };
 
-  // Row 3 姓名 + 工作內容
+  // Row 3 姓名 + 工作內容 — 先設所有格子邊框再合併
+  ws.getRow(3).height = 90;
+  for (let c = 2; c <= 9; c++) {
+    ws.getCell(3, c).style = { font:tk, alignment:mid, border:bdr };
+  }
   ws.mergeCells("C3:D3");
   ws.mergeCells("F3:I3");
-  ws.getRow(3).height = 90;
   ws.getCell("B3").value = "姓名";
-  ws.getCell("B3").style = { font:tk, alignment:mid, border:bdr };
   ws.getCell("C3").value = personName;
-  ws.getCell("C3").style = { font:tk, alignment:mid, border:bdr };
   ws.getCell("E3").value = "工作內容";
-  ws.getCell("E3").style = { font:tk, alignment:mid, border:bdr };
-  // 使用簽到時填寫的工作內容說明，取第一筆非空值
   const workDesc = records.find(r => r.workDescription)?.workDescription || "";
   ws.getCell("F3").value = workDesc;
   ws.getCell("F3").style = { font:tk, alignment:lmid, border:bdr };
