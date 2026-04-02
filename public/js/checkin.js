@@ -184,40 +184,80 @@
   // ── Step 2: Select type ──
   function selectType(type) {
     sessionStorage.setItem("checkinType", type);
+    if (type === "prescription") {
+      var container = document.getElementById("prescription-courses");
+      if (container.querySelectorAll(".course-item").length === 0) {
+        addCourse();
+      }
+    }
     showSection(type === "regular" ? "sec-form-regular" : "sec-form-prescription");
   }
 
-  // ── Prescription: Add / Remove Course ──
-  var courseCount = 1;
+  // ── Prescription: Add / Remove Course (完整表單) ──
+  var courseCount = 0;
 
-  function addCourse() {
+  function createCourseBlock(isFirst) {
     courseCount++;
-    var container = document.getElementById("prescription-courses");
+    var id = courseCount;
     var div = document.createElement("div");
     div.className = "course-item";
-    div.dataset.index = courseCount;
+    div.dataset.courseId = id;
+    var removeBtn = isFirst ? '' : '<button class="course-remove" data-action="remove-course">\u2715 \u79FB\u9664</button>';
     div.innerHTML =
       '<div class="course-item-header">' +
-      '  <span>\u8AB2\u7A0B ' + courseCount + '</span>' +
-      '  <button class="course-remove" data-action="remove-course">\u2715 \u79FB\u9664</button>' +
+      '  <span class="course-label">\u8AB2\u7A0B ' + (document.querySelectorAll("#prescription-courses .course-item").length + 1) + '</span>' +
+      removeBtn +
       '</div>' +
-      '<input type="text" class="prescription-course-name" placeholder="\u8ACB\u8F38\u5165\u8AB2\u7A0B\u540D\u7A31">';
-    container.appendChild(div);
+      '<div class="course-body">' +
+      '  <div class="q-title required">\u8AB2\u7A0B\u540D\u7A31</div>' +
+      '  <input type="text" class="p-course-name" placeholder="\u8ACB\u8F38\u5165\u8AB2\u7A0B\u540D\u7A31">' +
+      '  <div class="q-title required" style="margin-top:16px">\u8AB2\u7A0B\u5C6C\u6027</div>' +
+      '  <div class="radio-group">' +
+      '    <label class="opt"><input type="radio" name="pCourseType_' + id + '" value="A.\u904B\u52D5\u8655\u65B9"> A. \u904B\u52D5\u8655\u65B9</label>' +
+      '    <label class="opt"><input type="radio" name="pCourseType_' + id + '" value="B.\u71DF\u990A\u8655\u65B9"> B. \u71DF\u990A\u8655\u65B9</label>' +
+      '    <label class="opt"><input type="radio" name="pCourseType_' + id + '" value="C.\u793E\u6703\u8655\u65B9"> C. \u793E\u6703\u8655\u65B9</label>' +
+      '    <label class="opt"><input type="radio" name="pCourseType_' + id + '" value="D.\u60C5\u7DD2\u8ABF\u9069\u8655\u65B9"> D. \u60C5\u7DD2\u8ABF\u9069\u8655\u65B9</label>' +
+      '  </div>' +
+      '  <div class="q-title" style="margin-top:16px">\u8AB2\u7A0B\u8001\u5E2B</div>' +
+      '  <input type="text" class="p-teacher" placeholder="\u8ACB\u8F38\u5165\u8AB2\u7A0B\u8001\u5E2B\u59D3\u540D\uFF08\u975E\u5FC5\u586B\uFF09">' +
+      '  <div class="q-title required" style="margin-top:16px">\u51FA\u5E2D\u4EBA\u6578</div>' +
+      '  <div class="row-2">' +
+      '    <div><div class="q-title required" style="font-size:13px;margin-bottom:8px">\u7CFB\u7D71\u5831\u540D\u4EBA\u6578</div>' +
+      '      <input type="number" class="p-registered" placeholder="\u8ACB\u8F38\u5165\u6578\u5B57" min="0"></div>' +
+      '    <div><div class="q-title required" style="font-size:13px;margin-bottom:8px">\u7DDA\u4E0A\u5831\u540D\u5BE6\u5230\u4EBA\u6578</div>' +
+      '      <input type="number" class="p-actual" placeholder="\u8ACB\u8F38\u5165\u6578\u5B57" min="0"></div>' +
+      '  </div>' +
+      '  <div style="margin-top:12px"><div class="q-title required" style="font-size:13px;margin-bottom:8px">\u7121\u5831\u540D\u73FE\u5834\u5019\u88DC\u4EBA\u6578</div>' +
+      '    <input type="number" class="p-walkin" placeholder="\u8ACB\u8F38\u5165\u6578\u5B57" min="0"></div>' +
+      '  <div class="q-title required" style="margin-top:16px">\u7C21\u8FF0\u4E0A\u8AB2\u5167\u5BB9\u6216\u56DE\u5831\u72C0\u6CC1</div>' +
+      '  <textarea class="p-summary" rows="3" placeholder="\u8ACB\u7C21\u8FF0\u4ECA\u65E5\u4E0A\u8AB2\u5167\u5BB9\u6216\u72C0\u6CC1\uFF08100\u5B57\u5167\uFF09" maxlength="100"></textarea>' +
+      '  <div class="hint"><span class="p-char-count">0</span>/100 \u5B57</div>' +
+      '</div>';
+    // char count
+    div.querySelector(".p-summary").addEventListener("input", function () {
+      div.querySelector(".p-char-count").textContent = this.value.length;
+    });
+    return div;
+  }
+
+  function addCourse() {
+    var container = document.getElementById("prescription-courses");
+    var isFirst = container.querySelectorAll(".course-item").length === 0;
+    var block = createCourseBlock(isFirst);
+    container.appendChild(block);
   }
 
   function removeCourse(btn) {
     btn.closest(".course-item").remove();
     document.querySelectorAll("#prescription-courses .course-item").forEach(function (el, i) {
-      el.querySelector(".course-item-header span").textContent = "\u8AB2\u7A0B " + (i + 1);
+      el.querySelector(".course-label").textContent = "\u8AB2\u7A0B " + (i + 1);
     });
   }
 
-  // ── Character count ──
+  // ── Character count (regular only) ──
   document.addEventListener("input", function (e) {
     if (e.target.id === "regular-summary")
       document.getElementById("regular-char-count").textContent = e.target.value.length;
-    if (e.target.id === "prescription-summary")
-      document.getElementById("prescription-char-count").textContent = e.target.value.length;
   });
 
   // ── Step 3: Check-out ──
@@ -252,26 +292,54 @@
       plannedHours = ph.value;
       courseType   = ct.value;
     } else {
-      courses = [].slice.call(document.querySelectorAll(".prescription-course-name"))
-                  .map(function (el) { return el.value.trim(); }).filter(function (v) { return v; });
-      var ct2 = document.querySelector('input[name="prescription-courseType"]:checked');
-      teacher = document.getElementById("prescription-teacher").value.trim();
-      registeredCount = document.getElementById("prescription-registeredCount").value;
-      actualCount     = document.getElementById("prescription-actualCount").value;
-      walkInCount     = document.getElementById("prescription-walkInCount").value;
-      summary         = document.getElementById("prescription-summary").value.trim();
+      // 處方日：收集每堂課程的完整資料
+      var blocks = document.querySelectorAll("#prescription-courses .course-item");
+      if (blocks.length === 0) {
+        showErr("err-prescription-course", true);
+        return;
+      }
+      showErr("err-prescription-course", false);
 
+      var coursesData = [];
       var valid2 = true;
-      showErr("err-prescription-course",    courses.length === 0); if (courses.length === 0) valid2 = false;
-      showErr("err-prescription-courseType", !ct2);                  if (!ct2) valid2 = false;
-      showErr("err-prescription-reg",       registeredCount === ""); if (registeredCount === "") valid2 = false;
-      showErr("err-prescription-act",       actualCount === "");     if (actualCount === "") valid2 = false;
-      showErr("err-prescription-walk",      walkInCount === "");     if (walkInCount === "") valid2 = false;
-      showErr("err-prescription-summary",   !summary);               if (!summary) valid2 = false;
-      if (!valid2) return;
+      blocks.forEach(function (block) {
+        var cId = block.dataset.courseId;
+        var cName = block.querySelector(".p-course-name").value.trim();
+        var cType = block.querySelector('input[name="pCourseType_' + cId + '"]:checked');
+        var cTeacher = block.querySelector(".p-teacher").value.trim();
+        var cReg = block.querySelector(".p-registered").value;
+        var cAct = block.querySelector(".p-actual").value;
+        var cWalk = block.querySelector(".p-walkin").value;
+        var cSummary = block.querySelector(".p-summary").value.trim();
 
-      course     = courses.join("\u3001");
-      courseType  = ct2.value;
+        if (!cName || !cType || cReg === "" || cAct === "" || cWalk === "" || !cSummary) {
+          valid2 = false;
+        }
+
+        coursesData.push({
+          course: cName,
+          courseType: cType ? cType.value : "",
+          teacher: cTeacher,
+          registeredCount: parseInt(cReg) || 0,
+          actualCount: parseInt(cAct) || 0,
+          walkInCount: parseInt(cWalk) || 0,
+          summary: cSummary
+        });
+      });
+
+      if (!valid2) {
+        showToast("\u8ACB\u5B8C\u6210\u6240\u6709\u8AB2\u7A0B\u7684\u5FC5\u586B\u6B04\u4F4D", "warning");
+        return;
+      }
+
+      courses = coursesData.map(function (c) { return c.course; });
+      course = courses.join("\u3001");
+      courseType = coursesData[0].courseType;
+      teacher = coursesData[0].teacher;
+      registeredCount = coursesData.reduce(function (s, c) { return s + c.registeredCount; }, 0);
+      actualCount = coursesData.reduce(function (s, c) { return s + c.actualCount; }, 0);
+      walkInCount = coursesData.reduce(function (s, c) { return s + c.walkInCount; }, 0);
+      summary = coursesData.map(function (c) { return c.course + "：" + c.summary; }).join("；");
     }
 
     try {

@@ -298,64 +298,16 @@
       </div>
     </div>
 
+    <!-- 多課程區塊容器 -->
     <div class="card">
-      <div class="q-title required">課程名稱</div>
+      <div class="q-title required" style="margin-bottom:14px">課程資料</div>
       <div id="prescription-courses">
-        <div class="course-item" data-index="0">
-          <div class="course-item-header">
-            <span>課程 1</span>
-          </div>
-          <input type="text" class="prescription-course-name" placeholder="請輸入課程名稱">
-        </div>
+        <!-- 課程 1 由 JS 動態生成 -->
       </div>
       <button class="btn-add-course" id="btn-add-course">
         <span>＋</span> 新增一筆課程
       </button>
-      <div class="err hidden" id="err-prescription-course">請至少填寫一個課程名稱</div>
-    </div>
-
-    <div class="card">
-      <div class="q-title required">課程屬性</div>
-      <div class="radio-group">
-        <label class="opt"><input type="radio" name="prescription-courseType" value="A.運動處方"> A. 運動處方</label>
-        <label class="opt"><input type="radio" name="prescription-courseType" value="B.營養處方"> B. 營養處方</label>
-        <label class="opt"><input type="radio" name="prescription-courseType" value="C.社會處方"> C. 社會處方</label>
-        <label class="opt"><input type="radio" name="prescription-courseType" value="D.情緒調適處方"> D. 情緒調適處方</label>
-      </div>
-      <div class="err hidden" id="err-prescription-courseType">請選擇課程屬性</div>
-    </div>
-
-    <div class="card">
-      <div class="q-title">課程老師</div>
-      <input type="text" id="prescription-teacher" placeholder="請輸入課程老師姓名（非必填）">
-    </div>
-
-    <div class="card">
-      <div class="q-title required">出席人數</div>
-      <div class="row-2">
-        <div>
-          <div class="q-title required" style="font-size:13px;margin-bottom:8px;">系統報名人數</div>
-          <input type="number" id="prescription-registeredCount" placeholder="請輸入數字" min="0">
-          <div class="err hidden" id="err-prescription-reg">請填寫</div>
-        </div>
-        <div>
-          <div class="q-title required" style="font-size:13px;margin-bottom:8px;">線上報名實到人數</div>
-          <input type="number" id="prescription-actualCount" placeholder="請輸入數字" min="0">
-          <div class="err hidden" id="err-prescription-act">請填寫</div>
-        </div>
-      </div>
-      <div style="margin-top:16px;">
-        <div class="q-title required" style="font-size:13px;margin-bottom:8px;">無報名現場候補人數</div>
-        <input type="number" id="prescription-walkInCount" placeholder="請輸入數字" min="0">
-        <div class="err hidden" id="err-prescription-walk">請填寫</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="q-title required">簡述上課內容或回報狀況</div>
-      <textarea id="prescription-summary" rows="4" placeholder="請簡述今日上課內容或狀況（100字內）" maxlength="100"></textarea>
-      <div class="hint"><span id="prescription-char-count">0</span>/100 字</div>
-      <div class="err hidden" id="err-prescription-summary">請填寫上課內容</div>
+      <div class="err hidden" id="err-prescription-course">請至少填寫一個課程的完整資料</div>
     </div>
 
     <div class="card clearfix">
