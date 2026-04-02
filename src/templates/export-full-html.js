@@ -19,7 +19,7 @@ function buildExportFullHtml(grouped) {
 
     // 身分證 10 格：用主表格的 10 個 td（欄 2~11），欄 12 留空合併
     const idCells = Array.from({length:10}, (_,i) =>
-      `<td align="center" style="border:1px solid #000;font-size:14pt;font-family:Courier New;height:32px;width:32px">${idNum[i] || "&nbsp;"}</td>`
+      `<td align="center" style="border:1px solid #000;font-size:14pt;font-family:Courier New;height:40px">${idNum[i] || "&nbsp;"}</td>`
     ).join("");
 
     // 表格結構：11 欄（1 標題欄 + 10 內容欄）
