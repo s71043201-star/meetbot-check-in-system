@@ -1,6 +1,6 @@
 const { TEAM } = require("./config");
 const { toTaipei } = require("./utils");
-const { sendSlack, slackMention } = require("./slack");
+const { sendSlack, sendSlackToUser } = require("./slack");
 const { fetchRoutineTasksFromFirebase } = require("./firebase");
 
 let lastRun430 = "";
@@ -45,8 +45,8 @@ function startScheduler() {
         if (routineReminderSent[sentKey]) continue;
         routineReminderSent[sentKey] = true;
         const name = rt.assignee || "未指派";
-        const msg = `🔄 例行任務提醒 - MeetBot\n\n${slackMention(name)} 提醒你有一項例行任務：\n「${rt.title}」\n\n排程：每週${WD_NAMES[rt.reminderWeekday]} ${String(rt.reminderHour).padStart(2,"0")}:00\n\n🔗 https://s71043201-star.github.io/meetbot-app/`;
-        await sendSlack(msg);
+        const msg = `🔄 例行任務提醒 - MeetBot\n\n提醒你有一項例行任務：\n「${rt.title}」\n\n排程：每週${WD_NAMES[rt.reminderWeekday]} ${String(rt.reminderHour).padStart(2,"0")}:00\n\n🔗 https://s71043201-star.github.io/meetbot-app/`;
+        await sendSlackToUser(name, msg);
         console.log(`例行任務提醒已發送：${rt.title} → ${name}`);
       }
     } catch (e) {

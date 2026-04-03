@@ -3,7 +3,7 @@ const axios = require("axios");
 const router = express.Router();
 const { TEAM, MEMBERS, ANTHROPIC_API_KEY } = require("../config");
 const { daysLeft, toTaipei } = require("../utils");
-const { sendSlack, slackMention } = require("../slack");
+const { sendSlack, slackMention, sendSlackToUser } = require("../slack");
 
 // ── AI 解析會議記錄 ────────────────────────────
 router.post("/parse-meeting", async (req, res) => {
@@ -66,7 +66,7 @@ router.post("/check-reminders", async (req, res) => {
     }
   }
   for (const [name, items] of Object.entries(slackByPerson)) {
-    await sendSlack(`📬 任務提醒 - MeetBot\n\n${slackMention(name)} 你有 ${items.length} 項任務需注意：\n\n${items.join("\n")}\n\n請盡快處理 ✓`);
+    await sendSlackToUser(name, `📬 任務提醒 - MeetBot\n\n你有 ${items.length} 項任務需注意：\n\n${items.join("\n")}\n\n請盡快處理 ✓\n🔗 https://s71043201-star.github.io/meetbot-app/`);
   }
   res.json({ ok: true, sent });
 });
@@ -78,7 +78,7 @@ router.post("/notify-new-task", async (req, res) => {
   const userId = MEMBERS[task.assignee];
   if (!userId) return res.json({ ok: false, reason: "找不到成員" });
   try {
-    await sendSlack(`📋 新任務指派 - MeetBot\n\n${slackMention(task.assignee)} 有一項新任務：\n「${task.title}」\n\n截止日期：${task.deadline}\n來源會議：${task.meeting}\n\n請記得在期限前完成 ✓`);
+    await sendSlackToUser(task.assignee, `📋 新任務指派 - MeetBot\n\n你有一項新任務：\n「${task.title}」\n\n截止日期：${task.deadline}\n來源會議：${task.meeting}\n\n請記得在期限前完成 ✓\n🔗 https://s71043201-star.github.io/meetbot-app/`);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -92,7 +92,7 @@ router.post("/notify-task-done", async (req, res) => {
   const userId = MEMBERS[task.assignee];
   if (!userId) return res.json({ ok: false, reason: "找不到成員" });
   try {
-    await sendSlack(`🎉 恭喜 ${slackMention(task.assignee)}！\n\n「${task.title}」已完成！\n\n辛苦了，繼續保持 💪`);
+    await sendSlackToUser(task.assignee, `🎉 恭喜！\n\n「${task.title}」已完成！\n\n辛苦了，繼續保持 💪`);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

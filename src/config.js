@@ -44,6 +44,7 @@ const ROUTINE_TASKS_FB = "https://meetbot-ede53-default-rtdb.asia-southeast1.fir
 const ATT_FB   = "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/attendance";
 
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
+const SLACK_BOT_TOKEN   = process.env.SLACK_BOT_TOKEN;
 
 const SLACK_MEMBERS = {
   "許雅淇": "U0AEEJQNG2G",
@@ -69,5 +70,6 @@ module.exports = {
   ROUTINE_TASKS_FB,
   ATT_FB,
   SLACK_WEBHOOK_URL,
+  SLACK_BOT_TOKEN,
   SLACK_MEMBERS,
 };
