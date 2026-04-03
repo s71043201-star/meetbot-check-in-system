@@ -4,6 +4,7 @@ const { TEAM, MEMBERS, ID_TO_NAME, BOSS_IDS, SYSTEMS, ATT_BOSS_IDS } = require("
 const { daysLeft } = require("../utils");
 const { fetchTasksFromFirebase, fetchAttendance } = require("../firebase");
 const { sendLine, sendLineWithQuickReply } = require("../line");
+const { sendSlackToUser } = require("../slack");
 
 function buildAttendanceReport(records, month) {
   const filtered = records.filter(r => r.month === month && r.status === "checked-out");
@@ -87,8 +88,9 @@ router.post("/webhook", async (req, res) => {
         await sendLine(userId, `❌ 找不到成員「${targetName}」`);
         continue;
       }
-      await sendLine(targetId, `📌 工作進度提醒\n\n蔡蕙芳 希望你查看今日工作進度，並在系統中勾選已完成的任務。\n\n🔗 meetbot 系統：https://s71043201-star.github.io/meetbot-app/`);
-      await sendLine(userId, `✅ 已向 ${targetName} 發出提醒`);
+      const senderName = ID_TO_NAME[userId] || "管理員";
+      await sendSlackToUser(targetName, `📌 工作進度提醒\n\n${senderName} 希望你查看今日工作進度，並在系統中勾選已完成的任務。\n\n🔗 https://s71043201-star.github.io/meetbot-app/`);
+      await sendLine(userId, `✅ 已向 ${targetName} 發出 Slack 私訊提醒`);
       continue;
     }
 
