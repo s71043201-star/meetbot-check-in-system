@@ -182,7 +182,7 @@
         return '<div class="receipt-card">' +
           '<div class="receipt-card-header">' +
             '<h3>' + escapeHtml(personName) + '\uFF08\u5171 ' + recs.length + ' \u7B46\uFF0C' + (Math.round(totalHours * 10) / 10) + ' \u5C0F\u6642\uFF09</h3>' +
-            '<button class="btn btn-outline btn-sm" style="color:#fff;border-color:#fff;" data-action="export-receipt" data-params="' + escapeHtml(qp.toString()) + '">' +
+            '<button class="btn btn-sm" style="background:#fff;color:#2563eb;font-weight:600;" data-action="export-receipt" data-params="' + escapeHtml(qp.toString()) + '">' +
               '\u532F\u51FA\u9818\u64DA Word' +
             '</button>' +
           '</div>' +
