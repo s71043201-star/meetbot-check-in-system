@@ -1,11 +1,27 @@
 const axios = require("axios");
 const https = require("https");
-const { TASKS_FB, ATT_FB } = require("./config");
+const { TASKS_FB, ROUTINE_TASKS_FB, ATT_FB } = require("./config");
 
 // ── Firebase：任務 ─────────────────────────────
 async function fetchTasksFromFirebase() {
   return new Promise((resolve) => {
     https.get(TASKS_FB, (res) => {
+      let data = "";
+      res.on("data", chunk => data += chunk);
+      res.on("end", () => {
+        try {
+          const obj = JSON.parse(data);
+          resolve(obj ? Object.values(obj) : []);
+        } catch { resolve([]); }
+      });
+    }).on("error", () => resolve([]));
+  });
+}
+
+// ── Firebase：例行任務 ────────────────────────
+async function fetchRoutineTasksFromFirebase() {
+  return new Promise((resolve) => {
+    https.get(ROUTINE_TASKS_FB, (res) => {
       let data = "";
       res.on("data", chunk => data += chunk);
       res.on("end", () => {
@@ -56,6 +72,7 @@ async function fetchAttendance() {
 
 module.exports = {
   fetchTasksFromFirebase,
+  fetchRoutineTasksFromFirebase,
   fbGet,
   fbPost,
   fbPut,

@@ -2,7 +2,7 @@ const express = require("express");
 const axios = require("axios");
 const router = express.Router();
 const { TEAM, MEMBERS, ANTHROPIC_API_KEY } = require("../config");
-const { daysLeft } = require("../utils");
+const { daysLeft, toTaipei } = require("../utils");
 const { sendSlack, slackMention } = require("../slack");
 
 // ── AI 解析會議記錄 ────────────────────────────
@@ -26,9 +26,11 @@ router.post("/parse-meeting", async (req, res) => {
 
 // ── 任務提醒 ──────────────────────────────────
 router.post("/check-reminders", async (req, res) => {
-  const { tasks, reminders } = req.body;
+  const { tasks, reminders, routineTasks } = req.body;
   if (!tasks || !reminders) return res.status(400).json({ error: "缺少參數" });
-  const hour = new Date().getHours();
+  const taipei = toTaipei(new Date());
+  const hour = taipei.getHours();
+  const weekday = taipei.getDay(); // 0=日, 1=一, ..., 6=六
   let sent = 0;
   const slackByPerson = {};
   for (const task of tasks) {
@@ -48,6 +50,19 @@ router.post("/check-reminders", async (req, res) => {
       if (!slackByPerson[task.assignee]) slackByPerson[task.assignee] = [];
       slackByPerson[task.assignee].push(`🚨 「${task.title}」— 已逾期 ${Math.abs(dl)} 天！`);
       sent++;
+    }
+  }
+  // 例行任務提醒：比對台灣時間的星期幾 + 小時
+  const WD_NAMES = ["日","一","二","三","四","五","六"];
+  if (Array.isArray(routineTasks)) {
+    for (const rt of routineTasks) {
+      if (!rt.reminderOn) continue;
+      if (rt.reminderWeekday === weekday && rt.reminderHour === hour) {
+        const name = rt.assignee || "未指派";
+        if (!slackByPerson[name]) slackByPerson[name] = [];
+        slackByPerson[name].push(`🔄 例行任務提醒 —「${rt.title}」（每週${WD_NAMES[rt.reminderWeekday]} ${String(rt.reminderHour).padStart(2,"0")}:00）`);
+        sent++;
+      }
     }
   }
   for (const [name, items] of Object.entries(slackByPerson)) {

@@ -40,6 +40,7 @@ const ATT_NOTIFY_IDS = [
 ];
 
 const TASKS_FB = "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/meetbot/tasks.json";
+const ROUTINE_TASKS_FB = "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/meetbot/routineTasks.json";
 const ATT_FB   = "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/attendance";
 
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
@@ -65,6 +66,7 @@ module.exports = {
   ATT_BOSS_IDS,
   ATT_NOTIFY_IDS,
   TASKS_FB,
+  ROUTINE_TASKS_FB,
   ATT_FB,
   SLACK_WEBHOOK_URL,
   SLACK_MEMBERS,
