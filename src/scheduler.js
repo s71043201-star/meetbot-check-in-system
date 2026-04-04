@@ -6,6 +6,7 @@ const { fetchRoutineTasksFromFirebase } = require("./firebase");
 let lastRun430 = "";
 let lastRun450 = "";
 const routineReminderSent = {}; // 防止同一小時重複發送：key = "taskId-dateKey-hour"
+const dailyReminderSent = {};   // 一天只提醒一次：key = "name-dateKey"
 
 function startScheduler() {
   setInterval(async () => {
@@ -45,6 +46,10 @@ function startScheduler() {
         if (routineReminderSent[sentKey]) continue;
         routineReminderSent[sentKey] = true;
         const name = rt.assignee || "未指派";
+        // 一天只提醒一次同一位同仁
+        const dailyKey = `${name}-${dateKey}`;
+        if (dailyReminderSent[dailyKey]) continue;
+        dailyReminderSent[dailyKey] = true;
         const msg = `🔄 例行任務提醒 - MeetBot\n\n提醒你有一項例行任務：\n「${rt.title}」\n\n排程：每週${WD_NAMES[rt.reminderWeekday]} ${String(rt.reminderHour).padStart(2,"0")}:00\n\n🔗 https://s71043201-star.github.io/meetbot-app/`;
         await sendSlackToUser(name, msg);
         console.log(`例行任務提醒已發送：${rt.title} → ${name}`);
