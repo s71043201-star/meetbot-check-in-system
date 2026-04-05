@@ -1,7 +1,7 @@
 const express = require("express");
 const axios = require("axios");
 const router = express.Router();
-const { TEAM, MEMBERS, ANTHROPIC_API_KEY } = require("../config");
+const { TEAM, MEMBERS } = require("../config");
 const { daysLeft, toTaipei } = require("../utils");
 const { sendSlack, slackMention, sendSlackToUser } = require("../slack");
 
@@ -11,12 +11,13 @@ router.post("/parse-meeting", async (req, res) => {
   if (!text) return res.status(400).json({ error: "缺少 text" });
   const today_str = new Date().toISOString().slice(0, 10);
   try {
-    const response = await axios.post("https://api.anthropic.com/v1/messages", {
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 4000,
-      messages: [{ role: "user", content: `你是會議記錄分析助理。從以下會議紀錄中，找出所有「任務/行動項目」。\n每個任務需包含：負責人、任務描述、截止日期。今天是 ${today_str}。\n若日期只說「本週五」請換算成實際日期。若無法確定截止日期，設定為 7 天後。\n負責人請從以下名單選最接近的：${TEAM.join("、")}。若無法對應，填「待指派」。\n\n請只回傳 JSON 陣列，格式如下，不要有任何說明文字：\n[{"title":"任務描述","assignee":"負責人","deadline":"YYYY-MM-DD"}]\n\n會議紀錄：\n${text}` }]
-    }, { headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" } });
-    const raw   = response.data.content?.find(b => b.type === "text")?.text || "[]";
+    const geminiKey = process.env.GEMINI_API_KEY;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+    const response = await axios.post(geminiUrl, {
+      contents: [{ role: "user", parts: [{ text: `你是會議記錄分析助理。從以下會議紀錄中，找出所有「任務/行動項目」。\n每個任務需包含：負責人、任務描述、截止日期。今天是 ${today_str}。\n若日期只說「本週五」請換算成實際日期。若無法確定截止日期，設定為 7 天後。\n負責人請從以下名單選最接近的：${TEAM.join("、")}。若無法對應，填「待指派」。\n\n請只回傳 JSON 陣列，格式如下，不要有任何說明文字：\n[{"title":"任務描述","assignee":"負責人","deadline":"YYYY-MM-DD"}]\n\n會議紀錄：\n${text}` }] }],
+      generationConfig: { maxOutputTokens: 4000 }
+    }, { headers: { "Content-Type": "application/json" } });
+    const raw = response.data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
     const items = JSON.parse(raw.replace(/```json|```/g, "").trim());
     res.json({ items });
   } catch (e) {
