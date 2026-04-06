@@ -18,9 +18,10 @@
     document.getElementById(id).classList.toggle("hidden", !show);
   }
 
+  var ALL_SECTIONS = ["sec-login", "sec-register", "sec-info", "sec-type", "sec-form-regular", "sec-form-prescription", "sec-form-admin", "sec-done"];
+
   function showSection(id) {
-    ["sec-info", "sec-type", "sec-form-regular", "sec-form-prescription", "sec-form-admin", "sec-done"]
-      .forEach(function (s) { document.getElementById(s).classList.add("hidden"); });
+    ALL_SECTIONS.forEach(function (s) { document.getElementById(s).classList.add("hidden"); });
     document.getElementById(id).classList.remove("hidden");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -34,85 +35,254 @@
     document.getElementById("live-addr-fields").classList.toggle("hidden", same);
   }
 
-  // ── Load History ──
-  async function loadHistory() {
-    var name = document.getElementById("name").value.trim();
-    var msgEl = document.getElementById("load-msg");
-    msgEl.classList.remove("hidden", "success", "fail");
+  // ── Fill sec-info from user profile ──
+  function fillInfoFromUser(user) {
+    document.getElementById("name").value = user.name || "";
+    document.getElementById("idNumber").value = user.idNumber || "";
 
-    if (!name) {
-      msgEl.textContent = "\u8ACB\u5148\u8F38\u5165\u59D3\u540D\u518D\u67E5\u8A62";
-      msgEl.classList.add("fail");
-      return;
+    if (user.eventName) document.getElementById("eventName").value = user.eventName;
+    if (user.workDescription) {
+      var items = user.workDescription.split("\u3001");
+      document.querySelectorAll('#workDescOptions input[type="checkbox"]').forEach(function (cb) {
+        if (items.includes(cb.value)) cb.checked = true;
+      });
+      var knownValues = [].slice.call(document.querySelectorAll('#workDescOptions input[type="checkbox"]')).map(function (cb) { return cb.value; });
+      var otherItems = items.filter(function (v) { return !knownValues.includes(v); });
+      if (otherItems.length > 0) {
+        document.getElementById("workDesc-other-cb").checked = true;
+        document.getElementById("workDesc-other-text").classList.remove("hidden");
+        document.getElementById("workDesc-other-text").value = otherItems.join("\u3001");
+      }
     }
 
+    if (Array.isArray(user.feeTypes)) {
+      document.querySelectorAll('input[name="feeType"]').forEach(function (cb) {
+        cb.checked = user.feeTypes.includes(cb.value);
+      });
+    }
+
+    if (user.payMethod) {
+      var radio = document.querySelector('input[name="payMethod"][value="' + user.payMethod + '"]');
+      if (radio) { radio.checked = true; toggleBank(user.payMethod === "\u532F\u6B3E"); }
+    }
+
+    if (user.bankInfo) {
+      if (user.bankInfo.bankName) document.getElementById("bankName").value = user.bankInfo.bankName;
+      if (user.bankInfo.accountName) document.getElementById("bankAccountName").value = user.bankInfo.accountName;
+      if (user.bankInfo.account) document.getElementById("bankAccount").value = user.bankInfo.account;
+    }
+
+    if (user.address) document.getElementById("address").value = user.address;
+    if (user.liveAddress && user.liveAddress !== user.address) {
+      document.getElementById("sameAddr").checked = false;
+      toggleSameAddr();
+      document.getElementById("liveAddress").value = user.liveAddress;
+    }
+    if (user.phone) document.getElementById("phone").value = user.phone;
+
+    document.getElementById("logged-in-info").textContent = "\u2705 \u5DF2\u767B\u5165\uFF1A" + user.name;
+  }
+
+  // ── Login ──
+  async function doLogin() {
+    var name = document.getElementById("login-name").value.trim();
+    var idLast4 = document.getElementById("login-id4").value.trim();
+    var msgEl = document.getElementById("login-msg");
+
+    var valid = true;
+    showErr("err-login-name", !name); if (!name) valid = false;
+    showErr("err-login-id4", idLast4.length !== 4); if (idLast4.length !== 4) valid = false;
+    if (!valid) return;
+
+    msgEl.classList.add("hidden");
+
     try {
-      var res = await fetch("/receipt-data?name=" + encodeURIComponent(name));
+      var res = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name, idLast4: idLast4 })
+      });
       var data = await res.json();
 
-      if (!data.found) {
-        msgEl.textContent = "\u67E5\u7121\u300C" + name + "\u300D\u7684\u6B77\u53F2\u8CC7\u6599\uFF0C\u8ACB\u624B\u52D5\u586B\u5BEB";
-        msgEl.classList.add("fail");
+      if (!data.ok) {
+        msgEl.textContent = data.error || "\u767B\u5165\u5931\u6557";
+        msgEl.classList.remove("hidden");
         return;
       }
 
-      var r = data.record;
+      // 儲存登入資訊
+      localStorage.setItem("loginName", data.user.name);
+      localStorage.setItem("loginId4", idLast4);
+      localStorage.setItem("userId", data.userId);
 
-      // Populate fields
-      if (r.eventName) document.getElementById("eventName").value = r.eventName;
-      if (r.workDescription) {
-        var items = r.workDescription.split("、");
-        document.querySelectorAll('#workDescOptions input[type="checkbox"]').forEach(function (cb) {
-          if (items.includes(cb.value)) cb.checked = true;
-        });
-        var knownValues = [].slice.call(document.querySelectorAll('#workDescOptions input[type="checkbox"]')).map(function (cb) { return cb.value; });
-        var otherItems = items.filter(function (v) { return !knownValues.includes(v); });
-        if (otherItems.length > 0) {
-          document.getElementById("workDesc-other-cb").checked = true;
-          document.getElementById("workDesc-other-text").classList.remove("hidden");
-          document.getElementById("workDesc-other-text").value = otherItems.join("、");
+      // 檢查是否有進行中的簽到
+      if (data.sessions && data.sessions.length > 0) {
+        var session = data.sessions[0];
+        localStorage.setItem("sessionId", session.sessionId);
+        localStorage.setItem("name", data.user.name);
+
+        var timeStr = new Date(session.checkinTime).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
+        var infoText = data.user.name + " \u5DF2\u65BC " + timeStr + " \u7C3D\u5230";
+
+        document.getElementById("checkin-info").textContent = infoText;
+        document.getElementById("regular-info").textContent = infoText;
+        document.getElementById("prescription-info").textContent = infoText;
+        document.getElementById("admin-checkin-info").textContent = infoText;
+
+        var checkinType = localStorage.getItem("checkinType");
+        if (checkinType) {
+          selectType(checkinType);
+        } else {
+          showSection("sec-type");
         }
+        showToast("\u5DF2\u6062\u5FA9\u60A8\u7684\u7C3D\u5230\u4F5C\u696D\uFF08" + timeStr + " \u7C3D\u5230\uFF09", "success");
+      } else {
+        // 無進行中簽到，帶入資料進入簽到流程
+        fillInfoFromUser(data.user);
+        showSection("sec-info");
+        showToast("\u6B61\u8FCE\u56DE\u4F86\uFF0C" + data.user.name, "success");
       }
-
-      // Fee types
-      if (Array.isArray(r.feeTypes)) {
-        document.querySelectorAll('input[name="feeType"]').forEach(function (cb) {
-          cb.checked = r.feeTypes.includes(cb.value);
-        });
-      }
-
-      // Pay method
-      if (r.payMethod) {
-        var radio = document.querySelector('input[name="payMethod"][value="' + r.payMethod + '"]');
-        if (radio) { radio.checked = true; toggleBank(r.payMethod === "\u532F\u6B3E"); }
-      }
-
-      // Bank info
-      if (r.bankInfo) {
-        if (r.bankInfo.bankName) document.getElementById("bankName").value = r.bankInfo.bankName;
-        if (r.bankInfo.accountName) document.getElementById("bankAccountName").value = r.bankInfo.accountName;
-        if (r.bankInfo.account) document.getElementById("bankAccount").value = r.bankInfo.account;
-      }
-
-      // ID number
-      if (r.idNumber) document.getElementById("idNumber").value = r.idNumber;
-
-      // Addresses
-      if (r.address) document.getElementById("address").value = r.address;
-      if (r.liveAddress && r.liveAddress !== r.address) {
-        document.getElementById("sameAddr").checked = false;
-        toggleSameAddr();
-        document.getElementById("liveAddress").value = r.liveAddress;
-      }
-
-      // Phone
-      if (r.phone) document.getElementById("phone").value = r.phone;
-
-      msgEl.textContent = "\u2705 \u5DF2\u5E36\u5165\u300C" + name + "\u300D\u7684\u6B77\u53F2\u8CC7\u6599\uFF0C\u8ACB\u78BA\u8A8D\u5F8C\u7C3D\u5230";
-      msgEl.classList.add("success");
     } catch (e) {
-      msgEl.textContent = "\u67E5\u8A62\u5931\u6557\uFF1A" + e.message;
-      msgEl.classList.add("fail");
+      msgEl.textContent = "\u767B\u5165\u5931\u6557\uFF1A" + e.message;
+      msgEl.classList.remove("hidden");
+    }
+  }
+
+  // ── Auto login on page load ──
+  async function autoLogin() {
+    var loginName = localStorage.getItem("loginName");
+    var loginId4 = localStorage.getItem("loginId4");
+    if (!loginName || !loginId4) return false;
+
+    try {
+      var res = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: loginName, idLast4: loginId4 })
+      });
+      var data = await res.json();
+      if (!data.ok) {
+        localStorage.removeItem("loginName");
+        localStorage.removeItem("loginId4");
+        localStorage.removeItem("userId");
+        return false;
+      }
+
+      localStorage.setItem("userId", data.userId);
+
+      // 檢查進行中的簽到
+      if (data.sessions && data.sessions.length > 0) {
+        var session = data.sessions[0];
+        localStorage.setItem("sessionId", session.sessionId);
+        localStorage.setItem("name", data.user.name);
+
+        var timeStr = new Date(session.checkinTime).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
+        var infoText = data.user.name + " \u5DF2\u65BC " + timeStr + " \u7C3D\u5230";
+
+        document.getElementById("checkin-info").textContent = infoText;
+        document.getElementById("regular-info").textContent = infoText;
+        document.getElementById("prescription-info").textContent = infoText;
+        document.getElementById("admin-checkin-info").textContent = infoText;
+
+        var checkinType = localStorage.getItem("checkinType");
+        if (checkinType) {
+          selectType(checkinType);
+        } else {
+          showSection("sec-type");
+        }
+        showToast("\u5DF2\u6062\u5FA9\u60A8\u7684\u7C3D\u5230\u4F5C\u696D\uFF08" + timeStr + " \u7C3D\u5230\uFF09", "success");
+      } else {
+        fillInfoFromUser(data.user);
+        showSection("sec-info");
+      }
+      return true;
+    } catch (e) {
+      console.error("autoLogin:", e.message);
+      return false;
+    }
+  }
+
+  // ── Logout ──
+  function doLogout() {
+    localStorage.removeItem("loginName");
+    localStorage.removeItem("loginId4");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("sessionId");
+    localStorage.removeItem("name");
+    localStorage.removeItem("checkinType");
+    showSection("sec-login");
+    showToast("\u5DF2\u767B\u51FA", "success");
+  }
+
+  // ── Register ──
+  async function doRegister() {
+    var name = document.getElementById("reg-name").value.trim();
+    var idNumber = document.getElementById("reg-idNumber").value.trim().toUpperCase();
+    var eventName = document.getElementById("reg-eventName").value.trim();
+
+    var workDescChecked = [].slice.call(document.querySelectorAll('#regWorkDescOptions input[type="checkbox"]:checked')).map(function (el) { return el.value; });
+    var workDescOther = document.getElementById("regWorkDesc-other-text").value.trim();
+    if (workDescChecked.includes("\u5176\u4ED6") && workDescOther) {
+      workDescChecked = workDescChecked.filter(function (v) { return v !== "\u5176\u4ED6"; });
+      workDescChecked.push(workDescOther);
+    } else {
+      workDescChecked = workDescChecked.filter(function (v) { return v !== "\u5176\u4ED6"; });
+    }
+    var workDesc = workDescChecked.join("\u3001");
+
+    var feeTypes = [].slice.call(document.querySelectorAll('input[name="regFeeType"]:checked')).map(function (el) { return el.value; });
+    var payMethod = document.querySelector('input[name="regPayMethod"]:checked');
+    var address = document.getElementById("reg-address").value.trim();
+    var phone = document.getElementById("reg-phone").value.trim();
+
+    // Validation
+    var valid = true;
+    showErr("err-reg-name", !name); if (!name) valid = false;
+    showErr("err-reg-idNumber", idNumber.length !== 10); if (idNumber.length !== 10) valid = false;
+    showErr("err-reg-eventName", !eventName); if (!eventName) valid = false;
+    showErr("err-reg-workDesc", workDescChecked.length === 0); if (workDescChecked.length === 0) valid = false;
+    showErr("err-reg-feeType", feeTypes.length === 0); if (feeTypes.length === 0) valid = false;
+    showErr("err-reg-payMethod", !payMethod); if (!payMethod) valid = false;
+    showErr("err-reg-address", !address); if (!address) valid = false;
+    showErr("err-reg-phone", !phone); if (!phone) valid = false;
+    if (!valid) return;
+
+    var bankInfo = null;
+    if (payMethod.value === "\u532F\u6B3E") {
+      bankInfo = {
+        bankName: document.getElementById("reg-bankName").value.trim(),
+        accountName: document.getElementById("reg-bankAccountName").value.trim(),
+        account: document.getElementById("reg-bankAccount").value.trim()
+      };
+    }
+
+    var sameAddr = document.getElementById("reg-sameAddr").checked;
+    var liveAddress = sameAddr ? address : document.getElementById("reg-liveAddress").value.trim();
+
+    try {
+      var res = await fetch("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name, idNumber: idNumber, eventName: eventName,
+          workDescription: workDesc, feeTypes: feeTypes,
+          payMethod: payMethod.value, bankInfo: bankInfo,
+          address: address, liveAddress: liveAddress, phone: phone
+        })
+      });
+      var data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+
+      // 自動登入
+      localStorage.setItem("loginName", name);
+      localStorage.setItem("loginId4", idNumber.slice(-4));
+      localStorage.setItem("userId", data.userId);
+
+      fillInfoFromUser(data.user);
+      showSection("sec-info");
+      showToast("\u8A3B\u518A\u6210\u529F\uFF01\u8ACB\u78BA\u8A8D\u8CC7\u6599\u5F8C\u6309\u7C3D\u5230", "success");
+    } catch (e) {
+      showToast("\u8A3B\u518A\u5931\u6557\uFF1A" + e.message, "error");
     }
   }
 
@@ -122,13 +292,13 @@
     var eventName = document.getElementById("eventName").value.trim();
     var workDescChecked = [].slice.call(document.querySelectorAll('#workDescOptions input[type="checkbox"]:checked')).map(function (el) { return el.value; });
     var workDescOther = document.getElementById("workDesc-other-text").value.trim();
-    if (workDescChecked.includes("其他") && workDescOther) {
-      workDescChecked = workDescChecked.filter(function (v) { return v !== "其他"; });
+    if (workDescChecked.includes("\u5176\u4ED6") && workDescOther) {
+      workDescChecked = workDescChecked.filter(function (v) { return v !== "\u5176\u4ED6"; });
       workDescChecked.push(workDescOther);
     } else {
-      workDescChecked = workDescChecked.filter(function (v) { return v !== "其他"; });
+      workDescChecked = workDescChecked.filter(function (v) { return v !== "\u5176\u4ED6"; });
     }
-    var workDesc = workDescChecked.join("、");
+    var workDesc = workDescChecked.join("\u3001");
     var feeTypes  = [].slice.call(document.querySelectorAll('input[name="feeType"]:checked')).map(function (el) { return el.value; });
     var payMethod = document.querySelector('input[name="payMethod"]:checked');
     var idNumber  = document.getElementById("idNumber").value.trim().toUpperCase();
@@ -163,16 +333,9 @@
     var liveAddress = sameAddr ? address : document.getElementById("liveAddress").value.trim();
 
     var receipt = {
-      name: name,
-      eventName: eventName,
-      workDescription: workDesc,
-      feeTypes: feeTypes,
-      payMethod: payMethod.value,
-      bankInfo: bankInfo,
-      idNumber: idNumber,
-      address: address,
-      liveAddress: liveAddress,
-      phone: phone
+      name: name, eventName: eventName, workDescription: workDesc,
+      feeTypes: feeTypes, payMethod: payMethod.value, bankInfo: bankInfo,
+      idNumber: idNumber, address: address, liveAddress: liveAddress, phone: phone
     };
 
     try {
@@ -184,8 +347,8 @@
       var data = await res.json();
       if (!data.ok) throw new Error(data.error);
 
-      sessionStorage.setItem("sessionId", data.sessionId);
-      sessionStorage.setItem("name", name);
+      localStorage.setItem("sessionId", data.sessionId);
+      localStorage.setItem("name", name);
 
       var now     = new Date();
       var timeStr = now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
@@ -204,7 +367,7 @@
 
   // ── Step 2: Select type ──
   function selectType(type) {
-    sessionStorage.setItem("checkinType", type);
+    localStorage.setItem("checkinType", type);
     if (type === "prescription") {
       var container = document.getElementById("prescription-courses");
       if (container.querySelectorAll(".course-item").length === 0) {
@@ -218,7 +381,7 @@
     }
   }
 
-  // ── Prescription: Add / Remove Course (完整表單) ──
+  // ── Prescription: Add / Remove Course ──
   var courseCount = 0;
 
   function createCourseBlock(isFirst) {
@@ -258,7 +421,6 @@
       '  <textarea class="p-summary" rows="3" placeholder="\u8ACB\u7C21\u8FF0\u4ECA\u65E5\u4E0A\u8AB2\u5167\u5BB9\u6216\u72C0\u6CC1\uFF08100\u5B57\u5167\uFF09" maxlength="100"></textarea>' +
       '  <div class="hint"><span class="p-char-count">0</span>/100 \u5B57</div>' +
       '</div>';
-    // char count
     div.querySelector(".p-summary").addEventListener("input", function () {
       div.querySelector(".p-char-count").textContent = this.value.length;
     });
@@ -287,9 +449,9 @@
 
   // ── Step 3: Check-out ──
   async function doCheckout(type) {
-    var sessionId = sessionStorage.getItem("sessionId");
-    var name      = sessionStorage.getItem("name");
-    if (!sessionId) { showToast("\u627E\u4E0D\u5230\u7C3D\u5230\u8A18\u9304\uFF0C\u8ACB\u91CD\u65B0\u6574\u7406\u9801\u9762\u5F8C\u7C3D\u5230", "error"); return; }
+    var sessionId = localStorage.getItem("sessionId");
+    var name      = localStorage.getItem("name");
+    if (!sessionId) { showToast("\u627E\u4E0D\u5230\u7C3D\u5230\u8A18\u9304\uFF0C\u8ACB\u91CD\u65B0\u767B\u5165", "error"); return; }
 
     var course, courses, plannedHours, courseType, teacher,
         registeredCount, actualCount, walkInCount, summary;
@@ -317,12 +479,8 @@
       plannedHours = ph.value;
       courseType   = ct.value;
     } else {
-      // 處方日：收集每堂課程的完整資料
       var blocks = document.querySelectorAll("#prescription-courses .course-item");
-      if (blocks.length === 0) {
-        showErr("err-prescription-course", true);
-        return;
-      }
+      if (blocks.length === 0) { showErr("err-prescription-course", true); return; }
       showErr("err-prescription-course", false);
 
       var coursesData = [];
@@ -337,25 +495,17 @@
         var cWalk = block.querySelector(".p-walkin").value;
         var cSummary = block.querySelector(".p-summary").value.trim();
 
-        if (!cName || !cType || cReg === "" || cAct === "" || cWalk === "" || !cSummary) {
-          valid2 = false;
-        }
+        if (!cName || !cType || cReg === "" || cAct === "" || cWalk === "" || !cSummary) valid2 = false;
 
         coursesData.push({
-          course: cName,
-          courseType: cType ? cType.value : "",
-          teacher: cTeacher,
-          registeredCount: parseInt(cReg) || 0,
-          actualCount: parseInt(cAct) || 0,
-          walkInCount: parseInt(cWalk) || 0,
+          course: cName, courseType: cType ? cType.value : "",
+          teacher: cTeacher, registeredCount: parseInt(cReg) || 0,
+          actualCount: parseInt(cAct) || 0, walkInCount: parseInt(cWalk) || 0,
           summary: cSummary
         });
       });
 
-      if (!valid2) {
-        showToast("\u8ACB\u5B8C\u6210\u6240\u6709\u8AB2\u7A0B\u7684\u5FC5\u586B\u6B04\u4F4D", "warning");
-        return;
-      }
+      if (!valid2) { showToast("\u8ACB\u5B8C\u6210\u6240\u6709\u8AB2\u7A0B\u7684\u5FC5\u586B\u6B04\u4F4D", "warning"); return; }
 
       courses = coursesData.map(function (c) { return c.course; });
       course = courses.join("\u3001");
@@ -364,7 +514,7 @@
       registeredCount = coursesData.reduce(function (s, c) { return s + c.registeredCount; }, 0);
       actualCount = coursesData.reduce(function (s, c) { return s + c.actualCount; }, 0);
       walkInCount = coursesData.reduce(function (s, c) { return s + c.walkInCount; }, 0);
-      summary = coursesData.map(function (c) { return c.course + "：" + c.summary; }).join("；");
+      summary = coursesData.map(function (c) { return c.course + "\uFF1A" + c.summary; }).join("\uFF1B");
     }
 
     try {
@@ -372,17 +522,11 @@
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({
-          sessionId:       sessionId,
-          checkinType:     type,
-          course:          course,
-          courses:         courses || [course],
-          plannedHours:    plannedHours || "",
-          courseType:       courseType,
-          teacher:         teacher,
-          registeredCount: parseInt(registeredCount),
-          actualCount:     parseInt(actualCount),
-          walkInCount:     parseInt(walkInCount),
-          summary:         summary
+          sessionId: sessionId, checkinType: type, course: course,
+          courses: courses || [course], plannedHours: plannedHours || "",
+          courseType: courseType, teacher: teacher,
+          registeredCount: parseInt(registeredCount), actualCount: parseInt(actualCount),
+          walkInCount: parseInt(walkInCount), summary: summary
         })
       });
       var data = await res.json();
@@ -392,7 +536,8 @@
       document.getElementById("done-hours").textContent = "\u4ECA\u65E5\u5DE5\u4F5C\u6642\u6578\uFF1A" + data.hours + " \u5C0F\u6642";
 
       showSection("sec-done");
-      sessionStorage.clear();
+      localStorage.removeItem("sessionId");
+      localStorage.removeItem("checkinType");
     } catch (e) {
       showToast("\u7C3D\u9000\u5931\u6557\uFF1A" + e.message, "error");
     }
@@ -400,7 +545,7 @@
 
   // ── Step 3b: Check-out (Admin Tasks) ──
   async function doCheckoutAdmin() {
-    var sessionId = sessionStorage.getItem("sessionId");
+    var sessionId = localStorage.getItem("sessionId");
     if (!sessionId) { showToast("\u627E\u4E0D\u5230\u7C3D\u5230\u8A18\u9304", "error"); return; }
 
     var workNameSelect = document.getElementById("admin-workName").value;
@@ -409,21 +554,14 @@
     var workItems = document.getElementById("admin-workItems").value.trim();
     var feedback = document.getElementById("admin-feedback").value.trim();
 
-    // Validation
     if (!workName) { showErr("err-admin-workName", true); return; }
     showErr("err-admin-workName", false);
     if (!workItems) { showErr("err-admin-workItems", true); return; }
     showErr("err-admin-workItems", false);
 
-    // File upload - collect file names
     var fileInput = document.getElementById("admin-files");
-    var fileNames = [];
-    if (fileInput.files.length > 0) {
-      fileNames = Array.from(fileInput.files).map(function (f) { return f.name; });
-    }
 
     try {
-      // Upload files if any
       var uploadedFiles = [];
       if (fileInput.files.length > 0) {
         var formData = new FormData();
@@ -440,44 +578,94 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId: sessionId,
-          checkinType: "\u884C\u653F\u5EB6\u52D9",
-          course: workName,
-          workContent: workItems,
-          note: feedback,
-          uploadedFiles: uploadedFiles
+          sessionId: sessionId, checkinType: "\u884C\u653F\u5EB6\u52D9",
+          course: workName, workContent: workItems,
+          note: feedback, uploadedFiles: uploadedFiles
         })
       });
       var data = await res.json();
       if (!data.ok) throw new Error(data.error);
 
-      document.getElementById("done-name").textContent = "\u8B1D\u8B1D " + sessionStorage.getItem("name") + "\uFF01";
+      document.getElementById("done-name").textContent = "\u8B1D\u8B1D " + localStorage.getItem("name") + "\uFF01";
       document.getElementById("done-hours").textContent = "\u4ECA\u65E5\u5DE5\u4F5C\u6642\u6578\uFF1A" + data.hours + " \u5C0F\u6642";
       showSection("sec-done");
-      sessionStorage.clear();
+      localStorage.removeItem("sessionId");
+      localStorage.removeItem("checkinType");
     } catch (e) {
       showToast("\u7C3D\u9000\u5931\u6557\uFF1A" + e.message, "error");
     }
   }
 
-  // ── Wire up event listeners (replacing inline onclick) ──
-  document.addEventListener("DOMContentLoaded", function () {
-    // Load history button
-    var loadHistoryBtn = document.getElementById("btn-load-history");
-    if (loadHistoryBtn) loadHistoryBtn.addEventListener("click", loadHistory);
+  // ── Wire up event listeners ──
+  document.addEventListener("DOMContentLoaded", async function () {
+    // Try auto login
+    var loggedIn = await autoLogin();
+    if (!loggedIn) {
+      showSection("sec-login");
+    }
 
-    // Pay method radio buttons
+    // Login button
+    var loginBtn = document.getElementById("btn-login");
+    if (loginBtn) loginBtn.addEventListener("click", doLogin);
+
+    // Login form enter key
+    document.getElementById("login-id4").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") doLogin();
+    });
+
+    // Switch to register
+    var gotoRegBtn = document.getElementById("btn-goto-register");
+    if (gotoRegBtn) gotoRegBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      showSection("sec-register");
+    });
+
+    // Switch to login
+    var gotoLoginBtn = document.getElementById("btn-goto-login");
+    if (gotoLoginBtn) gotoLoginBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      showSection("sec-login");
+    });
+
+    // Register button
+    var registerBtn = document.getElementById("btn-register");
+    if (registerBtn) registerBtn.addEventListener("click", doRegister);
+
+    // Register: pay method toggle bank fields
+    document.querySelectorAll('input[name="regPayMethod"]').forEach(function (radio) {
+      radio.addEventListener("click", function () {
+        document.getElementById("reg-bank-fields").classList.toggle("hidden", this.value !== "\u532F\u6B3E");
+      });
+    });
+
+    // Register: same address toggle
+    var regSameAddr = document.getElementById("reg-sameAddr");
+    if (regSameAddr) regSameAddr.addEventListener("change", function () {
+      document.getElementById("reg-live-addr-fields").classList.toggle("hidden", this.checked);
+    });
+
+    // Register: work desc other toggle
+    var regWorkDescOther = document.getElementById("regWorkDesc-other-cb");
+    if (regWorkDescOther) regWorkDescOther.addEventListener("change", function () {
+      document.getElementById("regWorkDesc-other-text").classList.toggle("hidden", !this.checked);
+    });
+
+    // Logout button
+    var logoutBtn = document.getElementById("btn-logout");
+    if (logoutBtn) logoutBtn.addEventListener("click", doLogout);
+
+    // Pay method radio buttons (sec-info)
     document.querySelectorAll('input[name="payMethod"]').forEach(function (radio) {
       radio.addEventListener("click", function () {
         toggleBank(this.value === "\u532F\u6B3E");
       });
     });
 
-    // Same address checkbox
+    // Same address checkbox (sec-info)
     var sameAddrCb = document.getElementById("sameAddr");
     if (sameAddrCb) sameAddrCb.addEventListener("change", toggleSameAddr);
 
-    // 工作內容「其他」toggle
+    // 工作內容「其他」toggle (sec-info)
     var workDescOtherCb = document.getElementById("workDesc-other-cb");
     if (workDescOtherCb) workDescOtherCb.addEventListener("change", function () {
       document.getElementById("workDesc-other-text").classList.toggle("hidden", !this.checked);
@@ -517,13 +705,13 @@
     var adminBtn = document.getElementById("btn-type-admin");
     if (adminBtn) adminBtn.addEventListener("click", function () { selectType("admin-tasks"); });
 
-    // Admin work name select - show/hide "other" input
+    // Admin work name select
     var workNameSelect = document.getElementById("admin-workName");
     if (workNameSelect) workNameSelect.addEventListener("change", function () {
       document.getElementById("admin-workNameOther").classList.toggle("hidden", this.value !== "\u5176\u4ED6");
     });
 
-    // File input - show file list
+    // File input
     var fileInput = document.getElementById("admin-files");
     if (fileInput) fileInput.addEventListener("change", function () {
       var list = document.getElementById("file-list");

@@ -20,18 +20,19 @@
   }
 
   // ── Tabs ──
+  var TAB_MAP = { attendance: 0, receipt: 1, users: 2 };
+  var TAB_IDS = ["tab-attendance", "tab-receipt", "tab-users"];
+
   function switchTab(tab) {
     document.querySelectorAll(".tab-btn").forEach(function (b) { b.classList.remove("active"); });
     document.querySelectorAll(".tab-content").forEach(function (c) { c.classList.remove("active"); });
 
-    if (tab === "attendance") {
-      document.querySelectorAll(".tab-btn")[0].classList.add("active");
-      document.getElementById("tab-attendance").classList.add("active");
-    } else {
-      document.querySelectorAll(".tab-btn")[1].classList.add("active");
-      document.getElementById("tab-receipt").classList.add("active");
-      loadReceipts();
-    }
+    var idx = TAB_MAP[tab] || 0;
+    document.querySelectorAll(".tab-btn")[idx].classList.add("active");
+    document.getElementById(TAB_IDS[idx]).classList.add("active");
+
+    if (tab === "receipt") loadReceipts();
+    if (tab === "users") loadUsers();
   }
 
   // ═══════════════════════════════════════════
@@ -364,12 +365,70 @@
     }
   }
 
+  // ═══════════════════════════════════════════
+  // Tab 3: User Management
+  // ═══════════════════════════════════════════
+  var cachedUsers = [];
+
+  async function loadUsers() {
+    var nameFilter = (document.getElementById("userFilterName").value || "").trim();
+    try {
+      var res = await fetch("/users");
+      var users = await res.json();
+      cachedUsers = users;
+
+      if (nameFilter) {
+        users = users.filter(function (u) { return u.name.includes(nameFilter); });
+      }
+
+      users.sort(function (a, b) { return new Date(b.registeredAt) - new Date(a.registeredAt); });
+
+      document.getElementById("stat-user-count").textContent = users.length;
+
+      var tbody = document.getElementById("user-tbody");
+      if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:40px 0">尚無註冊使用者</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = users.map(function (u, i) {
+        var regDate = u.registeredAt ? new Date(u.registeredAt).toLocaleDateString("zh-TW") : "-";
+        return '<tr>' +
+          '<td>' + (i + 1) + '</td>' +
+          '<td>' + (u.name || "-") + '</td>' +
+          '<td>' + maskId(u.idNumber) + '</td>' +
+          '<td>' + (u.phone || "-") + '</td>' +
+          '<td>' + (u.payMethod || "-") + '</td>' +
+          '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (u.address || "-") + '</td>' +
+          '<td>' + regDate + '</td>' +
+          '<td><button class="btn btn-danger-sm btn-user-delete" data-id="' + u.id + '">刪除</button></td>' +
+          '</tr>';
+      }).join("");
+    } catch (e) {
+      showToast("\u8F09\u5165\u4F7F\u7528\u8005\u5931\u6557\uFF1A" + e.message, "error");
+    }
+  }
+
+  async function deleteUser(id) {
+    if (!confirm("\u78BA\u5B9A\u8981\u522A\u9664\u6B64\u4F7F\u7528\u8005\uFF1F\u522A\u9664\u5F8C\u8A72\u4F7F\u7528\u8005\u5C07\u7121\u6CD5\u767B\u5165\u3002")) return;
+    try {
+      var res = await fetch("/users/" + id, { method: "DELETE" });
+      var data = await res.json();
+      if (!data.ok) throw new Error(data.error || "delete failed");
+      showToast("\u5DF2\u522A\u9664\u4F7F\u7528\u8005", "success");
+      loadUsers();
+    } catch (e) {
+      showToast("\u522A\u9664\u5931\u6557\uFF1A" + e.message, "error");
+    }
+  }
+
   // ── Wire up event listeners ──
   document.addEventListener("DOMContentLoaded", function () {
     // Tab buttons
+    var TAB_NAMES = ["attendance", "receipt", "users"];
     document.querySelectorAll(".tab-btn").forEach(function (btn, idx) {
       btn.addEventListener("click", function () {
-        switchTab(idx === 0 ? "attendance" : "receipt");
+        switchTab(TAB_NAMES[idx]);
       });
     });
 
@@ -461,6 +520,18 @@
       var restoreBtn = e.target.closest(".btn-restore");
       if (restoreBtn) {
         restoreRecord(restoreBtn.dataset.id);
+        return;
+      }
+    });
+
+    // User management
+    var userSearchBtn = document.getElementById("btn-user-search");
+    if (userSearchBtn) userSearchBtn.addEventListener("click", loadUsers);
+
+    document.addEventListener("click", function (e) {
+      var userDelBtn = e.target.closest(".btn-user-delete");
+      if (userDelBtn) {
+        deleteUser(userDelBtn.dataset.id);
         return;
       }
     });
