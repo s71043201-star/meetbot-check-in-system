@@ -502,6 +502,62 @@ input[type="checkbox"] {
   margin: 16px 0;
 }
 
+/* ── Login Section ── */
+.login-icon {
+  text-align: center;
+  font-size: 56px;
+  margin: 10px 0 16px;
+}
+
+.login-msg {
+  margin-top: 12px;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+}
+
+.link-text {
+  color: var(--color-primary);
+  font-size: 14px;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.link-text:hover {
+  text-decoration: underline;
+}
+
+.logged-in-bar {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--color-success);
+  font-weight: 500;
+}
+
+.logout-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--color-text-secondary);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.logout-btn:hover {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
 /* ── Load History Button ── */
 .load-history-btn {
   display: block;

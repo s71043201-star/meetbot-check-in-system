@@ -3,9 +3,116 @@ const axios = require("axios");
 const router = express.Router();
 const { ATT_FB } = require("../config");
 const { toTaipei, toROCYear, storeDoc } = require("../utils");
-const { fbGet, fbPost, fbPut, fbDelete } = require("../firebase");
+const { fbGet, fbPost, fbPut, fbDelete, userGet, userPost, userPut, userDelete } = require("../firebase");
 const { sendSlack } = require("../slack");
 const { generateRecordHtml } = require("../templates/record-html");
+
+// ── 註冊 ──────────────────────────────────────
+router.post("/register", async (req, res) => {
+  const { name, idNumber, eventName, workDescription, feeTypes, payMethod, bankInfo, address, liveAddress, phone } = req.body;
+  if (!name || !idNumber || idNumber.length !== 10) {
+    return res.status(400).json({ error: "姓名與完整身分證號碼（10碼）為必填" });
+  }
+
+  try {
+    // 檢查是否已註冊（同名同身分證後4碼）
+    const existing = await userGet();
+    if (existing) {
+      const idLast4 = idNumber.slice(-4);
+      const dup = Object.entries(existing).find(
+        ([, u]) => u.name === name && u.idNumber.slice(-4) === idLast4
+      );
+      if (dup) return res.status(409).json({ error: "此姓名與身分證後4碼已註冊" });
+    }
+
+    const user = {
+      name, idNumber,
+      eventName: eventName || "",
+      workDescription: workDescription || "",
+      feeTypes: feeTypes || [],
+      payMethod: payMethod || "",
+      bankInfo: bankInfo || {},
+      address: address || "",
+      liveAddress: liveAddress || "",
+      phone: phone || "",
+      registeredAt: new Date().toISOString(),
+    };
+    const result = await userPost(user);
+    res.json({ ok: true, userId: result.name, user });
+  } catch (e) {
+    console.error("register:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── 登入 ──────────────────────────────────────
+router.post("/login", async (req, res) => {
+  const { name, idLast4 } = req.body;
+  if (!name || !idLast4 || idLast4.length !== 4) {
+    return res.status(400).json({ error: "請輸入姓名與身分證後4碼" });
+  }
+
+  try {
+    const users = await userGet();
+    if (!users) return res.status(401).json({ error: "查無此人，請先註冊" });
+
+    const entry = Object.entries(users).find(
+      ([, u]) => u.name === name && u.idNumber.slice(-4) === idLast4
+    );
+    if (!entry) return res.status(401).json({ error: "姓名或身分證後4碼不正確" });
+
+    const [userId, user] = entry;
+
+    // 查詢進行中的簽到
+    const attData = await fbGet();
+    const sessions = [];
+    if (attData) {
+      Object.entries(attData).forEach(([id, r]) => {
+        if (r.name === name && r.status === "checked-in" && !r.attendanceDeleted) {
+          sessions.push({ sessionId: id, checkinTime: r.checkinTime, eventName: r.eventName || "" });
+        }
+      });
+      sessions.sort((a, b) => new Date(b.checkinTime) - new Date(a.checkinTime));
+    }
+
+    res.json({ ok: true, userId, user, sessions });
+  } catch (e) {
+    console.error("login:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── 使用者管理 ────────────────────────────────
+router.get("/users", async (req, res) => {
+  try {
+    const data = await userGet();
+    const users = data ? Object.entries(data).map(([id, u]) => ({ id, ...u })) : [];
+    res.json(users);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.put("/users/:id", async (req, res) => {
+  try {
+    const existing = await userGet(`/${req.params.id}`);
+    if (!existing) return res.status(404).json({ error: "not found" });
+    const updated = { ...existing, ...req.body };
+    await userPut(`/${req.params.id}`, updated);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete("/users/:id", async (req, res) => {
+  try {
+    await userDelete(`/${req.params.id}`);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // ── 簽到 ──────────────────────────────────────
 router.post("/checkin", async (req, res) => {
@@ -142,18 +249,21 @@ router.get("/session/:id", async (req, res) => {
   }
 });
 
-// ── 查詢姓名是否有進行中的簽到 ────────────────
+// ── 查詢姓名是否有進行中的簽到（回傳所有符合的） ────
 router.get("/active-session", async (req, res) => {
   const { name } = req.query;
   if (!name) return res.status(400).json({ error: "缺少 name" });
   try {
     const data = await fbGet();
-    if (!data) return res.json({ found: false });
-    const entry = Object.entries(data).find(
-      ([, r]) => r.name === name && r.status === "checked-in"
-    );
-    if (!entry) return res.json({ found: false });
-    res.json({ found: true, sessionId: entry[0], record: entry[1] });
+    if (!data) return res.json({ found: false, sessions: [] });
+    const entries = Object.entries(data)
+      .filter(([, r]) => r.name === name && r.status === "checked-in" && !r.attendanceDeleted)
+      .map(([id, r]) => ({ sessionId: id, checkinTime: r.checkinTime, eventName: r.eventName || "" }))
+      .sort((a, b) => new Date(b.checkinTime) - new Date(a.checkinTime));
+    if (entries.length === 0) return res.json({ found: false, sessions: [] });
+    // 保持向下相容：回傳第一筆的 sessionId/record，同時附上完整列表
+    const first = Object.entries(data).find(([id]) => id === entries[0].sessionId);
+    res.json({ found: true, sessionId: entries[0].sessionId, record: first[1], sessions: entries });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

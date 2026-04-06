@@ -1,6 +1,6 @@
 const axios = require("axios");
 const https = require("https");
-const { TASKS_FB, ROUTINE_TASKS_FB, ATT_FB } = require("./config");
+const { TASKS_FB, ROUTINE_TASKS_FB, ATT_FB, USERS_FB } = require("./config");
 
 // ── Firebase：任務 ─────────────────────────────
 async function fetchTasksFromFirebase() {
@@ -70,6 +70,27 @@ async function fetchAttendance() {
   });
 }
 
+// ── Firebase：使用者 ──────────────────────────
+async function userGet(subPath) {
+  const { data } = await axios.get(`${USERS_FB}${subPath || ""}.json`);
+  return data;
+}
+
+async function userPost(record) {
+  const { data } = await axios.post(`${USERS_FB}.json`, record);
+  return data;
+}
+
+async function userPut(subPath, record) {
+  const { data } = await axios.put(`${USERS_FB}${subPath}.json`, record);
+  return data;
+}
+
+async function userDelete(subPath) {
+  const { data } = await axios.delete(`${USERS_FB}${subPath}.json`);
+  return data;
+}
+
 module.exports = {
   fetchTasksFromFirebase,
   fetchRoutineTasksFromFirebase,
@@ -78,4 +99,8 @@ module.exports = {
   fbPut,
   fbDelete,
   fetchAttendance,
+  userGet,
+  userPost,
+  userPut,
+  userDelete,
 };

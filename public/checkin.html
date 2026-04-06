@@ -10,10 +10,38 @@
 <body>
 <div class="container">
 
-  <!-- ===== Section 1: 基本資料 + 領據欄位 ===== -->
-  <div id="sec-info">
+  <!-- ===== Section 0: 登入 ===== -->
+  <div id="sec-login">
     <div class="card header-card">
       <h1>臨時人員出缺勤系統</h1>
+      <p class="subtitle">社團法人台北市醫師公會 · 健康台灣深耕計畫</p>
+    </div>
+
+    <div class="card">
+      <div class="login-icon">👤</div>
+      <div class="q-title" style="text-align:center;margin-bottom:20px;">請登入以開始簽到</div>
+
+      <div class="q-title required">姓名</div>
+      <input type="text" id="login-name" placeholder="請輸入您的完整全名">
+      <div class="err hidden" id="err-login-name">請填寫姓名</div>
+
+      <div class="q-title required" style="margin-top:16px;">身分證後4碼</div>
+      <input type="text" id="login-id4" maxlength="4" placeholder="請輸入身分證後4碼" style="letter-spacing:6px;font-family:monospace;font-size:18px;text-align:center;">
+      <div class="err hidden" id="err-login-id4">請填寫4碼數字</div>
+
+      <div class="login-msg hidden" id="login-msg"></div>
+
+      <button class="checkin-btn" id="btn-login" style="margin-top:20px;">登入</button>
+      <div style="text-align:center;margin-top:16px;">
+        <a href="#" id="btn-goto-register" class="link-text">第一次使用？點此註冊</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Section 0b: 註冊 ===== -->
+  <div id="sec-register" class="hidden">
+    <div class="card header-card">
+      <h1>新人註冊</h1>
       <p class="subtitle">社團法人台北市醫師公會 · 健康台灣深耕計畫</p>
       <p class="subtitle" style="margin-top:4px;">請填寫以下資料，此資料將用於領據核銷</p>
     </div>
@@ -24,10 +52,124 @@
       <div class="warning-box">
         ⚠️ 因需核銷用，<span class="highlight">務必填寫完整全名</span>，避免工資無法發放
       </div>
-      <input type="text" id="name" placeholder="請輸入您的完整全名">
+      <input type="text" id="reg-name" placeholder="請輸入您的完整全名">
+      <div class="err hidden" id="err-reg-name">請填寫姓名</div>
+    </div>
+
+    <!-- 身分證號碼 -->
+    <div class="card">
+      <div class="q-title required">身分證號碼</div>
+      <input type="text" id="reg-idNumber" maxlength="10" placeholder="例：A123456789" style="text-transform:uppercase;letter-spacing:3px;font-family:monospace;font-size:16px;">
+      <div class="err hidden" id="err-reg-idNumber">請填寫完整身分證號碼（10碼）</div>
+    </div>
+
+    <!-- 事由或會議名稱 -->
+    <div class="card">
+      <div class="q-title required">事由或會議名稱</div>
+      <input type="text" id="reg-eventName" placeholder="例：115年3月臨時人員">
+      <div class="err hidden" id="err-reg-eventName">請填寫事由或會議名稱</div>
+    </div>
+
+    <!-- 工作內容 -->
+    <div class="card">
+      <div class="q-title required">工作內容說明</div>
+      <p style="font-size:13px;color:#5f6368;margin-bottom:10px;">請勾選本次工作內容（可多選），將用於出勤記錄表</p>
+      <div class="checkbox-group" id="regWorkDescOptions">
+        <label class="opt"><input type="checkbox" value="行政庶務"> 行政庶務</label>
+        <label class="opt"><input type="checkbox" value="資料建置與輸入"> 資料建置與輸入</label>
+        <label class="opt"><input type="checkbox" value="文件彙整"> 文件彙整</label>
+        <label class="opt"><input type="checkbox" value="檔案整理及文書支援作業"> 檔案整理及文書支援作業</label>
+        <label class="opt"><input type="checkbox" value="資料建置、整理與建檔"> 資料建置、整理與建檔</label>
+        <label class="opt"><input type="checkbox" value="處方日課程現場協助"> 處方日課程現場協助</label>
+        <label class="opt"><input type="checkbox" value="週報表統計製作"> 週報表統計製作</label>
+        <label class="opt"><input type="checkbox" value="系統程式開發與維護"> 系統程式開發與維護</label>
+        <label class="opt"><input type="checkbox" id="regWorkDesc-other-cb" value="其他"> 其他</label>
+      </div>
+      <input type="text" id="regWorkDesc-other-text" class="hidden" placeholder="請輸入其他工作內容" style="margin-top:8px">
+      <div class="err hidden" id="err-reg-workDesc">請至少勾選一項工作內容</div>
+    </div>
+
+    <!-- 費用別 -->
+    <div class="card">
+      <div class="q-title required">費用別</div>
+      <div class="check-group">
+        <label class="opt"><input type="checkbox" name="regFeeType" value="稿費"> 稿費</label>
+        <label class="opt"><input type="checkbox" name="regFeeType" value="審查費"> 審查費</label>
+        <label class="opt"><input type="checkbox" name="regFeeType" value="講座鐘點費"> 講座鐘點費</label>
+        <label class="opt"><input type="checkbox" name="regFeeType" value="臨時人員費" checked> 臨時人員費</label>
+        <label class="opt"><input type="checkbox" name="regFeeType" value="出席費"> 出席費</label>
+        <label class="opt"><input type="checkbox" name="regFeeType" value="交通差旅費"> 交通差旅費</label>
+        <label class="opt"><input type="checkbox" name="regFeeType" value="其他"> 其他</label>
+      </div>
+      <div class="err hidden" id="err-reg-feeType">請至少勾選一項費用別</div>
+    </div>
+
+    <!-- 領款方式 -->
+    <div class="card">
+      <div class="q-title required">領款方式</div>
+      <div class="radio-group">
+        <label class="opt"><input type="radio" name="regPayMethod" value="現金"> 現金</label>
+        <label class="opt"><input type="radio" name="regPayMethod" value="匯款"> 匯款</label>
+      </div>
+      <div class="bank-fields hidden" id="reg-bank-fields">
+        <hr class="section-divider">
+        <div class="field-label">受款銀行名稱</div>
+        <input type="text" id="reg-bankName" placeholder="例：台北富邦銀行 ○○分行">
+        <div class="field-label" style="margin-top:10px;">戶名</div>
+        <input type="text" id="reg-bankAccountName" placeholder="請輸入戶名">
+        <div class="field-label" style="margin-top:10px;">帳號</div>
+        <input type="text" id="reg-bankAccount" placeholder="請輸入銀行帳號">
+      </div>
+      <div class="err hidden" id="err-reg-payMethod">請選擇領款方式</div>
+    </div>
+
+    <!-- 戶籍地址 -->
+    <div class="card">
+      <div class="q-title required">戶籍地址</div>
+      <input type="text" id="reg-address" placeholder="例：台北市北投區中央南路一段45號之1">
+      <div class="err hidden" id="err-reg-address">請填寫戶籍地址</div>
+    </div>
+
+    <!-- 居住地址 -->
+    <div class="card">
+      <div class="q-title">居住地址</div>
+      <label class="same-addr-opt">
+        <input type="checkbox" id="reg-sameAddr" checked> 同戶籍地址
+      </label>
+      <div id="reg-live-addr-fields" class="hidden">
+        <input type="text" id="reg-liveAddress" placeholder="請輸入居住地址">
+      </div>
+    </div>
+
+    <!-- 連絡電話 -->
+    <div class="card">
+      <div class="q-title required">連絡電話</div>
+      <input type="tel" id="reg-phone" placeholder="請輸入連絡電話">
+      <div class="err hidden" id="err-reg-phone">請填寫連絡電話</div>
+    </div>
+
+    <div class="card">
+      <button class="checkin-btn" id="btn-register">註冊</button>
+      <div style="text-align:center;margin-top:16px;">
+        <a href="#" id="btn-goto-login" class="link-text">已有帳號？返回登入</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Section 1: 基本資料 + 領據欄位（已登入） ===== -->
+  <div id="sec-info" class="hidden">
+    <div class="card header-card">
+      <h1>臨時人員出缺勤系統</h1>
+      <p class="subtitle">社團法人台北市醫師公會 · 健康台灣深耕計畫</p>
+      <p class="subtitle" style="margin-top:4px;">請確認資料後按簽到</p>
+      <div id="logged-in-info" class="logged-in-bar"></div>
+    </div>
+
+    <!-- 姓名（唯讀顯示） -->
+    <div class="card">
+      <div class="q-title required">領款人姓名</div>
+      <input type="text" id="name" placeholder="請輸入您的完整全名" readonly style="background:#f1f5f9;">
       <div class="err hidden" id="err-name">請填寫姓名</div>
-      <button class="load-history-btn" id="btn-load-history">📂 帶入歷史資料</button>
-      <div class="load-msg hidden" id="load-msg"></div>
     </div>
 
     <!-- 事由或會議名稱 -->
@@ -90,10 +232,10 @@
       <div class="err hidden" id="err-payMethod">請選擇領款方式</div>
     </div>
 
-    <!-- 身分證號碼 -->
+    <!-- 身分證號碼（從登入帶入，唯讀） -->
     <div class="card">
       <div class="q-title required">身分證號碼</div>
-      <input type="text" id="idNumber" maxlength="10" placeholder="例：A123456789" style="text-transform:uppercase;letter-spacing:3px;font-family:monospace;font-size:16px;">
+      <input type="text" id="idNumber" maxlength="10" placeholder="例：A123456789" readonly style="text-transform:uppercase;letter-spacing:3px;font-family:monospace;font-size:16px;background:#f1f5f9;">
       <div class="err hidden" id="err-idNumber">請填寫完整身分證號碼（10碼）</div>
     </div>
 
@@ -127,6 +269,7 @@
       <div class="clock" id="clock">00:00</div>
       <div class="clock-label">現在時間</div>
       <button class="checkin-btn" id="btn-checkin">✅ 簽到</button>
+      <button class="logout-btn" id="btn-logout">登出</button>
     </div>
   </div>
 
