@@ -21,7 +21,6 @@ app.use(require("./src/routes/webhook"));
 app.use(require("./src/routes/attendance"));
 app.use(require("./src/routes/export"));
 app.use(require("./src/routes/meetbot"));
-app.use(require("./src/routes/questions"));
 
 // ── 測試 ──────────────────────────────────────
 app.get("/test-me", async (req, res) => {

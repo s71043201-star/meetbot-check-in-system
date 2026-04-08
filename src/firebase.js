@@ -1,6 +1,6 @@
 const axios = require("axios");
 const https = require("https");
-const { TASKS_FB, ROUTINE_TASKS_FB, ATT_FB, QA_FB, USERS_FB } = require("./config");
+const { TASKS_FB, ROUTINE_TASKS_FB, ATT_FB, USERS_FB } = require("./config");
 
 // ── Firebase：任務 ─────────────────────────────
 async function fetchTasksFromFirebase() {
@@ -70,27 +70,6 @@ async function fetchAttendance() {
   });
 }
 
-// ── Firebase：問題資料庫 ─────────────────────────
-async function qaGet(subPath) {
-  const { data } = await axios.get(`${QA_FB}${subPath || ""}.json`);
-  return data;
-}
-
-async function qaPost(record) {
-  const { data } = await axios.post(`${QA_FB}.json`, record);
-  return data;
-}
-
-async function qaPut(subPath, record) {
-  const { data } = await axios.put(`${QA_FB}${subPath}.json`, record);
-  return data;
-}
-
-async function qaDelete(subPath) {
-  const { data } = await axios.delete(`${QA_FB}${subPath}.json`);
-  return data;
-}
-
 // ── Firebase：使用者 ──────────────────────────
 async function userGet(subPath) {
   const { data } = await axios.get(`${USERS_FB}${subPath || ""}.json`);
@@ -120,10 +99,6 @@ module.exports = {
   fbPut,
   fbDelete,
   fetchAttendance,
-  qaGet,
-  qaPost,
-  qaPut,
-  qaDelete,
   userGet,
   userPost,
   userPut,
