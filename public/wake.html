@@ -4,69 +4,172 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="喚醒 MeetBot">
-<title>喚醒 MeetBot</title>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MeetBot">
+<title>MeetBot</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     display: flex; align-items: center; justify-content: center;
-    min-height: 100vh; background: #f0f2f5;
+    min-height: 100vh;
+    background: linear-gradient(145deg, #0f0c29, #302b63, #24243e);
+    overflow: hidden;
   }
   .card {
-    text-align: center; padding: 40px 30px;
-    background: #fff; border-radius: 20px;
-    box-shadow: 0 4px 20px rgba(0,0,0,.08);
-    max-width: 340px; width: 90%;
+    text-align: center; padding: 48px 36px;
+    background: rgba(255,255,255,.06);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 28px;
+    max-width: 360px; width: 90%;
   }
-  h2 { font-size: 18px; color: #333; margin-bottom: 24px; }
-  #btn {
-    width: 140px; height: 140px; border-radius: 50%;
-    border: none; cursor: pointer;
-    background: linear-gradient(135deg, #4CAF50, #2E7D32);
-    color: #fff; font-size: 22px; font-weight: 700;
-    box-shadow: 0 6px 20px rgba(76,175,80,.4);
-    transition: transform .15s, box-shadow .15s;
+  .logo {
+    width: 48px; height: 48px; margin: 0 auto 12px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 14px;
     display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 20px;
+    font-size: 24px;
   }
-  #btn:active { transform: scale(.93); box-shadow: 0 2px 10px rgba(76,175,80,.3); }
-  #btn.loading { background: linear-gradient(135deg, #FFA726, #F57C00); }
-  #btn.ok { background: linear-gradient(135deg, #42A5F5, #1565C0); }
-  #btn.fail { background: linear-gradient(135deg, #EF5350, #C62828); }
-  #status { font-size: 15px; color: #666; min-height: 24px; }
+  h2 {
+    font-size: 20px; color: #fff; margin-bottom: 8px;
+    font-weight: 700; letter-spacing: .5px;
+  }
+  .subtitle {
+    font-size: 13px; color: rgba(255,255,255,.45);
+    margin-bottom: 32px;
+  }
+  .btn-wrap {
+    position: relative;
+    width: 160px; height: 160px;
+    margin: 0 auto 28px;
+  }
+  .btn-ring {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,.08);
+    transition: border-color .4s;
+  }
+  .btn-ring.pulse {
+    animation: ring-pulse 1.5s ease-out infinite;
+    border-color: rgba(102,126,234,.5);
+  }
+  @keyframes ring-pulse {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.3); opacity: 0; }
+  }
+  #btn {
+    position: absolute; inset: 12px;
+    border-radius: 50%; border: none; cursor: pointer;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff; font-size: 18px; font-weight: 700;
+    letter-spacing: 2px;
+    box-shadow: 0 8px 32px rgba(102,126,234,.4), inset 0 1px 0 rgba(255,255,255,.2);
+    transition: transform .2s, box-shadow .2s, background .4s;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  #btn:active {
+    transform: scale(.92);
+    box-shadow: 0 4px 16px rgba(102,126,234,.3);
+  }
+  #btn.loading {
+    background: linear-gradient(135deg, #f093fb, #f5576c);
+    box-shadow: 0 8px 32px rgba(245,87,108,.4);
+    animation: breathe 1.8s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+  #btn.ok {
+    background: linear-gradient(135deg, #43e97b, #38f9d7);
+    box-shadow: 0 8px 32px rgba(67,233,123,.4);
+    animation: none;
+  }
+  #btn.fail {
+    background: linear-gradient(135deg, #f5576c, #ff6b6b);
+    box-shadow: 0 8px 32px rgba(245,87,108,.4);
+    animation: shake .5s;
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+  }
+  .btn-icon { font-size: 36px; display: block; margin-bottom: 4px; }
+  .btn-label { font-size: 14px; font-weight: 600; letter-spacing: 1px; }
+  #status {
+    font-size: 14px; color: rgba(255,255,255,.5);
+    min-height: 22px;
+    transition: color .3s;
+  }
+  #status.success { color: #43e97b; }
+  #status.error { color: #f5576c; }
 </style>
 </head>
 <body>
 <div class="card">
-  <h2>MeetBot 伺服器喚醒</h2>
-  <button id="btn" onclick="wake()">喚醒</button>
+  <div class="logo">M</div>
+  <h2>MeetBot</h2>
+  <p class="subtitle">Render Server Wake-up</p>
+  <div class="btn-wrap">
+    <div class="btn-ring" id="ring"></div>
+    <button id="btn" onclick="wake()">
+      <div>
+        <span class="btn-icon" id="icon">&#x26A1;</span>
+        <span class="btn-label" id="label">WAKE</span>
+      </div>
+    </button>
+  </div>
   <div id="status"></div>
 </div>
 <script>
 async function wake() {
   const btn = document.getElementById('btn');
-  const st  = document.getElementById('status');
+  const icon = document.getElementById('icon');
+  const label = document.getElementById('label');
+  const ring = document.getElementById('ring');
+  const st = document.getElementById('status');
+
   btn.className = 'loading';
-  btn.textContent = '...';
-  st.textContent = '正在喚醒，請稍候...';
+  icon.innerHTML = '&#x1F504;';
+  label.textContent = 'WAKING';
+  ring.classList.add('pulse');
+  st.className = '';
+  st.textContent = '正在喚醒伺服器...';
+
   const t0 = Date.now();
   try {
     const r = await fetch('/health', { cache: 'no-store' });
     const ms = Date.now() - t0;
     if (r.ok) {
       btn.className = 'ok';
-      btn.textContent = 'OK';
-      st.textContent = `已喚醒（${(ms/1000).toFixed(1)} 秒）`;
+      icon.innerHTML = '&#x2705;';
+      label.textContent = 'ONLINE';
+      ring.classList.remove('pulse');
+      st.className = 'success';
+      st.textContent = `喚醒成功 (${(ms/1000).toFixed(1)}s)`;
     } else {
-      throw new Error(r.status);
+      throw new Error('HTTP ' + r.status);
     }
   } catch (e) {
     btn.className = 'fail';
-    btn.textContent = '失敗';
+    icon.innerHTML = '&#x274C;';
+    label.textContent = 'FAILED';
+    ring.classList.remove('pulse');
+    st.className = 'error';
     st.textContent = '喚醒失敗：' + e.message;
   }
-  setTimeout(() => { btn.className = ''; btn.textContent = '喚醒'; }, 5000);
+  setTimeout(() => {
+    btn.className = '';
+    icon.innerHTML = '&#x26A1;';
+    label.textContent = 'WAKE';
+    st.className = '';
+    st.textContent = '';
+  }, 6000);
 }
 </script>
 </body>
