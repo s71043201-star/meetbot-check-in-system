@@ -9,7 +9,7 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "Content-Type");
-  res.header("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
   if (req.method === "OPTIONS") return res.sendStatus(200);
   next();
 });
@@ -21,6 +21,7 @@ app.use(require("./src/routes/webhook"));
 app.use(require("./src/routes/attendance"));
 app.use(require("./src/routes/export"));
 app.use(require("./src/routes/meetbot"));
+app.use(require("./src/routes/questions"));
 
 // ── 測試 ──────────────────────────────────────
 app.get("/test-me", async (req, res) => {
