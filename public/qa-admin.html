@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>問題回報管理系統</title>
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/qa-admin.css">
+</head>
+<body>
+
+<h1>問題回報管理系統 — 健康台灣深耕計畫</h1>
+
+<!-- ── Tabs ── -->
+<div class="tabs">
+  <button class="tab-btn active">問題總覽</button>
+  <button class="tab-btn">統計分析</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- Tab 1: 問題總覽 -->
+<!-- ═══════════════════════════════════════════════ -->
+<div id="tab-questions" class="tab-content active">
+
+  <div class="filter-bar">
+    <label>單位
+      <select id="filterUnit">
+        <option value="">全部</option>
+        <option value="工研院">工研院</option>
+        <option value="處方老師">處方老師</option>
+        <option value="同仁">同仁</option>
+        <option value="診所">診所</option>
+        <option value="民眾端">民眾端</option>
+      </select>
+    </label>
+    <label>狀態
+      <select id="filterStatus">
+        <option value="">全部</option>
+        <option value="待處理">待處理</option>
+        <option value="處理中">處理中</option>
+        <option value="已回覆">已回覆</option>
+        <option value="已結案">已結案</option>
+      </select>
+    </label>
+    <label>類別
+      <select id="filterCategory">
+        <option value="">全部</option>
+      </select>
+    </label>
+    <label>從
+      <input type="date" id="filterDateFrom" style="width:140px">
+    </label>
+    <label>到
+      <input type="date" id="filterDateTo" style="width:140px">
+    </label>
+    <label>關鍵字
+      <input type="text" id="filterKeyword" placeholder="搜尋內容" style="width:140px">
+    </label>
+    <button class="btn btn-primary" id="btn-search">搜尋</button>
+    <button class="btn btn-success" id="btn-export">匯出 Excel</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-num" id="stat-total">-</div>
+      <div class="stat-label">問題總數</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num warn" id="stat-pending">-</div>
+      <div class="stat-label">待處理</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num ok" id="stat-answered">-</div>
+      <div class="stat-label">已回覆</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num mute" id="stat-closed">-</div>
+      <div class="stat-label">已結案</div>
+    </div>
+  </div>
+
+  <div id="batch-bar" class="batch-bar hidden">
+    <span id="batch-count">0</span> 筆已選取
+    <label>批量更新為
+      <select id="batch-status">
+        <option value="處理中">處理中</option>
+        <option value="已回覆">已回覆</option>
+        <option value="已結案">已結案</option>
+      </select>
+    </label>
+    <button class="btn btn-primary btn-sm" id="btn-batch-update">套用</button>
+  </div>
+
+  <div id="question-list" class="question-cards">
+    <div class="empty">載入中…</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- Tab 2: 統計分析 -->
+<!-- ═══════════════════════════════════════════════ -->
+<div id="tab-stats" class="tab-content">
+  <div id="stats-container">
+    <div class="empty">載入中…</div>
+  </div>
+</div>
+
+<script src="js/shared.js"></script>
+<script src="js/qa-admin.js"></script>
+</body>
+</html>

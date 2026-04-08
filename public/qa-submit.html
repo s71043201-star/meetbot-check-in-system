@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>問題回報 — 健康台灣深耕計畫</title>
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/qa-submit.css">
+</head>
+<body>
+<div class="container">
+
+  <!-- ===== 表單區 ===== -->
+  <div id="sec-form">
+    <div class="card header-card">
+      <h1>問題回報表單</h1>
+      <p class="subtitle">社團法人台北市醫師公會 · 健康台灣深耕計畫</p>
+      <p class="subtitle" style="margin-top:4px;">如有任何問題或建議，請填寫以下表單，我們將盡快回覆</p>
+    </div>
+
+    <!-- 提問單位 -->
+    <div class="card">
+      <div class="q-title required">提問單位</div>
+      <select id="unit">
+        <option value="">請選擇您的單位</option>
+        <option value="工研院">工研院</option>
+        <option value="處方老師">處方老師</option>
+        <option value="同仁">同仁</option>
+        <option value="診所">診所</option>
+        <option value="民眾端">民眾端</option>
+      </select>
+      <div class="err hidden" id="err-unit">請選擇提問單位</div>
+    </div>
+
+    <!-- 聯絡人姓名 -->
+    <div class="card">
+      <div class="q-title required">聯絡人姓名</div>
+      <input type="text" id="contactName" placeholder="請輸入您的姓名">
+      <div class="err hidden" id="err-contactName">請填寫聯絡人姓名</div>
+    </div>
+
+    <!-- 聯絡方式 -->
+    <div class="card">
+      <div class="q-title required">聯絡方式（Email 或電話）</div>
+      <input type="text" id="contactInfo" placeholder="請輸入 Email 或電話號碼">
+      <p style="font-size:12px;color:var(--color-text-muted);margin-top:6px;">此資訊將用於日後查詢您的問題處理進度</p>
+      <div class="err hidden" id="err-contactInfo">請填寫聯絡方式</div>
+    </div>
+
+    <!-- 問題類別 -->
+    <div class="card">
+      <div class="q-title required">問題類別</div>
+      <select id="category">
+        <option value="">請選擇問題類別</option>
+        <option value="系統操作">系統操作</option>
+        <option value="資料問題">資料問題</option>
+        <option value="流程疑問">流程疑問</option>
+        <option value="技術問題">技術問題</option>
+        <option value="建議回饋">建議回饋</option>
+        <option value="其他">其他</option>
+      </select>
+      <div class="err hidden" id="err-category">請選擇問題類別</div>
+    </div>
+
+    <!-- 問題內容 -->
+    <div class="card">
+      <div class="q-title required">問題內容</div>
+      <textarea id="content" rows="5" placeholder="請詳細描述您遇到的問題或建議"></textarea>
+      <div class="err hidden" id="err-content">請填寫問題內容</div>
+    </div>
+
+    <!-- 優先等級 -->
+    <div class="card">
+      <div class="q-title required">優先等級</div>
+      <div class="radio-group">
+        <label class="opt"><input type="radio" name="priority" value="一般" checked> 一般</label>
+        <label class="opt"><input type="radio" name="priority" value="緊急"> 緊急</label>
+      </div>
+    </div>
+
+    <!-- 提交按鈕 -->
+    <div class="card">
+      <button class="submit-btn" id="btn-submit">提交問題</button>
+    </div>
+  </div>
+
+  <!-- ===== 成功區 ===== -->
+  <div id="sec-success" class="hidden">
+    <div class="card header-card">
+      <div class="success-section">
+        <div class="success-icon">&#10004;&#65039;</div>
+        <div class="success-title">問題已成功提交</div>
+        <div class="success-desc">
+          感謝您的回報，我們將盡快處理您的問題。<br>
+          您可以使用填寫的聯絡方式查詢處理進度。
+        </div>
+        <div>
+          <a class="link-btn" href="qa-query.html">查詢問題進度</a>
+          <a class="link-btn" id="btn-new" href="#">再提交一個問題</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/shared.js"></script>
+<script src="js/qa-submit.js"></script>
+</body>
+</html>
