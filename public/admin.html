@@ -15,6 +15,7 @@
 <div class="tabs">
   <button class="tab-btn active">出勤紀錄</button>
   <button class="tab-btn">領據管理</button>
+  <button class="tab-btn">使用者管理</button>
 </div>
 
 <!-- ═══════════════════════════════════════════════ -->
@@ -124,6 +125,41 @@
 
   <div id="receipt-list" class="receipt-cards">
     <div class="empty" style="background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1);">載入中…</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- Tab 3: 使用者管理 -->
+<!-- ═══════════════════════════════════════════════ -->
+<div id="tab-users" class="tab-content">
+
+  <div class="filter-bar">
+    <label>搜尋姓名
+      <input type="text" id="userFilterName" placeholder="搜尋姓名" style="width:160px">
+    </label>
+    <button class="btn btn-primary" id="btn-user-search">搜尋</button>
+  </div>
+
+  <div class="stats-cards" id="user-stats">
+    <div class="stat-card"><div class="stat-value" id="stat-user-count">0</div><div class="stat-label">註冊人數</div></div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="user-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>姓名</th>
+          <th>身分證</th>
+          <th>電話</th>
+          <th>領款方式</th>
+          <th>戶籍地址</th>
+          <th>註冊時間</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="user-tbody"></tbody>
+    </table>
   </div>
 </div>
 
