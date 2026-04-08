@@ -32,6 +32,9 @@ app.get("/test-me", async (req, res) => {
   }
 });
 
+// ── Health check（防止 Render 冷啟動）────────
+app.get("/health", (req, res) => res.send("OK"));
+
 app.get("/", (req, res) => res.redirect("/checkin.html"));
 
 // ── 排程器 ────────────────────────────────────
