@@ -22,8 +22,8 @@
   }
 
   // ── Tabs ──
-  var TAB_MAP = { attendance: 0, receipt: 1, users: 2 };
-  var TAB_IDS = ["tab-attendance", "tab-receipt", "tab-users"];
+  var TAB_MAP = { attendance: 0, receipt: 1, users: 2, "custom-export": 3 };
+  var TAB_IDS = ["tab-attendance", "tab-receipt", "tab-users", "tab-custom-export"];
 
   function switchTab(tab) {
     document.querySelectorAll(".tab-btn").forEach(function (b) { b.classList.remove("active"); });
@@ -35,6 +35,7 @@
 
     if (tab === "receipt") loadReceipts();
     if (tab === "users") loadUsers();
+    if (tab === "custom-export") loadCustomExport();
   }
 
   // ═══════════════════════════════════════════
@@ -667,10 +668,264 @@
     }
   }
 
+  // ═══════════════════════════════════════════
+  // Tab 4: 臨時人員費領取單
+  // ═══════════════════════════════════════════
+  async function loadCustomExport() {
+    try {
+      var res = await fetch("/users");
+      var users = await res.json();
+      users.sort(function (a, b) { return (a.name || "").localeCompare(b.name || ""); });
+
+      var tbody = document.getElementById("custom-export-tbody");
+      if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;padding:40px 0">\u5C1A\u7121\u8A3B\u518A\u4F7F\u7528\u8005</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = users.map(function (u) {
+        return '<tr>' +
+          '<td style="text-align:center;"><input type="checkbox" class="custom-check" data-name="' + escapeHtml(u.name || "") + '"></td>' +
+          '<td>' + escapeHtml(u.name || "-") + '</td>' +
+          '<td>\u81E8\u6642\u4EBA\u54E1</td>' +
+          '<td><input type="number" class="custom-individual-amount" data-name="' + escapeHtml(u.name || "") + '" placeholder="\u91D1\u984D" style="width:120px;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;"></td>' +
+          '</tr>';
+      }).join("");
+
+      updateCustomSelectedCount();
+    } catch (e) {
+      showToast("\u8F09\u5165\u5931\u6557\uFF1A" + e.message, "error");
+    }
+  }
+
+  function updateCustomSelectedCount() {
+    var checked = document.querySelectorAll(".custom-check:checked").length;
+    document.getElementById("custom-selected-count").textContent = "\u5DF2\u9078 " + checked + " \u4EBA";
+  }
+
+  function applyAmountToSelected() {
+    var amount = document.getElementById("custom-amount").value;
+    if (!amount) { showToast("\u8ACB\u5148\u8F38\u5165\u7D71\u4E00\u91D1\u984D", "warning"); return; }
+    document.querySelectorAll(".custom-check:checked").forEach(function (cb) {
+      var name = cb.dataset.name;
+      var input = document.querySelector('.custom-individual-amount[data-name="' + name + '"]');
+      if (input) input.value = amount;
+    });
+    showToast("\u5DF2\u5957\u7528\u91D1\u984D " + amount + " \u5143\u5230 " + document.querySelectorAll(".custom-check:checked").length + " \u4EBA", "success");
+  }
+
+  function doCustomExport() {
+    var reason = document.getElementById("custom-reason").value.trim();
+    var year = document.getElementById("custom-year").value.trim();
+    var month = document.getElementById("custom-month").value.trim();
+    var day = document.getElementById("custom-day").value.trim();
+
+    if (!reason) { showToast("\u8ACB\u586B\u5BEB\u4E8B\u7531", "warning"); return; }
+    if (!year || !month || !day) { showToast("\u8ACB\u586B\u5BEB\u65E5\u671F", "warning"); return; }
+
+    var selected = [];
+    document.querySelectorAll(".custom-check:checked").forEach(function (cb) {
+      var name = cb.dataset.name;
+      var amountInput = document.querySelector('.custom-individual-amount[data-name="' + name + '"]');
+      var amount = amountInput ? parseInt(amountInput.value) || 0 : 0;
+      if (amount > 0) {
+        selected.push({ name: name, amount: amount });
+      }
+    });
+
+    if (selected.length === 0) { showToast("\u8ACB\u52FE\u9078\u4EBA\u54E1\u4E26\u586B\u5BEB\u91D1\u984D", "warning"); return; }
+
+    // Build the Word HTML
+    var dateStr = year + "\u5E74" + month.padStart(2, "0") + "\u6708" + day.padStart(2, "0") + "\u65E5";
+    var totalAmount = selected.reduce(function (s, p) { return s + p.amount; }, 0);
+
+    var bd = 'border:1px solid #000;';
+    var pd = 'padding:6px 8px;font-size:12pt;vertical-align:middle;';
+    var S = 'style="' + bd + pd + '"';
+    var SC = 'style="' + bd + pd + 'text-align:center;"';
+
+    var rows = selected.map(function (p) {
+      var amountStr = p.amount.toLocaleString() + "\u5143";
+      return '<tr height="36">' +
+        '<td ' + SC + '>\u81E8\u6642\u4EBA\u54E1</td>' +
+        '<td ' + SC + '>' + escapeHtml(p.name) + '</td>' +
+        '<td ' + S + '>' + year + "\u5E74" + month + "\u6708" + day + "\u65E5" + escapeHtml(reason) + '</td>' +
+        '<td ' + SC + '>' + amountStr + '</td>' +
+        '<td ' + SC + '>&nbsp;</td>' +
+        '</tr>';
+    }).join("");
+
+    // Empty rows to fill to ~10 rows
+    var emptyCount = Math.max(0, 10 - selected.length);
+    for (var i = 0; i < emptyCount; i++) {
+      rows += '<tr height="36">' +
+        '<td ' + SC + '>&nbsp;</td>' +
+        '<td ' + SC + '>&nbsp;</td>' +
+        '<td ' + S + '>&nbsp;</td>' +
+        '<td ' + SC + '>&nbsp;</td>' +
+        '<td ' + SC + '>&nbsp;</td>' +
+        '</tr>';
+    }
+
+    var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
+      '<head><meta charset="UTF-8">' +
+      '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->' +
+      '<style>' +
+      '@page { size: A4; margin: 1.5cm 1.5cm 1.5cm 1.5cm; }' +
+      'body { font-family: "DFKai-SB","\\6A19\\6977\\9AD4","Microsoft JhengHei",sans-serif; margin:0; }' +
+      'div.Section1 { page:Section1; }' +
+      '</style></head><body><div class="Section1">' +
+      '<p align="center" style="font-size:16pt;font-weight:bold;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:2px;">\u53F0\u5317\u5E02\u91AB\u5E2B\u516C\u6703</p>' +
+      '<p align="center" style="font-size:14pt;font-weight:bold;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:2px;">\u5065\u5EB7\u53F0\u7063\u6DF1\u8015\u8A08\u756B\u3000\u81FA\u5317\u5E02\u6162\u6027\u75C5\u9632\u6CBB\u5168\u4EBA\u5065\u5EB7\u667A\u6167\u6574\u5408\u7167\u8B77\u8A08\u756B</p>' +
+      '<p align="center" style="font-size:15pt;font-weight:bold;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:8px;">\u81E8\u6642\u4EBA\u54E1\u8CBB\u7533\u8ACB\u55AE</p>' +
+      '<p align="right" style="font-size:12pt;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:6px;">&nbsp;&nbsp;&nbsp;' + year + '\u5E74' + month.padStart(2, '0') + '\u6708' + day.padStart(2, '0') + '\u65E5</p>' +
+      '<table border="1" cellpadding="5" cellspacing="0" width="100%" style="border-collapse:collapse;font-family:DFKai-SB,\\6A19\\6977\\9AD4;font-size:12pt;">' +
+      '<tr style="background:#f0f0f0;">' +
+        '<th ' + SC + ' width="12%">\u8077\u3000\u52D9</th>' +
+        '<th ' + SC + ' width="12%">\u59D3\u3000\u540D</th>' +
+        '<th ' + SC + '>\u4E8B\u3000\u3000\u3000\u3000\u3000\u3000\u7531</th>' +
+        '<th ' + SC + ' width="12%">\u91D1\u3000\u984D</th>' +
+        '<th ' + SC + ' width="12%">\u7C3D\u3000\u7AE0</th>' +
+      '</tr>' +
+      rows +
+      '<tr height="36">' +
+        '<td ' + SC + ' colspan="2">\u5408\u3000\u3000\u3000\u3000\u3000\u3000\u8A08</td>' +
+        '<td ' + S + '>&nbsp;</td>' +
+        '<td ' + SC + '>' + totalAmount.toLocaleString() + '\u5143</td>' +
+        '<td ' + SC + '>&nbsp;</td>' +
+      '</tr>' +
+      '</table>' +
+      '<table border="0" cellpadding="4" cellspacing="0" width="100%" style="font-family:DFKai-SB,\\6A19\\6977\\9AD4;font-size:11pt;margin-top:12px;">' +
+      '<tr>' +
+        '<td width="11%" align="center">\u6C7A\u884C</td>' +
+        '<td width="11%" align="center">\u7406\u4E8B\u9577</td>' +
+        '<td width="11%" align="center">-</td>' +
+        '<td width="12%" align="center">\u8A08\u756B\u4E3B\u6301\u4EBA</td>' +
+        '<td width="11%" align="center">\u516C\u6703\u57F7\u884C\u9577</td>' +
+        '<td width="11%" align="center">\u7E3D\u5E79\u4E8B</td>' +
+        '<td width="11%" align="center">\u8A08\u756B\u57F7\u884C\u9577</td>' +
+        '<td width="11%" align="center">\u7D44\u9577</td>' +
+        '<td width="11%" align="center">\u51FA\u7D0D</td>' +
+        '<td width="11%" align="center">\u627F\u8FA6\u4EBA</td>' +
+      '</tr>' +
+      '<tr height="40">' +
+        '<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>' +
+        '<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>' +
+      '</tr>' +
+      '</table>' +
+      '</div></body></html>';
+
+    // Download as .doc
+    var blob = new Blob(["\uFEFF" + html], { type: "application/msword;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "\u81E8\u6642\u4EBA\u54E1\u8CBB\u9818\u53D6\u55AE_" + year + month.padStart(2, "0") + day.padStart(2, "0") + ".doc";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("\u5DF2\u532F\u51FA\u9818\u53D6\u55AE", "success");
+  }
+
+  function doCustomExportAttendance() {
+    var reason = document.getElementById("custom-reason").value.trim();
+    var year = document.getElementById("custom-year").value.trim();
+    var month = document.getElementById("custom-month").value.trim();
+    var day = document.getElementById("custom-day").value.trim();
+
+    if (!reason) { showToast("\u8ACB\u586B\u5BEB\u4E8B\u7531", "warning"); return; }
+    if (!year || !month || !day) { showToast("\u8ACB\u586B\u5BEB\u65E5\u671F", "warning"); return; }
+
+    var selected = [];
+    document.querySelectorAll(".custom-check:checked").forEach(function (cb) {
+      selected.push(cb.dataset.name);
+    });
+
+    if (selected.length === 0) { showToast("\u8ACB\u52FE\u9078\u4EBA\u54E1", "warning"); return; }
+
+    var dateStr = year + "\u5E74" + month.padStart(2, "0") + "\u6708" + day.padStart(2, "0") + "\u65E5";
+    var shortDate = month + "/" + day;
+
+    var bd = 'border:1px solid #000;';
+    var pd = 'padding:6px 8px;font-size:12pt;vertical-align:middle;';
+    var S = 'style="' + bd + pd + '"';
+    var SC = 'style="' + bd + pd + 'text-align:center;"';
+    var SB = 'style="' + bd + pd + 'font-weight:bold;text-align:center;"';
+
+    var pages = selected.map(function (name) {
+      return '<p align="center" style="font-size:14pt;font-weight:bold;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:2px;">\u53F0\u5317\u5E02\u91AB\u5E2B\u516C\u6703 \u5065\u5EB7\u53F0\u7063\u6DF1\u8015\u8A08\u756B</p>' +
+        '<p align="center" style="font-size:13pt;font-weight:bold;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:2px;">\u81FA\u5317\u5E02\u6162\u6027\u75C5\u9632\u6CBB\u5168\u4EBA\u5065\u5EB7\u667A\u6167\u6574\u5408\u7167\u8B77\u8A08\u756B</p>' +
+        '<p align="center" style="font-size:15pt;font-weight:bold;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:8px;">\u81E8\u6642\u4EBA\u54E1\u51FA\u52E4\u8A18\u9304\u8207\u5DE5\u4F5C\u5167\u5BB9\u8AAA\u660E</p>' +
+        '<table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;font-family:DFKai-SB,\\6A19\\6977\\9AD4;font-size:12pt;">' +
+        '<tr>' +
+          '<td ' + SB + ' width="20%">\u59D3\u3000\u3000\u540D</td>' +
+          '<td ' + SB + '>\u6D3B\u52D5\u540D\u7A31 / \u5DE5\u4F5C\u5167\u5BB9</td>' +
+        '</tr>' +
+        '<tr>' +
+          '<td ' + SC + '>' + escapeHtml(name) + '</td>' +
+          '<td ' + S + '>' + dateStr + '\u8655\u65B9\u5151\u63DB\u65E5\u81E8\u6642\u4EBA\u54E1</td>' +
+        '</tr>' +
+        '<tr>' +
+          '<td ' + S + ' colspan="2">' + escapeHtml(reason) + '</td>' +
+        '</tr>' +
+        '<tr>' +
+          '<td ' + SB + '>\u65E5\u671F</td>' +
+          '<td ' + S + '>' +
+            '<table border="1" cellpadding="4" cellspacing="0" width="100%" style="border-collapse:collapse;font-size:12pt;">' +
+              '<tr>' +
+                '<td ' + SB + ' colspan="2">\u4E0A\u73ED\u7C3D\u5230</td>' +
+                '<td ' + SB + ' colspan="2">\u4E0B\u73ED\u7C3D\u9000</td>' +
+                '<td ' + SB + ' width="15%">\u5DE5\u4F5C\u6642\u6578</td>' +
+              '</tr>' +
+              '<tr height="36">' +
+                '<td ' + SC + ' width="15%">\u6642\u9593</td>' +
+                '<td ' + SC + ' width="20%">\u59D3\u540D</td>' +
+                '<td ' + SC + ' width="15%">\u6642\u9593</td>' +
+                '<td ' + SC + ' width="20%">\u59D3\u540D</td>' +
+                '<td ' + SC + '>&nbsp;</td>' +
+              '</tr>' +
+              '<tr height="36">' +
+                '<td ' + SC + '>&nbsp;</td>' +
+                '<td ' + SC + '>&nbsp;</td>' +
+                '<td ' + SC + '>&nbsp;</td>' +
+                '<td ' + SC + '>&nbsp;</td>' +
+                '<td ' + SC + '>&nbsp;</td>' +
+              '</tr>' +
+            '</table>' +
+          '</td>' +
+        '</tr>' +
+        '<tr><td ' + S + ' height="30" colspan="2">' + shortDate + '</td></tr>' +
+        '</table>';
+    });
+
+    var body = pages.join('\n<p style="page-break-before:always">&nbsp;</p>\n');
+
+    var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
+      '<head><meta charset="UTF-8">' +
+      '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->' +
+      '<style>' +
+      '@page { size: A4; margin: 1.5cm 1.5cm 1.5cm 1.5cm; }' +
+      'body { font-family: "DFKai-SB","\\6A19\\6977\\9AD4","Microsoft JhengHei",sans-serif; margin:0; }' +
+      'div.Section1 { page:Section1; }' +
+      '</style></head><body><div class="Section1">' + body + '</div></body></html>';
+
+    var blob = new Blob(["\uFEFF" + html], { type: "application/msword;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "\u5DE5\u4F5C\u8AAA\u660E\u53CA\u7C3D\u5230\u7C3F_" + year + month.padStart(2, "0") + day.padStart(2, "0") + ".doc";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("\u5DF2\u532F\u51FA\u5DE5\u4F5C\u8AAA\u660E\u53CA\u7C3D\u5230\u7C3F", "success");
+  }
+
   // ── Wire up event listeners ──
   document.addEventListener("DOMContentLoaded", function () {
     // Tab buttons
-    var TAB_NAMES = ["attendance", "receipt", "users"];
+    var TAB_NAMES = ["attendance", "receipt", "users", "custom-export"];
     document.querySelectorAll(".tab-btn").forEach(function (btn, idx) {
       btn.addEventListener("click", function () {
         switchTab(TAB_NAMES[idx]);
@@ -799,6 +1054,27 @@
         deleteUser(userDelBtn.dataset.id);
         return;
       }
+    });
+
+    // Custom export tab
+    var applyAmountBtn = document.getElementById("btn-apply-amount");
+    if (applyAmountBtn) applyAmountBtn.addEventListener("click", applyAmountToSelected);
+
+    var customExportBtn = document.getElementById("btn-custom-export");
+    if (customExportBtn) customExportBtn.addEventListener("click", doCustomExport);
+
+    var customExportAttBtn = document.getElementById("btn-custom-export-attendance");
+    if (customExportAttBtn) customExportAttBtn.addEventListener("click", doCustomExportAttendance);
+
+    var customSelectAll = document.getElementById("custom-select-all");
+    if (customSelectAll) customSelectAll.addEventListener("change", function () {
+      var checked = this.checked;
+      document.querySelectorAll(".custom-check").forEach(function (cb) { cb.checked = checked; });
+      updateCustomSelectedCount();
+    });
+
+    document.addEventListener("change", function (e) {
+      if (e.target.classList.contains("custom-check")) updateCustomSelectedCount();
     });
 
     // Initial load
