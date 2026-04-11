@@ -723,6 +723,15 @@
     // Admin checkout button
     var adminCheckoutBtn = document.getElementById("btn-checkout-admin");
     if (adminCheckoutBtn) adminCheckoutBtn.addEventListener("click", doCheckoutAdmin);
+
+    // Back to type selection buttons
+    ["btn-back-type-regular", "btn-back-type-prescription", "btn-back-type-admin"].forEach(function (id) {
+      var btn = document.getElementById(id);
+      if (btn) btn.addEventListener("click", function () {
+        localStorage.removeItem("checkinType");
+        showSection("sec-type");
+      });
+    });
   });
 
 })();
