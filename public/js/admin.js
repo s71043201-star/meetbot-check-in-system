@@ -905,34 +905,32 @@
         '</tr>';
       }
 
-      return '<p align="center" style="' + F + 'font-size:16pt;font-weight:bold;margin:0 0 6pt 0;">\u53F0\u5317\u5E02\u91AB\u5E2B\u516C\u6703\u3000\u5065\u5EB7\u53F0\u7063\u6DF1\u8015\u8A08\u756B</p>' +
+      return '<p align="center" style="' + F + 'font-size:16pt;font-weight:bold;margin:0 0 6pt 0;">\u53F0\u5317\u5E02\u91AB\u5E2B\u516C\u6703 \u5065\u5EB7\u53F0\u7063\u6DF1\u8015\u8A08\u756B</p>' +
         '<p align="center" style="' + F + 'font-size:14pt;font-weight:bold;margin:0 0 6pt 0;">\u81FA\u5317\u5E02\u6162\u6027\u75C5\u9632\u6CBB\u5168\u4EBA\u5065\u5EB7\u667A\u6167\u6574\u5408\u7167\u8B77\u8A08\u756B</p>' +
         '<p align="center" style="' + F + 'font-size:18pt;font-weight:bold;margin:0 0 10pt 0;">\u81E8\u6642\u4EBA\u54E1\u51FA\u52E4\u8A18\u9304\u8207\u5DE5\u4F5C\u5167\u5BB9\u8AAA\u660E</p>' +
-        '<table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;' + F + 'font-size:12pt;margin-bottom:6pt;">' +
+        '<table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;' + F + 'font-size:12pt;">' +
         '<tr>' +
           '<td style="' + TH + '" width="20%">\u59D3\u3000\u3000\u540D</td>' +
-          '<td style="' + TH + '">\u6D3B\u52D5\u540D\u7A31 / \u5DE5\u4F5C\u5167\u5BB9</td>' +
+          '<td style="' + TH + '" colspan="5">\u6D3B\u52D5\u540D\u7A31 / \u5DE5\u4F5C\u5167\u5BB9</td>' +
         '</tr>' +
         '<tr style="height:30pt;">' +
           '<td style="' + TC + '">' + escapeHtml(name) + '</td>' +
-          '<td style="' + TL + '">' + dateStr + '\u8655\u65B9\u5151\u63DB\u65E5\u81E8\u6642\u4EBA\u54E1</td>' +
+          '<td style="' + TL + '" colspan="5">' + dateStr + '\u8655\u65B9\u5151\u63DB\u65E5\u81E8\u6642\u4EBA\u54E1</td>' +
         '</tr>' +
         '<tr>' +
-          '<td style="' + TL + '" colspan="2">' + escapeHtml(reason) + '</td>' +
+          '<td style="' + TL + '" colspan="6">' + escapeHtml(reason) + '</td>' +
         '</tr>' +
-        '</table>' +
-        '<table border="1" cellpadding="4" cellspacing="0" width="100%" style="border-collapse:collapse;' + F + 'font-size:12pt;">' +
         '<tr>' +
-          '<td style="' + TH + '" rowspan="2" width="12%">\u65E5\u671F</td>' +
+          '<td style="' + TH + '" rowspan="2">\u65E5\u671F</td>' +
           '<td style="' + TH + '" colspan="2">\u4E0A\u73ED\u7C3D\u5230</td>' +
           '<td style="' + TH + '" colspan="2">\u4E0B\u73ED\u7C3D\u9000</td>' +
-          '<td style="' + TH + '" rowspan="2" width="12%">\u5DE5\u4F5C\u6642\u6578</td>' +
+          '<td style="' + TH + '" rowspan="2">\u5DE5\u4F5C\u6642\u6578</td>' +
         '</tr>' +
         '<tr>' +
-          '<td style="' + TH + '" width="12%">\u6642\u9593</td>' +
-          '<td style="' + TH + '" width="20%">\u59D3\u540D</td>' +
-          '<td style="' + TH + '" width="12%">\u6642\u9593</td>' +
-          '<td style="' + TH + '" width="20%">\u59D3\u540D</td>' +
+          '<td style="' + TH + '">\u6642\u9593</td>' +
+          '<td style="' + TH + '">\u59D3\u540D</td>' +
+          '<td style="' + TH + '">\u6642\u9593</td>' +
+          '<td style="' + TH + '">\u59D3\u540D</td>' +
         '</tr>' +
         timeRows +
         '</table>';
