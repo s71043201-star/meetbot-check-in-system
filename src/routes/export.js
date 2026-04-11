@@ -2,7 +2,7 @@ const express = require("express");
 const ExcelJS = require("exceljs");
 const router = express.Router();
 const { docStore } = require("../utils");
-const { fbGet } = require("../firebase");
+const { fbGet, userGet } = require("../firebase");
 const { fetchTasksFromFirebase } = require("../firebase");
 const { buildPersonSheet } = require("../templates/excel-builder");
 const { buildExportWordHtml } = require("../templates/export-word-html");
@@ -78,6 +78,12 @@ router.get("/export-full", async (req, res) => {
     if (month) records = records.filter(r => r.month === parseInt(month));
     if (year)  records = records.filter(r => r.year  === parseInt(year));
 
+    // Load registered users
+    const usersData = await userGet();
+    const users = usersData ? Object.entries(usersData).map(([id, u]) => ({ id, ...u })) : [];
+    const userByName = {};
+    users.forEach(u => { if (u.name) userByName[u.name] = u; });
+
     const grouped = {};
     records.forEach(r => {
       if (!r.name) return;
@@ -85,6 +91,33 @@ router.get("/export-full", async (req, res) => {
       if (!grouped[r.name]) grouped[r.name] = [];
       grouped[r.name].push(r);
     });
+
+    // Add registered users who have no attendance records
+    users.forEach(u => {
+      if (!u.name) return;
+      if (name && u.name !== name) return;
+      if (!grouped[u.name]) grouped[u.name] = [];
+    });
+
+    // Merge user registration data into records for receipt fields
+    for (const [pname, recs] of Object.entries(grouped)) {
+      const regUser = userByName[pname];
+      if (regUser && recs.length > 0) {
+        // Ensure the first record has receipt data from user registration
+        const first = recs.find(r => r.idNumber) || recs[0];
+        if (!first.idNumber && regUser.idNumber) first.idNumber = regUser.idNumber;
+        if (!first.eventName && regUser.eventName) first.eventName = regUser.eventName;
+        if (!first.feeTypes && regUser.feeTypes) first.feeTypes = regUser.feeTypes;
+        if (!first.payMethod && regUser.payMethod) first.payMethod = regUser.payMethod;
+        if (!first.bankInfo && regUser.bankInfo) first.bankInfo = regUser.bankInfo;
+        if (!first.address && regUser.address) first.address = regUser.address;
+        if (!first.liveAddress && regUser.liveAddress) first.liveAddress = regUser.liveAddress;
+        if (!first.phone && regUser.phone) first.phone = regUser.phone;
+      } else if (regUser && recs.length === 0) {
+        // No attendance records, create a placeholder with user data
+        grouped[pname] = [{ name: pname, ...regUser, status: "registered-only" }];
+      }
+    }
 
     const html = buildExportFullHtml(grouped);
     const fn = `領據_${name || "全部人員"}.doc`;
