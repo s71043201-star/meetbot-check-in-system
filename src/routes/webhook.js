@@ -3,7 +3,7 @@ const router = express.Router();
 const { TEAM, MEMBERS, ID_TO_NAME, BOSS_IDS, SYSTEMS, ATT_BOSS_IDS } = require("../config");
 const { daysLeft } = require("../utils");
 const { fetchTasksFromFirebase, fetchAttendance } = require("../firebase");
-const { sendLine, sendLineWithQuickReply } = require("../line");
+const { sendLine, sendLineMessages, sendLineWithQuickReply } = require("../line");
 const { sendSlackToUser } = require("../slack");
 
 function buildAttendanceReport(records, month) {
@@ -55,7 +55,11 @@ router.post("/webhook", async (req, res) => {
     // ── 系統網址 ──
     if (SYSTEMS[text]) {
       const s = SYSTEMS[text];
-      await sendLine(userId, `🖥 ${s.name}\n\n🔗 ${s.url}`);
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(s.url)}`;
+      await sendLineMessages(userId, [
+        { type: "text", text: `🖥 ${s.name}\n\n🔗 ${s.url}` },
+        { type: "image", originalContentUrl: qrUrl, previewImageUrl: qrUrl }
+      ]);
       continue;
     }
 

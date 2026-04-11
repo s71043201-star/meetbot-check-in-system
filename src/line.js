@@ -9,6 +9,14 @@ async function sendLine(userId, message) {
   }, { headers: { Authorization: `Bearer ${TOKEN}` } });
 }
 
+async function sendLineMessages(userId, messages) {
+  if (!userId || !TOKEN || !messages.length) return;
+  await axios.post("https://api.line.me/v2/bot/message/push", {
+    to: userId,
+    messages: messages
+  }, { headers: { Authorization: `Bearer ${TOKEN}` } });
+}
+
 async function sendLineWithQuickReply(userId, message, quickItems) {
   if (!userId || !TOKEN) return;
   await axios.post("https://api.line.me/v2/bot/message/push", {
@@ -19,5 +27,6 @@ async function sendLineWithQuickReply(userId, message, quickItems) {
 
 module.exports = {
   sendLine,
+  sendLineMessages,
   sendLineWithQuickReply,
 };
