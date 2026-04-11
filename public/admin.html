@@ -16,6 +16,7 @@
   <button class="tab-btn active">出勤紀錄</button>
   <button class="tab-btn">領據管理</button>
   <button class="tab-btn">使用者管理</button>
+  <button class="tab-btn">自訂領據匯出</button>
 </div>
 
 <!-- ═══════════════════════════════════════════════ -->
@@ -165,6 +166,69 @@
       </thead>
       <tbody id="user-tbody"></tbody>
     </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- Tab 4: 臨時人員費領取單 -->
+<!-- ═══════════════════════════════════════════════ -->
+<div id="tab-custom-export" class="tab-content">
+
+  <div class="card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 16px 0;font-size:16px;">臨時人員費領取單</h3>
+    <p style="color:#6b7280;font-size:13px;margin-bottom:16px;">勾選臨時人員，填寫事由、日期、金額，匯出為 Word 領取單</p>
+
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+      <div style="flex:1;min-width:300px;">
+        <label class="q-label">事由</label>
+        <input type="text" id="custom-reason" placeholder="例：協助「台北市醫師公會 健康台灣深耕計畫」處方兌換日活動跟課及場佈支援" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+      <div>
+        <label class="q-label">日期（民國年/月/日）</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="number" id="custom-year" placeholder="115" style="width:70px;padding:8px;border:1px solid #d1d5db;border-radius:6px;"> 年
+          <input type="number" id="custom-month" placeholder="04" min="1" max="12" style="width:60px;padding:8px;border:1px solid #d1d5db;border-radius:6px;"> 月
+          <input type="number" id="custom-day" placeholder="11" min="1" max="31" style="width:60px;padding:8px;border:1px solid #d1d5db;border-radius:6px;"> 日
+        </div>
+      </div>
+      <div>
+        <label class="q-label">統一金額</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="number" id="custom-amount" placeholder="1500" style="width:140px;padding:8px;border:1px solid #d1d5db;border-radius:6px;"> 元
+          <button class="btn btn-primary" id="btn-apply-amount" style="height:38px;">套用到所有勾選</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="custom-select-all"> <strong>全選</strong>
+        </label>
+        <span style="color:#6b7280;font-size:13px;" id="custom-selected-count">已選 0 人</span>
+      </div>
+      <button class="btn btn-success" id="btn-custom-export" style="font-weight:600;">匯出領取單 Word</button>
+      <button class="btn btn-primary" id="btn-custom-export-attendance" style="font-weight:600;">匯出工作說明及簽到簿 Word</button>
+    </div>
+
+    <div class="table-wrap">
+      <table id="custom-export-table">
+        <thead>
+          <tr>
+            <th style="width:40px;">勾選</th>
+            <th>姓名</th>
+            <th>職務</th>
+            <th style="width:140px;">個別金額</th>
+          </tr>
+        </thead>
+        <tbody id="custom-export-tbody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
