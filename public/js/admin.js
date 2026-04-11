@@ -745,24 +745,35 @@
     var TC = B1 + P1 + 'text-align:center;vertical-align:middle;';
     var TL = B1 + P1 + 'vertical-align:middle;';
 
-    var rows = selected.map(function (p) {
+    // Build person rows - reason spans all rows as one merged cell
+    var totalRows = selected.length;
+    var emptyCount = Math.max(0, 10 - totalRows);
+    var allRows = totalRows + emptyCount;
+
+    var rows = selected.map(function (p, idx) {
       var amountStr = p.amount.toLocaleString() + " \u5143";
+      var reasonCell = '';
+      if (idx === 0) {
+        reasonCell = '<td style="' + TL + 'font-size:11pt;" rowspan="' + allRows + '">' + escapeHtml(reason) + '</td>';
+      }
       return '<tr style="height:60pt;">' +
         '<td style="' + TC + '">\u81E8\u6642\u4EBA\u54E1</td>' +
         '<td style="' + TC + '">' + escapeHtml(p.name) + '</td>' +
-        '<td style="' + TL + 'font-size:11pt;">' + escapeHtml(reason) + '</td>' +
+        reasonCell +
         '<td style="' + TC + '">' + amountStr + '</td>' +
         '<td style="' + TC + '"> </td>' +
       '</tr>';
     }).join("");
 
-    // Empty rows to fill to ~10 rows
-    var emptyCount = Math.max(0, 10 - selected.length);
     for (var i = 0; i < emptyCount; i++) {
+      var reasonCell2 = '';
+      if (totalRows === 0 && i === 0) {
+        reasonCell2 = '<td style="' + TL + '" rowspan="' + allRows + '"> </td>';
+      }
       rows += '<tr style="height:24pt;">' +
         '<td style="' + TC + '"> </td>' +
         '<td style="' + TC + '"> </td>' +
-        '<td style="' + TL + '"> </td>' +
+        reasonCell2 +
         '<td style="' + TC + '"> </td>' +
         '<td style="' + TC + '"> </td>' +
       '</tr>';
@@ -778,7 +789,7 @@
       'table { border-collapse:collapse; }' +
       '</style></head><body><div class="Section1">' +
       '<p align="center" style="' + F + 'font-size:18pt;font-weight:bold;margin:0 0 4pt 0;">\u53F0\u5317\u5E02\u91AB\u5E2B\u516C\u6703</p>' +
-      '<p align="center" style="' + F + 'font-size:13pt;font-weight:bold;margin:0 0 4pt 0;">\u5065\u5EB7\u53F0\u7063\u6DF1\u8015\u8A08\u756B\u3000\u81FA\u5317\u5E02\u6162\u6027\u75C5\u9632\u6CBB\u5168\u4EBA\u5065\u5EB7\u667A\u6167\u6574\u5408\u7167\u8B77\u8A08\u756B</p>' +
+      '<p align="center" style="' + F + 'font-size:13pt;font-weight:bold;margin:0 0 4pt 0;">\u5065\u5EB7\u53F0\u7063\u6DF1\u8015\u8A08\u756B \u81FA\u5317\u5E02\u6162\u6027\u75C5\u9632\u6CBB\u5168\u4EBA\u5065\u5EB7\u667A\u6167\u6574\u5408\u7167\u8B77\u8A08\u756B</p>' +
       '<p align="center" style="' + F + 'font-size:16pt;font-weight:bold;margin:0 0 8pt 0;">\u81E8\u6642\u4EBA\u54E1\u8CBB\u7533\u8ACB\u55AE</p>' +
       '<p align="right" style="' + F + 'font-size:12pt;margin:0 0 4pt 0;">' + dateStr + '</p>' +
       '<table border="1" cellpadding="4" cellspacing="0" width="100%" style="border-collapse:collapse;' + F + 'font-size:11pt;">' +
@@ -791,29 +802,29 @@
       '</tr>' +
       rows +
       '<tr style="height:24pt;">' +
-        '<td style="' + TC + 'font-weight:bold;" colspan="2">\u5408\u3000\u3000\u3000\u3000\u3000\u3000\u8A08</td>' +
-        '<td style="' + TL + '"> </td>' +
+        '<td style="' + TC + 'font-weight:bold;" colspan="3">\u5408\u3000\u3000\u3000\u3000\u3000\u3000\u8A08</td>' +
         '<td style="' + TC + '">' + totalAmount.toLocaleString() + ' \u5143</td>' +
         '<td style="' + TC + '"> </td>' +
       '</tr>' +
       '</table>' +
       '<br/>' +
-      '<table border="0" cellpadding="2" cellspacing="0" width="100%" style="' + F + 'font-size:10pt;">' +
-      '<tr style="height:14pt;">' +
-        '<td width="10%" align="center">\u6C7A\u884C</td>' +
-        '<td width="10%" align="center">\u7406\u4E8B\u9577</td>' +
-        '<td width="6%" align="center"> </td>' +
-        '<td width="12%" align="center">\u8A08\u756B\u4E3B\u6301\u4EBA</td>' +
-        '<td width="12%" align="center">\u516C\u6703\u57F7\u884C\u9577</td>' +
-        '<td width="10%" align="center">\u7E3D\u5E79\u4E8B</td>' +
-        '<td width="12%" align="center">\u8A08\u756B\u57F7\u884C\u9577</td>' +
-        '<td width="8%" align="center">\u7D44\u9577</td>' +
-        '<td width="8%" align="center">\u51FA\u7D0D</td>' +
-        '<td width="12%" align="center">\u627F\u8FA6\u4EBA</td>' +
+      '<table border="1" cellpadding="4" cellspacing="0" width="100%" style="border-collapse:collapse;' + F + 'font-size:11pt;">' +
+      '<tr>' +
+        '<td style="' + TL + '" colspan="7">\u6C7A\u884C</td>' +
+      '</tr>' +
+      '<tr>' +
+        '<td style="' + TC + '">\u7406\u4E8B\u9577\uFF0D\u8A08\u756B\u4E3B\u6301\u4EBA</td>' +
+        '<td style="' + TC + '">\u516C\u6703\u57F7\u884C\u9577</td>' +
+        '<td style="' + TC + '">\u7E3D\u5E79\u4E8B</td>' +
+        '<td style="' + TC + '">\u8A08\u756B\u57F7\u884C\u9577</td>' +
+        '<td style="' + TC + '">\u7D44\u9577</td>' +
+        '<td style="' + TC + '">\u51FA\u7D0D</td>' +
+        '<td style="' + TC + '">\u627F\u8FA6\u4EBA</td>' +
       '</tr>' +
       '<tr style="height:50pt;">' +
-        '<td> </td><td> </td><td> </td><td> </td><td> </td>' +
-        '<td> </td><td> </td><td> </td><td> </td><td> </td>' +
+        '<td style="' + TC + '"> </td><td style="' + TC + '"> </td><td style="' + TC + '"> </td>' +
+        '<td style="' + TC + '"> </td><td style="' + TC + '"> </td><td style="' + TC + '"> </td>' +
+        '<td style="' + TC + '"> </td>' +
       '</tr>' +
       '</table>' +
       '</div></body></html>';
