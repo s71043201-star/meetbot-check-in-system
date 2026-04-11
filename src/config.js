@@ -1,6 +1,6 @@
 const TOKEN = process.env.LINE_TOKEN;
 
-const TEAM = ["黃琴茹","蔡蕙芳","吳承儒","張鈺微","吳亞璇","許雅淇","戴豐逸","陳佩研"];
+const TEAM = ["黃琴茹","蔡蕙芳","吳承儒","張鈺微","吳亞璇","許雅淇","戴豐逸","陳佩研","彭琪雅"];
 
 const MEMBERS = {
   "黃琴茹": "U858b6b722d9a01e1a927d07f8ffc65ed",
@@ -11,6 +11,7 @@ const MEMBERS = {
   "許雅淇": "U87efc2433f2ab838929cbfbdb2851748",
   "戴豐逸": "Uece4baaf97cfab39ad79c6ed0ee55d03",
   "陳佩研": "Uc8e074d50b3b20581945f5c6aca80d1d",
+  "彭琪雅": "Ua4cad749d974d509766b430de960a927",
 };
 
 const ID_TO_NAME = Object.fromEntries(Object.entries(MEMBERS).map(([k, v]) => [v, k]));
