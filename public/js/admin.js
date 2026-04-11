@@ -6,6 +6,8 @@
 
   var ALL_FEE_TYPES = ["\u7A3F\u8CBB", "\u5BE9\u67E5\u8CBB", "\u8B1B\u5EA7\u9418\u9EDE\u8CBB", "\u81E8\u6642\u4EBA\u54E1\u8CBB", "\u51FA\u5E2D\u8CBB", "\u4EA4\u901A\u5DEE\u65C5\u8CBB", "\u5176\u4ED6"];
   var cachedRecords = [];
+  var cachedReceiptUsers = [];
+  var cachedReceiptRecords = [];
   var confirmingDelete = false;
   var refreshTimer = null;
 
@@ -140,6 +142,10 @@
       var resUsers = await fetch("/users");
       var users = await resUsers.json();
 
+      // Cache for receipt editing
+      cachedReceiptUsers = users;
+      cachedReceiptRecords = records;
+
       // Build user lookup by name
       var userByName = {};
       users.forEach(function (u) { if (u.name) userByName[u.name] = u; });
@@ -205,12 +211,18 @@
         if (year)  qp.set("year", year);
         if (month) qp.set("month", month);
 
-        return '<div class="receipt-card">' +
+        var userId = regUser ? regUser.id : "";
+        var recIds = recs.map(function (r) { return r.id || ""; }).filter(Boolean).join(",");
+
+        return '<div class="receipt-card" data-name="' + escapeHtml(personName) + '" data-user-id="' + userId + '" data-rec-ids="' + recIds + '">' +
           '<div class="receipt-card-header">' +
             '<h3>' + escapeHtml(personName) + '\uFF08\u5171 ' + recs.length + ' \u7B46\uFF0C' + (Math.round(totalHours * 10) / 10) + ' \u5C0F\u6642\uFF09</h3>' +
-            '<button class="btn btn-sm" style="background:#fff;color:#2563eb;font-weight:600;" data-action="export-receipt" data-params="' + escapeHtml(qp.toString()) + '">' +
-              '\u532F\u51FA\u9818\u64DA Word' +
-            '</button>' +
+            '<div style="display:flex;gap:8px;">' +
+              '<button class="btn btn-sm btn-receipt-edit" style="background:#fff;color:#f59e0b;font-weight:600;border:1px solid #f59e0b;">✏️ \u7DE8\u8F2F</button>' +
+              '<button class="btn btn-sm" style="background:#fff;color:#2563eb;font-weight:600;" data-action="export-receipt" data-params="' + escapeHtml(qp.toString()) + '">' +
+                '\u532F\u51FA\u9818\u64DA Word' +
+              '</button>' +
+            '</div>' +
           '</div>' +
           '<div class="receipt-card-body">' +
             '<div class="receipt-title">\u793E\u5718\u6CD5\u4EBA\u53F0\u5317\u5E02\u91AB\u5E2B\u516C\u6703 \u00B7 \u9818\u64DA\uFF08\u5065\u5EB7\u53F0\u7063\u6DF1\u8015\u8A08\u756B\uFF09</div>' +
@@ -235,6 +247,130 @@
     } catch (e) {
       document.getElementById("receipt-list").innerHTML =
         '<div style="color:red;text-align:center;padding:20px;background:var(--color-surface);border-radius:var(--radius-lg);border:1px solid var(--color-border);">\u8F09\u5165\u5931\u6557\uFF1A' + escapeHtml(e.message) + '</div>';
+    }
+  }
+
+  // ── Receipt Edit ──
+  function startReceiptEdit(card) {
+    var personName = card.dataset.name;
+    var userId = card.dataset.userId;
+    var recIds = card.dataset.recIds;
+
+    // Find current data
+    var regUser = cachedReceiptUsers.find(function (u) { return u.name === personName; }) || {};
+    var recs = cachedReceiptRecords.filter(function (r) { return r.name === personName; });
+    var latest = recs.find(function (r) { return r.idNumber; }) || recs[0] || {};
+
+    // Merge
+    var data = {
+      eventName: regUser.eventName || latest.eventName || "",
+      workDescription: regUser.workDescription || latest.workDescription || "",
+      idNumber: regUser.idNumber || latest.idNumber || "",
+      feeTypes: regUser.feeTypes || latest.feeTypes || [],
+      payMethod: regUser.payMethod || latest.payMethod || "",
+      bankName: (regUser.bankInfo || latest.bankInfo || {}).bankName || "",
+      bankAccountName: (regUser.bankInfo || latest.bankInfo || {}).accountName || "",
+      bankAccount: (regUser.bankInfo || latest.bankInfo || {}).account || "",
+      address: regUser.address || latest.address || "",
+      liveAddress: regUser.liveAddress || latest.liveAddress || "",
+      phone: regUser.phone || latest.phone || ""
+    };
+
+    var feeCheckboxes = ALL_FEE_TYPES.map(function (ft) {
+      var checked = Array.isArray(data.feeTypes) && data.feeTypes.includes(ft) ? "checked" : "";
+      return '<label style="display:inline-flex;align-items:center;gap:4px;margin:4px 8px 4px 0;font-size:13px;"><input type="checkbox" class="edit-fee-type" value="' + escapeHtml(ft) + '" ' + checked + '> ' + escapeHtml(ft) + '</label>';
+    }).join("");
+
+    var body = card.querySelector(".receipt-card-body");
+    body.innerHTML =
+      '<table class="receipt-table">' +
+        '<tr><th>\u9818\u6B3E\u4EBA\u59D3\u540D</th><td>' + escapeHtml(personName) + '</td>' +
+            '<th>\u4E8B\u7531\u6216\u6703\u8B70\u540D\u7A31</th><td><input type="text" class="edit-eventName" value="' + escapeHtml(data.eventName) + '" style="width:100%;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;"></td></tr>' +
+        '<tr><th>\u5DE5\u4F5C\u5167\u5BB9</th><td colspan="3"><input type="text" class="edit-workDescription" value="' + escapeHtml(data.workDescription) + '" style="width:100%;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;"></td></tr>' +
+        '<tr><th>\u8CBB\u7528\u5225</th><td colspan="3">' + feeCheckboxes + '</td></tr>' +
+        '<tr><th>\u9818\u6B3E\u65B9\u5F0F</th><td colspan="3">' +
+          '<label style="margin-right:16px;"><input type="radio" name="edit-payMethod" value="\u73FE\u91D1"' + (data.payMethod === "\u73FE\u91D1" ? " checked" : "") + '> \u73FE\u91D1</label>' +
+          '<label><input type="radio" name="edit-payMethod" value="\u532F\u6B3E"' + (data.payMethod === "\u532F\u6B3E" ? " checked" : "") + '> \u532F\u6B3E</label>' +
+          '<div class="edit-bank-fields" style="margin-top:8px;' + (data.payMethod !== "\u532F\u6B3E" ? "display:none;" : "") + '">' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+              '<input type="text" class="edit-bankName" placeholder="\u53D7\u6B3E\u9280\u884C" value="' + escapeHtml(data.bankName) + '" style="flex:1;min-width:120px;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;">' +
+              '<input type="text" class="edit-bankAccountName" placeholder="\u6236\u540D" value="' + escapeHtml(data.bankAccountName) + '" style="flex:1;min-width:100px;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;">' +
+              '<input type="text" class="edit-bankAccount" placeholder="\u5E33\u865F" value="' + escapeHtml(data.bankAccount) + '" style="flex:1;min-width:140px;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;">' +
+            '</div>' +
+          '</div>' +
+        '</td></tr>' +
+        '<tr><th>\u8EAB\u5206\u8B49\u865F\u78BC</th><td colspan="3"><input type="text" class="edit-idNumber" value="' + escapeHtml(data.idNumber) + '" maxlength="10" style="width:200px;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;letter-spacing:2px;font-family:monospace;"></td></tr>' +
+        '<tr><th>\u6236\u7C4D\u5730\u5740</th><td colspan="3"><input type="text" class="edit-address" value="' + escapeHtml(data.address) + '" style="width:100%;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;"></td></tr>' +
+        '<tr><th>\u5C45\u4F4F\u5730\u5740</th><td colspan="3"><input type="text" class="edit-liveAddress" value="' + escapeHtml(data.liveAddress) + '" style="width:100%;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;"></td></tr>' +
+        '<tr><th>\u9023\u7D61\u96FB\u8A71</th><td colspan="3"><input type="text" class="edit-phone" value="' + escapeHtml(data.phone) + '" style="width:200px;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;"></td></tr>' +
+      '</table>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">' +
+        '<button class="btn btn-sm btn-receipt-cancel" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;">\u53D6\u6D88</button>' +
+        '<button class="btn btn-sm btn-receipt-save" style="background:#10b981;color:#fff;font-weight:600;">\u5132\u5B58</button>' +
+      '</div>';
+
+    // Toggle bank fields on pay method change
+    body.querySelectorAll('input[name="edit-payMethod"]').forEach(function (radio) {
+      radio.addEventListener("change", function () {
+        body.querySelector(".edit-bank-fields").style.display = this.value === "\u532F\u6B3E" ? "" : "none";
+      });
+    });
+  }
+
+  async function saveReceiptEdit(card) {
+    var personName = card.dataset.name;
+    var userId = card.dataset.userId;
+    var recIds = (card.dataset.recIds || "").split(",").filter(Boolean);
+    var body = card.querySelector(".receipt-card-body");
+
+    var eventName = body.querySelector(".edit-eventName").value.trim();
+    var workDescription = body.querySelector(".edit-workDescription").value.trim();
+    var idNumber = body.querySelector(".edit-idNumber").value.trim().toUpperCase();
+    var feeTypes = [].slice.call(body.querySelectorAll(".edit-fee-type:checked")).map(function (cb) { return cb.value; });
+    var payMethodEl = body.querySelector('input[name="edit-payMethod"]:checked');
+    var payMethod = payMethodEl ? payMethodEl.value : "";
+    var bankInfo = null;
+    if (payMethod === "\u532F\u6B3E") {
+      bankInfo = {
+        bankName: body.querySelector(".edit-bankName").value.trim(),
+        accountName: body.querySelector(".edit-bankAccountName").value.trim(),
+        account: body.querySelector(".edit-bankAccount").value.trim()
+      };
+    }
+    var address = body.querySelector(".edit-address").value.trim();
+    var liveAddress = body.querySelector(".edit-liveAddress").value.trim();
+    var phone = body.querySelector(".edit-phone").value.trim();
+
+    var updatedData = {
+      eventName: eventName, workDescription: workDescription,
+      idNumber: idNumber, feeTypes: feeTypes,
+      payMethod: payMethod, bankInfo: bankInfo,
+      address: address, liveAddress: liveAddress, phone: phone
+    };
+
+    try {
+      // Update user record if exists
+      if (userId) {
+        await fetch("/users/" + userId, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedData)
+        });
+      }
+
+      // Update all related attendance records
+      for (var i = 0; i < recIds.length; i++) {
+        await fetch("/records/" + recIds[i], {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedData)
+        });
+      }
+
+      showToast("\u5DF2\u5132\u5B58 " + personName + " \u7684\u9818\u64DA\u8CC7\u6599", "success");
+      loadReceipts();
+    } catch (e) {
+      showToast("\u5132\u5B58\u5931\u6557\uFF1A" + e.message, "error");
     }
   }
 
@@ -555,8 +691,28 @@
     var exportAllBtn = document.getElementById("btn-export-all-receipts");
     if (exportAllBtn) exportAllBtn.addEventListener("click", exportAllReceipts);
 
-    // Delegated click for export-receipt buttons inside receipt cards
+    // Delegated click for receipt card actions (edit, save, cancel, export)
     document.addEventListener("click", function (e) {
+      var editBtn = e.target.closest(".btn-receipt-edit");
+      if (editBtn) {
+        var card = editBtn.closest(".receipt-card");
+        startReceiptEdit(card);
+        return;
+      }
+
+      var saveBtn = e.target.closest(".btn-receipt-save");
+      if (saveBtn) {
+        var card = saveBtn.closest(".receipt-card");
+        saveReceiptEdit(card);
+        return;
+      }
+
+      var cancelBtn = e.target.closest(".btn-receipt-cancel");
+      if (cancelBtn) {
+        loadReceipts();
+        return;
+      }
+
       var target = e.target.closest('[data-action="export-receipt"]');
       if (target) {
         window.location.href = "/export-full?" + target.getAttribute("data-params");
