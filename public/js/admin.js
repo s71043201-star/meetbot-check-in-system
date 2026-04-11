@@ -735,82 +735,85 @@
 
     if (selected.length === 0) { showToast("\u8ACB\u52FE\u9078\u4EBA\u54E1\u4E26\u586B\u5BEB\u91D1\u984D", "warning"); return; }
 
-    // Build the Word HTML
     var dateStr = year + "\u5E74" + month.padStart(2, "0") + "\u6708" + day.padStart(2, "0") + "\u65E5";
     var totalAmount = selected.reduce(function (s, p) { return s + p.amount; }, 0);
 
-    var bd = 'border:1px solid #000;';
-    var pd = 'padding:6px 8px;font-size:12pt;vertical-align:middle;';
-    var S = 'style="' + bd + pd + '"';
-    var SC = 'style="' + bd + pd + 'text-align:center;"';
+    // Word XML styles
+    var F = 'font-family:DFKai-SB,\u6A19\u6977\u9AD4;';
+    var B1 = 'border:1px solid #000;';
+    var P1 = 'padding:4px 6px;font-size:11pt;' + F;
+    var TC = B1 + P1 + 'text-align:center;vertical-align:middle;';
+    var TL = B1 + P1 + 'vertical-align:middle;';
 
     var rows = selected.map(function (p) {
-      var amountStr = p.amount.toLocaleString() + "\u5143";
-      return '<tr height="36">' +
-        '<td ' + SC + '>\u81E8\u6642\u4EBA\u54E1</td>' +
-        '<td ' + SC + '>' + escapeHtml(p.name) + '</td>' +
-        '<td ' + S + '>' + year + "\u5E74" + month + "\u6708" + day + "\u65E5" + escapeHtml(reason) + '</td>' +
-        '<td ' + SC + '>' + amountStr + '</td>' +
-        '<td ' + SC + '>&nbsp;</td>' +
-        '</tr>';
+      var amountStr = p.amount.toLocaleString() + " \u5143";
+      return '<tr style="height:60pt;">' +
+        '<td style="' + TC + '">\u81E8\u6642\u4EBA\u54E1</td>' +
+        '<td style="' + TC + '">' + escapeHtml(p.name) + '</td>' +
+        '<td style="' + TL + 'font-size:11pt;">' + escapeHtml(reason) + '</td>' +
+        '<td style="' + TC + '">' + amountStr + '</td>' +
+        '<td style="' + TC + '"> </td>' +
+      '</tr>';
     }).join("");
 
     // Empty rows to fill to ~10 rows
     var emptyCount = Math.max(0, 10 - selected.length);
     for (var i = 0; i < emptyCount; i++) {
-      rows += '<tr height="36">' +
-        '<td ' + SC + '>&nbsp;</td>' +
-        '<td ' + SC + '>&nbsp;</td>' +
-        '<td ' + S + '>&nbsp;</td>' +
-        '<td ' + SC + '>&nbsp;</td>' +
-        '<td ' + SC + '>&nbsp;</td>' +
-        '</tr>';
+      rows += '<tr style="height:24pt;">' +
+        '<td style="' + TC + '"> </td>' +
+        '<td style="' + TC + '"> </td>' +
+        '<td style="' + TL + '"> </td>' +
+        '<td style="' + TC + '"> </td>' +
+        '<td style="' + TC + '"> </td>' +
+      '</tr>';
     }
 
     var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
       '<head><meta charset="UTF-8">' +
       '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->' +
       '<style>' +
-      '@page { size: A4; margin: 1.5cm 1.5cm 1.5cm 1.5cm; }' +
-      'body { font-family: "DFKai-SB","\\6A19\\6977\\9AD4","Microsoft JhengHei",sans-serif; margin:0; }' +
+      '@page Section1 { size:A4; margin:2cm 2cm 2cm 2cm; }' +
+      'body { ' + F + ' font-size:12pt; margin:0; }' +
       'div.Section1 { page:Section1; }' +
+      'table { border-collapse:collapse; }' +
       '</style></head><body><div class="Section1">' +
-      '<p align="center" style="font-size:16pt;font-weight:bold;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:2px;">\u53F0\u5317\u5E02\u91AB\u5E2B\u516C\u6703</p>' +
-      '<p align="center" style="font-size:14pt;font-weight:bold;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:2px;">\u5065\u5EB7\u53F0\u7063\u6DF1\u8015\u8A08\u756B\u3000\u81FA\u5317\u5E02\u6162\u6027\u75C5\u9632\u6CBB\u5168\u4EBA\u5065\u5EB7\u667A\u6167\u6574\u5408\u7167\u8B77\u8A08\u756B</p>' +
-      '<p align="center" style="font-size:15pt;font-weight:bold;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:8px;">\u81E8\u6642\u4EBA\u54E1\u8CBB\u7533\u8ACB\u55AE</p>' +
-      '<p align="right" style="font-size:12pt;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:6px;">&nbsp;&nbsp;&nbsp;' + year + '\u5E74' + month.padStart(2, '0') + '\u6708' + day.padStart(2, '0') + '\u65E5</p>' +
-      '<table border="1" cellpadding="5" cellspacing="0" width="100%" style="border-collapse:collapse;font-family:DFKai-SB,\\6A19\\6977\\9AD4;font-size:12pt;">' +
-      '<tr style="background:#f0f0f0;">' +
-        '<th ' + SC + ' width="12%">\u8077\u3000\u52D9</th>' +
-        '<th ' + SC + ' width="12%">\u59D3\u3000\u540D</th>' +
-        '<th ' + SC + '>\u4E8B\u3000\u3000\u3000\u3000\u3000\u3000\u7531</th>' +
-        '<th ' + SC + ' width="12%">\u91D1\u3000\u984D</th>' +
-        '<th ' + SC + ' width="12%">\u7C3D\u3000\u7AE0</th>' +
+      '<p align="center" style="' + F + 'font-size:18pt;font-weight:bold;margin:0 0 4pt 0;">\u53F0\u5317\u5E02\u91AB\u5E2B\u516C\u6703</p>' +
+      '<p align="center" style="' + F + 'font-size:13pt;font-weight:bold;margin:0 0 4pt 0;">\u5065\u5EB7\u53F0\u7063\u6DF1\u8015\u8A08\u756B\u3000\u81FA\u5317\u5E02\u6162\u6027\u75C5\u9632\u6CBB\u5168\u4EBA\u5065\u5EB7\u667A\u6167\u6574\u5408\u7167\u8B77\u8A08\u756B</p>' +
+      '<p align="center" style="' + F + 'font-size:16pt;font-weight:bold;margin:0 0 8pt 0;">\u81E8\u6642\u4EBA\u54E1\u8CBB\u7533\u8ACB\u55AE</p>' +
+      '<p align="right" style="' + F + 'font-size:12pt;margin:0 0 4pt 0;">' + dateStr + '</p>' +
+      '<table border="1" cellpadding="4" cellspacing="0" width="100%" style="border-collapse:collapse;' + F + 'font-size:11pt;">' +
+      '<tr>' +
+        '<td style="' + TC + 'font-weight:bold;" width="10%">\u8077\u3000\u52D9</td>' +
+        '<td style="' + TC + 'font-weight:bold;" width="8%">\u59D3\u540D</td>' +
+        '<td style="' + TC + 'font-weight:bold;">\u4E8B\u3000\u3000\u3000\u3000\u3000\u3000\u7531</td>' +
+        '<td style="' + TC + 'font-weight:bold;" width="10%">\u91D1\u3000\u984D</td>' +
+        '<td style="' + TC + 'font-weight:bold;" width="8%">\u7C3D\u3000\u7AE0</td>' +
       '</tr>' +
       rows +
-      '<tr height="36">' +
-        '<td ' + SC + ' colspan="2">\u5408\u3000\u3000\u3000\u3000\u3000\u3000\u8A08</td>' +
-        '<td ' + S + '>&nbsp;</td>' +
-        '<td ' + SC + '>' + totalAmount.toLocaleString() + '\u5143</td>' +
-        '<td ' + SC + '>&nbsp;</td>' +
+      '<tr style="height:24pt;">' +
+        '<td style="' + TC + 'font-weight:bold;" colspan="2">\u5408\u3000\u3000\u3000\u3000\u3000\u3000\u8A08</td>' +
+        '<td style="' + TL + '"> </td>' +
+        '<td style="' + TC + '">' + totalAmount.toLocaleString() + ' \u5143</td>' +
+        '<td style="' + TC + '"> </td>' +
       '</tr>' +
       '</table>' +
-      '<table border="0" cellpadding="4" cellspacing="0" width="100%" style="font-family:DFKai-SB,\\6A19\\6977\\9AD4;font-size:11pt;margin-top:12px;">' +
-      '<tr>' +
-        '<td width="11%" align="center">\u6C7A\u884C</td>' +
-        '<td width="11%" align="center">\u7406\u4E8B\u9577</td>' +
-        '<td width="11%" align="center">-</td>' +
+      '<br/>' +
+      '<table border="0" cellpadding="2" cellspacing="0" width="100%" style="' + F + 'font-size:10pt;">' +
+      '<tr style="height:14pt;">' +
+        '<td width="10%" align="center">\u6C7A\u884C</td>' +
+        '<td width="10%" align="center">\u7406\u4E8B\u9577</td>' +
+        '<td width="6%" align="center"> </td>' +
         '<td width="12%" align="center">\u8A08\u756B\u4E3B\u6301\u4EBA</td>' +
-        '<td width="11%" align="center">\u516C\u6703\u57F7\u884C\u9577</td>' +
-        '<td width="11%" align="center">\u7E3D\u5E79\u4E8B</td>' +
-        '<td width="11%" align="center">\u8A08\u756B\u57F7\u884C\u9577</td>' +
-        '<td width="11%" align="center">\u7D44\u9577</td>' +
-        '<td width="11%" align="center">\u51FA\u7D0D</td>' +
-        '<td width="11%" align="center">\u627F\u8FA6\u4EBA</td>' +
+        '<td width="12%" align="center">\u516C\u6703\u57F7\u884C\u9577</td>' +
+        '<td width="10%" align="center">\u7E3D\u5E79\u4E8B</td>' +
+        '<td width="12%" align="center">\u8A08\u756B\u57F7\u884C\u9577</td>' +
+        '<td width="8%" align="center">\u7D44\u9577</td>' +
+        '<td width="8%" align="center">\u51FA\u7D0D</td>' +
+        '<td width="12%" align="center">\u627F\u8FA6\u4EBA</td>' +
       '</tr>' +
-      '<tr height="40">' +
-        '<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>' +
-        '<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>' +
+      '<tr style="height:50pt;">' +
+        '<td> </td><td> </td><td> </td><td> </td><td> </td>' +
+        '<td> </td><td> </td><td> </td><td> </td><td> </td>' +
       '</tr>' +
       '</table>' +
       '</div></body></html>';
@@ -820,12 +823,12 @@
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
     a.href = url;
-    a.download = "\u81E8\u6642\u4EBA\u54E1\u8CBB\u9818\u53D6\u55AE_" + year + month.padStart(2, "0") + day.padStart(2, "0") + ".doc";
+    a.download = "\u81E8\u6642\u4EBA\u54E1\u8CBB\u7533\u8ACB\u55AE_" + year + month.padStart(2, "0") + day.padStart(2, "0") + ".doc";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast("\u5DF2\u532F\u51FA\u9818\u53D6\u55AE", "success");
+    showToast("\u5DF2\u532F\u51FA\u7533\u8ACB\u55AE", "success");
   }
 
   async function doCustomExportAttendance() {
@@ -855,99 +858,96 @@
     }
 
     var dateStr = year + "\u5E74" + month.padStart(2, "0") + "\u6708" + day.padStart(2, "0") + "\u65E5";
-    var shortDate = month + "/" + day;
+    var shortDate = month.padStart(2, "0") + "/" + day.padStart(2, "0");
     var iYear = parseInt(year);
     var iMonth = parseInt(month);
     var iDay = parseInt(day);
 
-    var bd = 'border:1px solid #000;';
-    var pd = 'padding:6px 8px;font-size:12pt;vertical-align:middle;';
-    var S = 'style="' + bd + pd + '"';
-    var SC = 'style="' + bd + pd + 'text-align:center;"';
-    var SB = 'style="' + bd + pd + 'font-weight:bold;text-align:center;"';
+    // Word XML styles
+    var F = 'font-family:DFKai-SB,\u6A19\u6977\u9AD4;';
+    var B1 = 'border:1px solid #000;';
+    var P1 = 'padding:4px 6px;font-size:12pt;' + F;
+    var TC = B1 + P1 + 'text-align:center;vertical-align:middle;';
+    var TL = B1 + P1 + 'vertical-align:middle;';
+    var TH = B1 + P1 + 'text-align:center;vertical-align:middle;font-weight:bold;';
 
     var pages = selected.map(function (name) {
       // Find matching records for this person on this date
       var personRecords = allRecords.filter(function (r) {
         return r.name === name && r.year === iYear && r.month === iMonth && r.day === iDay;
       });
-      // Sort by checkin time
       personRecords.sort(function (a, b) { return new Date(a.checkinTime) - new Date(b.checkinTime); });
 
       // Build attendance time rows
       var timeRows = '';
       if (personRecords.length > 0) {
         personRecords.forEach(function (rec) {
-          var checkinTimeStr = rec.checkinTime ? new Date(rec.checkinTime).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" }) : '';
-          var checkoutTimeStr = rec.checkoutTime ? new Date(rec.checkoutTime).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" }) : '';
-          var hoursStr = rec.hours != null ? rec.hours + " \u6642" : '';
-          timeRows += '<tr height="36">' +
-            '<td ' + SC + '>' + checkinTimeStr + '</td>' +
-            '<td ' + SC + '>' + escapeHtml(name) + '</td>' +
-            '<td ' + SC + '>' + checkoutTimeStr + '</td>' +
-            '<td ' + SC + '>' + escapeHtml(name) + '</td>' +
-            '<td ' + SC + '>' + hoursStr + '</td>' +
+          var ciTime = rec.checkinTime ? new Date(rec.checkinTime).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" }) : '';
+          var coTime = rec.checkoutTime ? new Date(rec.checkoutTime).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" }) : '';
+          var hrs = rec.hours != null ? rec.hours + " \u6642" : '';
+          timeRows += '<tr style="height:30pt;">' +
+            '<td style="' + TC + '">' + shortDate + '</td>' +
+            '<td style="' + TC + '">' + ciTime + '</td>' +
+            '<td style="' + TC + '">' + escapeHtml(name) + '</td>' +
+            '<td style="' + TC + '">' + coTime + '</td>' +
+            '<td style="' + TC + '">' + escapeHtml(name) + '</td>' +
+            '<td style="' + TC + '">' + hrs + '</td>' +
           '</tr>';
         });
       } else {
-        // No records found, leave blank row for manual filling
-        timeRows = '<tr height="36">' +
-          '<td ' + SC + '>&nbsp;</td>' +
-          '<td ' + SC + '>&nbsp;</td>' +
-          '<td ' + SC + '>&nbsp;</td>' +
-          '<td ' + SC + '>&nbsp;</td>' +
-          '<td ' + SC + '>&nbsp;</td>' +
+        timeRows = '<tr style="height:30pt;">' +
+          '<td style="' + TC + '">' + shortDate + '</td>' +
+          '<td style="' + TC + '"> </td>' +
+          '<td style="' + TC + '"> </td>' +
+          '<td style="' + TC + '"> </td>' +
+          '<td style="' + TC + '"> </td>' +
+          '<td style="' + TC + '"> </td>' +
         '</tr>';
       }
 
-      return '<p align="center" style="font-size:14pt;font-weight:bold;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:2px;">\u53F0\u5317\u5E02\u91AB\u5E2B\u516C\u6703 \u5065\u5EB7\u53F0\u7063\u6DF1\u8015\u8A08\u756B</p>' +
-        '<p align="center" style="font-size:13pt;font-weight:bold;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:2px;">\u81FA\u5317\u5E02\u6162\u6027\u75C5\u9632\u6CBB\u5168\u4EBA\u5065\u5EB7\u667A\u6167\u6574\u5408\u7167\u8B77\u8A08\u756B</p>' +
-        '<p align="center" style="font-size:15pt;font-weight:bold;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:8px;">\u81E8\u6642\u4EBA\u54E1\u51FA\u52E4\u8A18\u9304\u8207\u5DE5\u4F5C\u5167\u5BB9\u8AAA\u660E</p>' +
-        '<table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;font-family:DFKai-SB,\\6A19\\6977\\9AD4;font-size:12pt;">' +
+      return '<p align="center" style="' + F + 'font-size:16pt;font-weight:bold;margin:0 0 6pt 0;">\u53F0\u5317\u5E02\u91AB\u5E2B\u516C\u6703\u3000\u5065\u5EB7\u53F0\u7063\u6DF1\u8015\u8A08\u756B</p>' +
+        '<p align="center" style="' + F + 'font-size:14pt;font-weight:bold;margin:0 0 6pt 0;">\u81FA\u5317\u5E02\u6162\u6027\u75C5\u9632\u6CBB\u5168\u4EBA\u5065\u5EB7\u667A\u6167\u6574\u5408\u7167\u8B77\u8A08\u756B</p>' +
+        '<p align="center" style="' + F + 'font-size:18pt;font-weight:bold;margin:0 0 10pt 0;">\u81E8\u6642\u4EBA\u54E1\u51FA\u52E4\u8A18\u9304\u8207\u5DE5\u4F5C\u5167\u5BB9\u8AAA\u660E</p>' +
+        '<table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;' + F + 'font-size:12pt;margin-bottom:6pt;">' +
         '<tr>' +
-          '<td ' + SB + ' width="20%">\u59D3\u3000\u3000\u540D</td>' +
-          '<td ' + SB + '>\u6D3B\u52D5\u540D\u7A31 / \u5DE5\u4F5C\u5167\u5BB9</td>' +
+          '<td style="' + TH + '" width="20%">\u59D3\u3000\u3000\u540D</td>' +
+          '<td style="' + TH + '">\u6D3B\u52D5\u540D\u7A31 / \u5DE5\u4F5C\u5167\u5BB9</td>' +
+        '</tr>' +
+        '<tr style="height:30pt;">' +
+          '<td style="' + TC + '">' + escapeHtml(name) + '</td>' +
+          '<td style="' + TL + '">' + dateStr + '\u8655\u65B9\u5151\u63DB\u65E5\u81E8\u6642\u4EBA\u54E1</td>' +
         '</tr>' +
         '<tr>' +
-          '<td ' + SC + '>' + escapeHtml(name) + '</td>' +
-          '<td ' + S + '>' + dateStr + '\u8655\u65B9\u5151\u63DB\u65E5\u81E8\u6642\u4EBA\u54E1</td>' +
+          '<td style="' + TL + '" colspan="2">' + escapeHtml(reason) + '</td>' +
+        '</tr>' +
+        '</table>' +
+        '<table border="1" cellpadding="4" cellspacing="0" width="100%" style="border-collapse:collapse;' + F + 'font-size:12pt;">' +
+        '<tr>' +
+          '<td style="' + TH + '" rowspan="2" width="12%">\u65E5\u671F</td>' +
+          '<td style="' + TH + '" colspan="2">\u4E0A\u73ED\u7C3D\u5230</td>' +
+          '<td style="' + TH + '" colspan="2">\u4E0B\u73ED\u7C3D\u9000</td>' +
+          '<td style="' + TH + '" rowspan="2" width="12%">\u5DE5\u4F5C\u6642\u6578</td>' +
         '</tr>' +
         '<tr>' +
-          '<td ' + S + ' colspan="2">' + escapeHtml(reason) + '</td>' +
+          '<td style="' + TH + '" width="12%">\u6642\u9593</td>' +
+          '<td style="' + TH + '" width="20%">\u59D3\u540D</td>' +
+          '<td style="' + TH + '" width="12%">\u6642\u9593</td>' +
+          '<td style="' + TH + '" width="20%">\u59D3\u540D</td>' +
         '</tr>' +
-        '<tr>' +
-          '<td ' + SB + '>\u65E5\u671F</td>' +
-          '<td ' + S + '>' +
-            '<table border="1" cellpadding="4" cellspacing="0" width="100%" style="border-collapse:collapse;font-size:12pt;">' +
-              '<tr>' +
-                '<td ' + SB + ' colspan="2">\u4E0A\u73ED\u7C3D\u5230</td>' +
-                '<td ' + SB + ' colspan="2">\u4E0B\u73ED\u7C3D\u9000</td>' +
-                '<td ' + SB + ' width="15%">\u5DE5\u4F5C\u6642\u6578</td>' +
-              '</tr>' +
-              '<tr height="36">' +
-                '<td ' + SC + ' width="15%">\u6642\u9593</td>' +
-                '<td ' + SC + ' width="20%">\u59D3\u540D</td>' +
-                '<td ' + SC + ' width="15%">\u6642\u9593</td>' +
-                '<td ' + SC + ' width="20%">\u59D3\u540D</td>' +
-                '<td ' + SC + '>&nbsp;</td>' +
-              '</tr>' +
-              timeRows +
-            '</table>' +
-          '</td>' +
-        '</tr>' +
-        '<tr><td ' + S + ' height="30" colspan="2">' + shortDate + '</td></tr>' +
+        timeRows +
         '</table>';
     });
 
-    var body = pages.join('\n<p style="page-break-before:always">&nbsp;</p>\n');
+    var body = pages.join('\n<br clear="all" style="page-break-before:always;" />\n');
 
     var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
       '<head><meta charset="UTF-8">' +
       '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->' +
       '<style>' +
-      '@page { size: A4; margin: 1.5cm 1.5cm 1.5cm 1.5cm; }' +
-      'body { font-family: "DFKai-SB","\\6A19\\6977\\9AD4","Microsoft JhengHei",sans-serif; margin:0; }' +
+      '@page Section1 { size:A4; margin:2cm 2cm 2cm 2cm; }' +
+      'body { ' + F + ' font-size:12pt; margin:0; }' +
       'div.Section1 { page:Section1; }' +
+      'table { border-collapse:collapse; }' +
       '</style></head><body><div class="Section1">' + body + '</div></body></html>';
 
     var blob = new Blob(["\uFEFF" + html], { type: "application/msword;charset=utf-8" });
