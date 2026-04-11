@@ -135,8 +135,14 @@
     var name  = document.getElementById("receiptFilterName").value.trim();
 
     try {
-      var res = await fetch("/records");
-      var records = await res.json();
+      var resRecords = await fetch("/records");
+      var records = await resRecords.json();
+      var resUsers = await fetch("/users");
+      var users = await resUsers.json();
+
+      // Build user lookup by name
+      var userByName = {};
+      users.forEach(function (u) { if (u.name) userByName[u.name] = u; });
 
       if (year)  records = records.filter(function (r) { return r.year  === parseInt(year); });
       if (month) records = records.filter(function (r) { return r.month === parseInt(month); });
@@ -150,6 +156,13 @@
         grouped[r.name].push(r);
       });
 
+      // Add registered users who have no attendance records
+      users.forEach(function (u) {
+        if (!u.name) return;
+        if (name && !u.name.includes(name)) return;
+        if (!grouped[u.name]) grouped[u.name] = [];
+      });
+
       var container = document.getElementById("receipt-list");
 
       if (Object.keys(grouped).length === 0) {
@@ -160,8 +173,20 @@
       container.innerHTML = Object.entries(grouped).map(function (entry) {
         var personName = entry[0];
         var recs = entry[1];
-        // Get latest record with receipt data
-        var latest = recs.find(function (r) { return r.idNumber; }) || recs[0];
+        // Get latest record with receipt data, fallback to registered user data
+        var latest = recs.find(function (r) { return r.idNumber; }) || recs[0] || {};
+        // Merge registered user data (user data takes priority for personal info)
+        var regUser = userByName[personName];
+        if (regUser) {
+          if (!latest.idNumber && regUser.idNumber) latest.idNumber = regUser.idNumber;
+          if (!latest.eventName && regUser.eventName) latest.eventName = regUser.eventName;
+          if (!latest.feeTypes && regUser.feeTypes) latest.feeTypes = regUser.feeTypes;
+          if (!latest.payMethod && regUser.payMethod) latest.payMethod = regUser.payMethod;
+          if (!latest.bankInfo && regUser.bankInfo) latest.bankInfo = regUser.bankInfo;
+          if (!latest.address && regUser.address) latest.address = regUser.address;
+          if (!latest.liveAddress && regUser.liveAddress) latest.liveAddress = regUser.liveAddress;
+          if (!latest.phone && regUser.phone) latest.phone = regUser.phone;
+        }
         var completedRecs = recs.filter(function (r) { return r.status === "checked-out"; });
         var totalHours = completedRecs.reduce(function (s, r) { return s + (r.hours || 0); }, 0);
 
@@ -198,7 +223,7 @@
                 '<span class="fee-tag ' + (latest.payMethod === '\u532F\u6B3E' ? 'fee-tag-active' : 'fee-tag-inactive') + '">\u2610 \u532F\u6B3E</span>' +
                 bankHtml +
               '</td></tr>' +
-              '<tr><th>\u8EAB\u5206\u8B49\u865F\u78BC</th><td colspan="3"><span class="id-display">' + maskId(latest.idNumber) + '</span></td></tr>' +
+              '<tr><th>\u8EAB\u5206\u8B49\u865F\u78BC</th><td colspan="3"><span class="id-display">' + escapeHtml(latest.idNumber || "-") + '</span></td></tr>' +
               '<tr><th>\u6236\u7C4D\u5730\u5740</th><td colspan="3">' + escapeHtml(latest.address || "-") + '</td></tr>' +
               '<tr><th>\u5C45\u4F4F\u5730\u5740</th><td colspan="3">' + escapeHtml(latest.liveAddress || "-") + '</td></tr>' +
               '<tr><th>\u9023\u7D61\u96FB\u8A71</th><td colspan="3">' + escapeHtml(latest.phone || "-") + '</td></tr>' +
@@ -461,19 +486,29 @@
 
       var tbody = document.getElementById("user-tbody");
       if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:40px 0">尚無註冊使用者</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#999;padding:40px 0">尚無註冊使用者</td></tr>';
         return;
       }
 
       tbody.innerHTML = users.map(function (u, i) {
         var regDate = u.registeredAt ? new Date(u.registeredAt).toLocaleDateString("zh-TW") : "-";
+        var feeTypes = Array.isArray(u.feeTypes) ? u.feeTypes.join("\u3001") : "-";
+        var bankStr = "-";
+        if (u.payMethod === "\u532F\u6B3E" && u.bankInfo) {
+          bankStr = (u.bankInfo.bankName || "") + " / " + (u.bankInfo.accountName || "") + " / " + (u.bankInfo.account || "");
+        }
         return '<tr>' +
           '<td>' + (i + 1) + '</td>' +
           '<td>' + (u.name || "-") + '</td>' +
-          '<td>' + maskId(u.idNumber) + '</td>' +
+          '<td>' + (u.idNumber || "-") + '</td>' +
           '<td>' + (u.phone || "-") + '</td>' +
+          '<td style="max-width:150px;">' + (u.eventName || "-") + '</td>' +
+          '<td style="max-width:150px;">' + (u.workDescription || "-") + '</td>' +
+          '<td style="max-width:120px;">' + feeTypes + '</td>' +
           '<td>' + (u.payMethod || "-") + '</td>' +
+          '<td style="max-width:200px;font-size:12px;">' + bankStr + '</td>' +
           '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (u.address || "-") + '</td>' +
+          '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (u.liveAddress || "-") + '</td>' +
           '<td>' + regDate + '</td>' +
           '<td><button class="btn btn-danger-sm btn-user-delete" data-id="' + u.id + '">刪除</button></td>' +
           '</tr>';
