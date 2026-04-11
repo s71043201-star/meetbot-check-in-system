@@ -17,7 +17,7 @@ router.get("/export", async (req, res) => {
     if (nameFilter)  records = records.filter(r => r.name  === nameFilter);
     if (monthFilter) records = records.filter(r => r.month === parseInt(monthFilter));
     if (yearFilter)  records = records.filter(r => r.year  === parseInt(yearFilter));
-    records = records.filter(r => r.status === "checked-out");
+    records = records.filter(r => r.status === "checked-out" && !r.attendanceDeleted);
     records.sort((a, b) => new Date(a.checkinTime) - new Date(b.checkinTime));
 
     // 按人分組
