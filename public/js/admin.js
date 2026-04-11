@@ -796,13 +796,13 @@
       '<tr>' +
         '<td style="' + TC + 'font-weight:bold;" width="10%">\u8077\u3000\u52D9</td>' +
         '<td style="' + TC + 'font-weight:bold;" width="8%">\u59D3\u540D</td>' +
-        '<td style="' + TC + 'font-weight:bold;">\u4E8B\u3000\u3000\u3000\u3000\u3000\u3000\u7531</td>' +
+        '<td style="' + TC + 'font-weight:bold;">\u4E8B\u3000\u7531</td>' +
         '<td style="' + TC + 'font-weight:bold;" width="10%">\u91D1\u3000\u984D</td>' +
         '<td style="' + TC + 'font-weight:bold;" width="8%">\u7C3D\u3000\u7AE0</td>' +
       '</tr>' +
       rows +
       '<tr style="height:24pt;">' +
-        '<td style="' + TC + 'font-weight:bold;" colspan="3">\u5408\u3000\u3000\u3000\u3000\u3000\u3000\u8A08</td>' +
+        '<td style="' + TC + 'font-weight:bold;" colspan="3">\u5408\u3000\u8A08</td>' +
         '<td style="' + TC + '">' + totalAmount.toLocaleString() + ' \u5143</td>' +
         '<td style="' + TC + '"> </td>' +
       '</tr>' +
@@ -921,7 +921,7 @@
         '<p align="center" style="' + F + 'font-size:18pt;font-weight:bold;margin:0 0 10pt 0;">\u81E8\u6642\u4EBA\u54E1\u51FA\u52E4\u8A18\u9304\u8207\u5DE5\u4F5C\u5167\u5BB9\u8AAA\u660E</p>' +
         '<table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;' + F + 'font-size:12pt;">' +
         '<tr>' +
-          '<td style="' + TH + '" width="20%">\u59D3\u3000\u3000\u540D</td>' +
+          '<td style="' + TH + '" width="20%">\u59D3\u3000\u540D</td>' +
           '<td style="' + TH + '" colspan="5">\u6D3B\u52D5\u540D\u7A31 / \u5DE5\u4F5C\u5167\u5BB9</td>' +
         '</tr>' +
         '<tr style="height:30pt;">' +
