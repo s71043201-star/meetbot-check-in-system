@@ -278,19 +278,54 @@
   }
 
   // ── Inline edit helpers ──
+  // 將 ISO 時間轉為台北時間的 datetime-local 格式 (yyyy-MM-ddTHH:mm)
+  function isoToDatetimeLocal(isoStr) {
+    if (!isoStr) return "";
+    var d = new Date(isoStr);
+    var taipei = new Date(d.toLocaleString("en-US", { timeZone: "Asia/Taipei" }));
+    var y = taipei.getFullYear();
+    var m = String(taipei.getMonth() + 1).padStart(2, "0");
+    var day = String(taipei.getDate()).padStart(2, "0");
+    var h = String(taipei.getHours()).padStart(2, "0");
+    var min = String(taipei.getMinutes()).padStart(2, "0");
+    return y + "-" + m + "-" + day + "T" + h + ":" + min;
+  }
+
+  // 將 datetime-local 值（台北時間）轉為 ISO 字串
+  function datetimeLocalToISO(dtLocal) {
+    if (!dtLocal) return "";
+    // dtLocal 格式: "2026-04-02T12:00"，視為台北時間
+    var parts = dtLocal.split("T");
+    var dateParts = parts[0].split("-");
+    var timeParts = parts[1].split(":");
+    // 建立台北時間的 Date（UTC+8）
+    var utc = new Date(Date.UTC(
+      parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]),
+      parseInt(timeParts[0]) - 8, parseInt(timeParts[1]), 0
+    ));
+    return utc.toISOString();
+  }
+
   function startEdit(id, row) {
     confirmingDelete = true; // pause auto-refresh
     row.dataset.editing = "true";
-    var cells = row.querySelectorAll("td");
+
+    // 找到原始記錄
+    var record = cachedRecords.find(function (r) { return r.id === id; });
 
     // cells index: 0=checkbox, 1=#, 2=name, 3=type, 4=course, 5=date, 6=checkin, 7=checkout,
     //              8=hours, 9=shift, 10=workContent, 11=note, 12=status, 13=action
+    var cells = row.querySelectorAll("td");
+    var checkinCell = cells[6];
+    var checkoutCell = cells[7];
     var hoursCell = row.querySelector(".cell-hours");
     var courseCell = row.querySelector(".cell-course");
     var shiftCell = row.querySelector(".cell-shift");
     var workContentCell = row.querySelector(".cell-workContent");
     var noteCell = row.querySelector(".cell-note");
 
+    var origCheckin = record ? isoToDatetimeLocal(record.checkinTime) : "";
+    var origCheckout = record ? isoToDatetimeLocal(record.checkoutTime) : "";
     var origHours = (hoursCell.textContent || "").replace(/\s*\u6642$/, "").trim();
     var origCourse = courseCell.textContent.trim();
     var origShift = shiftCell.textContent.trim();
@@ -302,11 +337,31 @@
     if (origWorkContent === "-") origWorkContent = "";
     if (origNote === "-") origNote = "";
 
-    hoursCell.innerHTML = '<input type="number" class="edit-input" data-field="hours" value="' + escapeHtml(origHours) + '" step="0.5" style="width:60px">';
+    checkinCell.innerHTML = '<input type="datetime-local" class="edit-input" data-field="checkinTime" value="' + origCheckin + '" style="width:155px;font-size:12px">';
+    checkoutCell.innerHTML = '<input type="datetime-local" class="edit-input" data-field="checkoutTime" value="' + origCheckout + '" style="width:155px;font-size:12px">';
+    hoursCell.innerHTML = '<input type="number" class="edit-input" data-field="hours" value="' + escapeHtml(origHours) + '" step="0.5" style="width:60px" readonly title="\u6642\u6578\u5C07\u81EA\u52D5\u8A08\u7B97">';
     courseCell.innerHTML = '<input type="text" class="edit-input" data-field="course" value="' + escapeHtml(origCourse) + '" style="width:100px">';
     shiftCell.innerHTML = '<input type="text" class="edit-input" data-field="shift" value="' + escapeHtml(origShift) + '" style="width:80px">';
     workContentCell.innerHTML = '<input type="text" class="edit-input" data-field="workContent" value="' + escapeHtml(origWorkContent) + '" style="width:120px">';
     noteCell.innerHTML = '<input type="text" class="edit-input" data-field="note" value="' + escapeHtml(origNote) + '" style="width:120px">';
+
+    // 簽到/簽退時間變更時自動計算時數
+    var checkinInput = checkinCell.querySelector("input");
+    var checkoutInput = checkoutCell.querySelector("input");
+    var hoursInput = hoursCell.querySelector("input");
+
+    function recalcHours() {
+      var ci = checkinInput.value;
+      var co = checkoutInput.value;
+      if (ci && co) {
+        var diff = (new Date(co) - new Date(ci)) / 3600000;
+        if (diff > 0) {
+          hoursInput.value = Math.ceil(diff * 2) / 2;
+        }
+      }
+    }
+    checkinInput.addEventListener("change", recalcHours);
+    checkoutInput.addEventListener("change", recalcHours);
 
     var actionCell = row.querySelector(".action-cell");
     actionCell.innerHTML = '<button class="btn-save" data-id="' + id + '">\u5132\u5B58</button> <button class="btn-edit-cancel">\u53D6\u6D88</button>';
@@ -320,10 +375,29 @@
       var val = inp.value.trim();
       if (field === "hours") {
         payload[field] = val ? parseFloat(val) : 0;
+      } else if (field === "checkinTime" || field === "checkoutTime") {
+        if (val) payload[field] = datetimeLocalToISO(val);
       } else {
         payload[field] = val;
       }
     });
+
+    // 如果簽到時間有更新，同步更新 year/month/day
+    if (payload.checkinTime) {
+      var taipei = new Date(new Date(payload.checkinTime).toLocaleString("en-US", { timeZone: "Asia/Taipei" }));
+      payload.year = taipei.getFullYear() - 1911;
+      payload.month = taipei.getMonth() + 1;
+      payload.day = taipei.getDate();
+    }
+
+    // 如果簽到簽退都有，自動重算時數
+    if (payload.checkinTime && payload.checkoutTime) {
+      var diff = (new Date(payload.checkoutTime) - new Date(payload.checkinTime)) / 3600000;
+      if (diff > 0) {
+        payload.hours = Math.ceil(diff * 2) / 2;
+      }
+      payload.status = "checked-out";
+    }
 
     try {
       var res = await fetch("/records/" + id, {
