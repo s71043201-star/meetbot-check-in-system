@@ -828,7 +828,7 @@
     showToast("\u5DF2\u532F\u51FA\u9818\u53D6\u55AE", "success");
   }
 
-  function doCustomExportAttendance() {
+  async function doCustomExportAttendance() {
     var reason = document.getElementById("custom-reason").value.trim();
     var year = document.getElementById("custom-year").value.trim();
     var month = document.getElementById("custom-month").value.trim();
@@ -844,8 +844,21 @@
 
     if (selected.length === 0) { showToast("\u8ACB\u52FE\u9078\u4EBA\u54E1", "warning"); return; }
 
+    // Fetch attendance records to fill in times
+    var allRecords = [];
+    try {
+      var res = await fetch("/records");
+      allRecords = await res.json();
+      allRecords = allRecords.filter(function (r) { return !r.attendanceDeleted && r.status === "checked-out"; });
+    } catch (e) {
+      console.error("Failed to fetch records for attendance sheet:", e);
+    }
+
     var dateStr = year + "\u5E74" + month.padStart(2, "0") + "\u6708" + day.padStart(2, "0") + "\u65E5";
     var shortDate = month + "/" + day;
+    var iYear = parseInt(year);
+    var iMonth = parseInt(month);
+    var iDay = parseInt(day);
 
     var bd = 'border:1px solid #000;';
     var pd = 'padding:6px 8px;font-size:12pt;vertical-align:middle;';
@@ -854,6 +867,39 @@
     var SB = 'style="' + bd + pd + 'font-weight:bold;text-align:center;"';
 
     var pages = selected.map(function (name) {
+      // Find matching records for this person on this date
+      var personRecords = allRecords.filter(function (r) {
+        return r.name === name && r.year === iYear && r.month === iMonth && r.day === iDay;
+      });
+      // Sort by checkin time
+      personRecords.sort(function (a, b) { return new Date(a.checkinTime) - new Date(b.checkinTime); });
+
+      // Build attendance time rows
+      var timeRows = '';
+      if (personRecords.length > 0) {
+        personRecords.forEach(function (rec) {
+          var checkinTimeStr = rec.checkinTime ? new Date(rec.checkinTime).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" }) : '';
+          var checkoutTimeStr = rec.checkoutTime ? new Date(rec.checkoutTime).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" }) : '';
+          var hoursStr = rec.hours != null ? rec.hours + " \u6642" : '';
+          timeRows += '<tr height="36">' +
+            '<td ' + SC + '>' + checkinTimeStr + '</td>' +
+            '<td ' + SC + '>' + escapeHtml(name) + '</td>' +
+            '<td ' + SC + '>' + checkoutTimeStr + '</td>' +
+            '<td ' + SC + '>' + escapeHtml(name) + '</td>' +
+            '<td ' + SC + '>' + hoursStr + '</td>' +
+          '</tr>';
+        });
+      } else {
+        // No records found, leave blank row for manual filling
+        timeRows = '<tr height="36">' +
+          '<td ' + SC + '>&nbsp;</td>' +
+          '<td ' + SC + '>&nbsp;</td>' +
+          '<td ' + SC + '>&nbsp;</td>' +
+          '<td ' + SC + '>&nbsp;</td>' +
+          '<td ' + SC + '>&nbsp;</td>' +
+        '</tr>';
+      }
+
       return '<p align="center" style="font-size:14pt;font-weight:bold;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:2px;">\u53F0\u5317\u5E02\u91AB\u5E2B\u516C\u6703 \u5065\u5EB7\u53F0\u7063\u6DF1\u8015\u8A08\u756B</p>' +
         '<p align="center" style="font-size:13pt;font-weight:bold;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:2px;">\u81FA\u5317\u5E02\u6162\u6027\u75C5\u9632\u6CBB\u5168\u4EBA\u5065\u5EB7\u667A\u6167\u6574\u5408\u7167\u8B77\u8A08\u756B</p>' +
         '<p align="center" style="font-size:15pt;font-weight:bold;font-family:DFKai-SB,\\6A19\\6977\\9AD4;margin-bottom:8px;">\u81E8\u6642\u4EBA\u54E1\u51FA\u52E4\u8A18\u9304\u8207\u5DE5\u4F5C\u5167\u5BB9\u8AAA\u660E</p>' +
@@ -885,13 +931,7 @@
                 '<td ' + SC + ' width="20%">\u59D3\u540D</td>' +
                 '<td ' + SC + '>&nbsp;</td>' +
               '</tr>' +
-              '<tr height="36">' +
-                '<td ' + SC + '>&nbsp;</td>' +
-                '<td ' + SC + '>&nbsp;</td>' +
-                '<td ' + SC + '>&nbsp;</td>' +
-                '<td ' + SC + '>&nbsp;</td>' +
-                '<td ' + SC + '>&nbsp;</td>' +
-              '</tr>' +
+              timeRows +
             '</table>' +
           '</td>' +
         '</tr>' +
