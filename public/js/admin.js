@@ -151,6 +151,7 @@
       var userByName = {};
       users.forEach(function (u) { if (u.name) userByName[u.name] = u; });
 
+      records = records.filter(function (r) { return !r.attendanceDeleted; });
       if (year)  records = records.filter(function (r) { return r.year  === parseInt(year); });
       if (month) records = records.filter(function (r) { return r.month === parseInt(month); });
       if (name)  records = records.filter(function (r) { return r.name && r.name.includes(name); });
@@ -747,8 +748,7 @@
 
     // Build person rows - reason spans all rows as one merged cell
     var totalRows = selected.length;
-    var emptyCount = Math.max(0, 10 - totalRows);
-    var allRows = totalRows + emptyCount;
+    var allRows = totalRows;
 
     var rows = selected.map(function (p, idx) {
       var amountStr = p.amount.toLocaleString() + " \u5143";
@@ -765,19 +765,6 @@
       '</tr>';
     }).join("");
 
-    for (var i = 0; i < emptyCount; i++) {
-      var reasonCell2 = '';
-      if (totalRows === 0 && i === 0) {
-        reasonCell2 = '<td style="' + TL + '" rowspan="' + allRows + '"> </td>';
-      }
-      rows += '<tr style="height:24pt;">' +
-        '<td style="' + TC + '"> </td>' +
-        '<td style="' + TC + '"> </td>' +
-        reasonCell2 +
-        '<td style="' + TC + '"> </td>' +
-        '<td style="' + TC + '"> </td>' +
-      '</tr>';
-    }
 
     var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
       '<head><meta charset="UTF-8">' +
@@ -1118,12 +1105,24 @@
     var customSelectAll = document.getElementById("custom-select-all");
     if (customSelectAll) customSelectAll.addEventListener("change", function () {
       var checked = this.checked;
-      document.querySelectorAll(".custom-check").forEach(function (cb) { cb.checked = checked; });
+      document.querySelectorAll(".custom-check").forEach(function (cb) {
+        var row = cb.closest("tr");
+        if (row && row.style.display !== "none") cb.checked = checked;
+      });
       updateCustomSelectedCount();
     });
 
     document.addEventListener("change", function (e) {
       if (e.target.classList.contains("custom-check")) updateCustomSelectedCount();
+    });
+
+    var customSearchName = document.getElementById("custom-search-name");
+    if (customSearchName) customSearchName.addEventListener("input", function () {
+      var keyword = this.value.trim().toLowerCase();
+      document.querySelectorAll("#custom-export-tbody tr").forEach(function (row) {
+        var name = (row.querySelector("td:nth-child(2)") || {}).textContent || "";
+        row.style.display = name.toLowerCase().includes(keyword) ? "" : "none";
+      });
     });
 
     // Initial load
