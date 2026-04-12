@@ -9,8 +9,8 @@ const { generateRecordHtml } = require("../templates/record-html");
 
 // ── 後台密碼驗證 ─────────────────────────────
 router.post("/admin/verify-password", (req, res) => {
-  const adminPw = process.env.ADMIN_PASSWORD;
-  if (!adminPw) return res.json({ ok: true });
+  const adminPw = process.env.ADMIN_PASSWORD || "Tpma";
+
   if (req.body.password === adminPw) return res.json({ ok: true });
   res.status(401).json({ error: "密碼錯誤" });
 });
