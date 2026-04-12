@@ -747,8 +747,7 @@
 
     // Build person rows - reason spans all rows as one merged cell
     var totalRows = selected.length;
-    var emptyCount = Math.max(0, 10 - totalRows);
-    var allRows = totalRows + emptyCount;
+    var allRows = totalRows;
 
     var rows = selected.map(function (p, idx) {
       var amountStr = p.amount.toLocaleString() + " \u5143";
@@ -765,19 +764,6 @@
       '</tr>';
     }).join("");
 
-    for (var i = 0; i < emptyCount; i++) {
-      var reasonCell2 = '';
-      if (totalRows === 0 && i === 0) {
-        reasonCell2 = '<td style="' + TL + '" rowspan="' + allRows + '"> </td>';
-      }
-      rows += '<tr style="height:24pt;">' +
-        '<td style="' + TC + '"> </td>' +
-        '<td style="' + TC + '"> </td>' +
-        reasonCell2 +
-        '<td style="' + TC + '"> </td>' +
-        '<td style="' + TC + '"> </td>' +
-      '</tr>';
-    }
 
     var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
       '<head><meta charset="UTF-8">' +
