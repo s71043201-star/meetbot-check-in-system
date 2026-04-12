@@ -12,9 +12,15 @@ async function fetchTasksFromFirebase() {
         try {
           const obj = JSON.parse(data);
           resolve(obj ? Object.values(obj) : []);
-        } catch { resolve([]); }
+        } catch (e) {
+          console.error("[Firebase] fetchTasks parse error:", e.message);
+          resolve([]);
+        }
       });
-    }).on("error", () => resolve([]));
+    }).on("error", (e) => {
+      console.error("[Firebase] fetchTasks network error:", e.message);
+      resolve([]);
+    });
   });
 }
 
@@ -28,31 +34,57 @@ async function fetchRoutineTasksFromFirebase() {
         try {
           const obj = JSON.parse(data);
           resolve(obj ? Object.values(obj) : []);
-        } catch { resolve([]); }
+        } catch (e) {
+          console.error("[Firebase] fetchRoutineTasks parse error:", e.message);
+          resolve([]);
+        }
       });
-    }).on("error", () => resolve([]));
+    }).on("error", (e) => {
+      console.error("[Firebase] fetchRoutineTasks network error:", e.message);
+      resolve([]);
+    });
   });
 }
 
 // ── Firebase：出缺勤 ──────────────────────────
 async function fbGet(subPath) {
-  const { data } = await axios.get(`${ATT_FB}${subPath || ""}.json`);
-  return data;
+  try {
+    const { data } = await axios.get(`${ATT_FB}${subPath || ""}.json`);
+    return data;
+  } catch (err) {
+    console.error(`[Firebase] fbGet(${subPath || ""}) failed:`, err.message);
+    throw err;
+  }
 }
 
 async function fbPost(record) {
-  const { data } = await axios.post(`${ATT_FB}.json`, record);
-  return data;
+  try {
+    const { data } = await axios.post(`${ATT_FB}.json`, record);
+    return data;
+  } catch (err) {
+    console.error("[Firebase] fbPost failed:", err.message);
+    throw err;
+  }
 }
 
 async function fbPut(subPath, record) {
-  const { data } = await axios.put(`${ATT_FB}${subPath}.json`, record);
-  return data;
+  try {
+    const { data } = await axios.put(`${ATT_FB}${subPath}.json`, record);
+    return data;
+  } catch (err) {
+    console.error(`[Firebase] fbPut(${subPath}) failed:`, err.message);
+    throw err;
+  }
 }
 
 async function fbDelete(subPath) {
-  const { data } = await axios.delete(`${ATT_FB}${subPath}.json`);
-  return data;
+  try {
+    const { data } = await axios.delete(`${ATT_FB}${subPath}.json`);
+    return data;
+  } catch (err) {
+    console.error(`[Firebase] fbDelete(${subPath}) failed:`, err.message);
+    throw err;
+  }
 }
 
 async function fetchAttendance() {
@@ -64,31 +96,71 @@ async function fetchAttendance() {
         try {
           const obj = JSON.parse(data);
           resolve(obj ? Object.values(obj) : []);
-        } catch { resolve([]); }
+        } catch (e) {
+          console.error("[Firebase] fetchAttendance parse error:", e.message);
+          resolve([]);
+        }
       });
-    }).on("error", () => resolve([]));
+    }).on("error", (e) => {
+      console.error("[Firebase] fetchAttendance network error:", e.message);
+      resolve([]);
+    });
   });
 }
 
 // ── Firebase：使用者 ──────────────────────────
 async function userGet(subPath) {
-  const { data } = await axios.get(`${USERS_FB}${subPath || ""}.json`);
-  return data;
+  try {
+    const { data } = await axios.get(`${USERS_FB}${subPath || ""}.json`);
+    return data;
+  } catch (err) {
+    console.error(`[Firebase] userGet(${subPath || ""}) failed:`, err.message);
+    throw err;
+  }
 }
 
 async function userPost(record) {
-  const { data } = await axios.post(`${USERS_FB}.json`, record);
-  return data;
+  try {
+    const { data } = await axios.post(`${USERS_FB}.json`, record);
+    return data;
+  } catch (err) {
+    console.error("[Firebase] userPost failed:", err.message);
+    throw err;
+  }
 }
 
 async function userPut(subPath, record) {
-  const { data } = await axios.put(`${USERS_FB}${subPath}.json`, record);
-  return data;
+  try {
+    const { data } = await axios.put(`${USERS_FB}${subPath}.json`, record);
+    return data;
+  } catch (err) {
+    console.error(`[Firebase] userPut(${subPath}) failed:`, err.message);
+    throw err;
+  }
 }
 
 async function userDelete(subPath) {
-  const { data } = await axios.delete(`${USERS_FB}${subPath}.json`);
-  return data;
+  try {
+    const { data } = await axios.delete(`${USERS_FB}${subPath}.json`);
+    return data;
+  } catch (err) {
+    console.error(`[Firebase] userDelete(${subPath}) failed:`, err.message);
+    throw err;
+  }
+}
+
+// ── Firebase：審計日誌 ────────────────────────
+const AUDIT_FB = ATT_FB.replace("/attendance", "/audit-logs");
+
+async function auditLog(entry) {
+  try {
+    await axios.post(`${AUDIT_FB}.json`, {
+      ...entry,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error("[Audit] Failed to write audit log:", err.message);
+  }
 }
 
 module.exports = {
@@ -103,4 +175,5 @@ module.exports = {
   userPost,
   userPut,
   userDelete,
+  auditLog,
 };
