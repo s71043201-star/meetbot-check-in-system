@@ -151,6 +151,7 @@
       var userByName = {};
       users.forEach(function (u) { if (u.name) userByName[u.name] = u; });
 
+      records = records.filter(function (r) { return !r.attendanceDeleted; });
       if (year)  records = records.filter(function (r) { return r.year  === parseInt(year); });
       if (month) records = records.filter(function (r) { return r.month === parseInt(month); });
       if (name)  records = records.filter(function (r) { return r.name && r.name.includes(name); });
@@ -1104,12 +1105,24 @@
     var customSelectAll = document.getElementById("custom-select-all");
     if (customSelectAll) customSelectAll.addEventListener("change", function () {
       var checked = this.checked;
-      document.querySelectorAll(".custom-check").forEach(function (cb) { cb.checked = checked; });
+      document.querySelectorAll(".custom-check").forEach(function (cb) {
+        var row = cb.closest("tr");
+        if (row && row.style.display !== "none") cb.checked = checked;
+      });
       updateCustomSelectedCount();
     });
 
     document.addEventListener("change", function (e) {
       if (e.target.classList.contains("custom-check")) updateCustomSelectedCount();
+    });
+
+    var customSearchName = document.getElementById("custom-search-name");
+    if (customSearchName) customSearchName.addEventListener("input", function () {
+      var keyword = this.value.trim().toLowerCase();
+      document.querySelectorAll("#custom-export-tbody tr").forEach(function (row) {
+        var name = (row.querySelector("td:nth-child(2)") || {}).textContent || "";
+        row.style.display = name.toLowerCase().includes(keyword) ? "" : "none";
+      });
     });
 
     // Initial load

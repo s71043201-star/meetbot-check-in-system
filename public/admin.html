@@ -16,7 +16,7 @@
   <button class="tab-btn active">出勤紀錄</button>
   <button class="tab-btn">領據管理</button>
   <button class="tab-btn">使用者管理</button>
-  <button class="tab-btn">自訂領據匯出</button>
+  <button class="tab-btn">領取單與簽到簿匯出</button>
 </div>
 
 <!-- ═══════════════════════════════════════════════ -->
@@ -206,11 +206,12 @@
 
   <div class="card" style="margin-bottom:16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <div style="display:flex;align-items:center;gap:12px;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
           <input type="checkbox" id="custom-select-all"> <strong>全選</strong>
         </label>
         <span style="color:#6b7280;font-size:13px;" id="custom-selected-count">已選 0 人</span>
+        <input type="text" id="custom-search-name" placeholder="搜尋姓名" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;width:140px;font-size:13px;">
       </div>
       <button class="btn btn-success" id="btn-custom-export" style="font-weight:600;">匯出領取單 Word</button>
       <button class="btn btn-primary" id="btn-custom-export-attendance" style="font-weight:600;">匯出工作說明及簽到簿 Word</button>
