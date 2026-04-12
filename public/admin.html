@@ -90,6 +90,13 @@
     </table>
   </div>
 
+  <!-- 分頁控制 -->
+  <div id="pagination-bar" class="card hidden" style="display:flex;justify-content:center;align-items:center;gap:16px;padding:12px;margin-bottom:16px;">
+    <button class="btn btn-sm" id="btn-page-prev" style="padding:6px 16px;">上一頁</button>
+    <span style="font-size:14px;">第 <strong id="page-current">1</strong> / <strong id="page-total">1</strong> 頁（共 <span id="page-record-total">0</span> 筆）</span>
+    <button class="btn btn-sm" id="btn-page-next" style="padding:6px 16px;">下一頁</button>
+  </div>
+
   <!-- 已刪除記錄（誤刪救回） -->
   <div id="deleted-section" class="deleted-section hidden">
     <details>

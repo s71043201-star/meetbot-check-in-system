@@ -21,6 +21,20 @@
     return id.substring(0, 3) + "****" + id.substring(7);
   }
 
+  // ── Export Loading Helper ──
+  function exportWithLoading(btn, fn) {
+    var originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "\u532F\u51FA\u4E2D...";
+    btn.style.opacity = "0.6";
+    fn();
+    setTimeout(function () {
+      btn.disabled = false;
+      btn.textContent = originalText;
+      btn.style.opacity = "";
+    }, 3000);
+  }
+
   // ── Tabs ──
   var TAB_MAP = { attendance: 0, receipt: 1, users: 2, "custom-export": 3 };
   var TAB_IDS = ["tab-attendance", "tab-receipt", "tab-users", "tab-custom-export"];
@@ -41,12 +55,17 @@
   // ═══════════════════════════════════════════
   // Tab 1: Attendance Records
   // ═══════════════════════════════════════════
-  async function loadRecords() {
+  var currentPage = 1;
+  var PAGE_SIZE = 50;
+
+  async function loadRecords(page) {
+    if (page) currentPage = page;
     var year  = document.getElementById("filterYear").value;
     var month = document.getElementById("filterMonth").value;
     var name  = document.getElementById("filterName").value.trim();
 
     try {
+      // 取得完整記錄（用於統計和已刪除區塊）
       var res = await fetch("/records");
       var allRecords = await res.json();
       cachedRecords = allRecords;
@@ -72,13 +91,34 @@
       document.getElementById("stat-hours").textContent  = Math.round(totalHours * 10) / 10;
       document.getElementById("stat-people").textContent = people;
 
+      // 分頁
+      var totalPages = Math.ceil(records.length / PAGE_SIZE) || 1;
+      if (currentPage > totalPages) currentPage = totalPages;
+      var start = (currentPage - 1) * PAGE_SIZE;
+      var pageRecords = records.slice(start, start + PAGE_SIZE);
+
+      // 更新分頁控制
+      var pagBar = document.getElementById("pagination-bar");
+      if (records.length > PAGE_SIZE) {
+        pagBar.classList.remove("hidden");
+        pagBar.style.display = "flex";
+        document.getElementById("page-current").textContent = currentPage;
+        document.getElementById("page-total").textContent = totalPages;
+        document.getElementById("page-record-total").textContent = records.length;
+        document.getElementById("btn-page-prev").disabled = currentPage <= 1;
+        document.getElementById("btn-page-next").disabled = currentPage >= totalPages;
+      } else {
+        pagBar.classList.add("hidden");
+        pagBar.style.display = "";
+      }
+
       var tbody = document.getElementById("tbody");
-      if (records.length === 0) {
+      if (pageRecords.length === 0) {
         tbody.innerHTML = '<tr><td colspan="14" class="empty">\u67E5\u7121\u8A18\u9304</td></tr>';
         return;
       }
 
-      tbody.innerHTML = records.map(function (r, i) {
+      tbody.innerHTML = pageRecords.map(function (r, i) {
         var dateStr   = r.year ? r.year + "/" + r.month + "/" + r.day : "-";
         var content   = Array.isArray(r.workContent) ? r.workContent.join("\u3001") : "-";
         var typeLabel = r.checkinType === "prescription" ? "\u8655\u65B9\u65E5" : "\u4E00\u822C";
@@ -89,7 +129,7 @@
           : '<span class="tag tag-in">\u7C3D\u5230\u4E2D</span>';
         return '<tr data-id="' + r.id + '">' +
           '<td><input type="checkbox" class="row-check" data-id="' + r.id + '"></td>' +
-          '<td>' + (i + 1) + '</td>' +
+          '<td>' + (start + i + 1) + '</td>' +
           '<td>' + escapeHtml(r.name || "-") + '</td>' +
           '<td>' + escapeHtml(typeLabel) + '</td>' +
           '<td class="cell-course">' + escapeHtml(courseStr) + '</td>' +
@@ -138,9 +178,8 @@
     var name  = document.getElementById("receiptFilterName").value.trim();
 
     try {
-      var resRecords = await fetch("/records");
+      var [resRecords, resUsers] = await Promise.all([fetch("/records"), fetch("/users")]);
       var records = await resRecords.json();
-      var resUsers = await fetch("/users");
       var users = await resUsers.json();
 
       // Cache for receipt editing
@@ -962,25 +1001,61 @@
   document.addEventListener("DOMContentLoaded", function () {
     // Tab buttons
     var TAB_NAMES = ["attendance", "receipt", "users", "custom-export"];
+    var PROTECTED_TABS = ["receipt", "users"];
+
+    function promptAdminPassword() {
+      return new Promise(function (resolve) {
+        var pw = prompt("\u8ACB\u8F38\u5165\u7BA1\u7406\u5BC6\u78BC\uFF1A");
+        if (!pw) { resolve(false); return; }
+        fetch("/admin/verify-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: pw })
+        })
+        .then(function (res) { return res.json().then(function (d) { return { ok: res.ok, data: d }; }); })
+        .then(function (r) {
+          if (r.ok && r.data.ok) {
+            sessionStorage.setItem("adminAuth", "true");
+            resolve(true);
+          } else {
+            showToast("\u5BC6\u78BC\u932F\u8AA4", "error");
+            resolve(false);
+          }
+        })
+        .catch(function () { showToast("\u9A57\u8B49\u5931\u6557", "error"); resolve(false); });
+      });
+    }
+
     document.querySelectorAll(".tab-btn").forEach(function (btn, idx) {
-      btn.addEventListener("click", function () {
-        switchTab(TAB_NAMES[idx]);
+      btn.addEventListener("click", async function () {
+        var tabName = TAB_NAMES[idx];
+        if (PROTECTED_TABS.includes(tabName) && !sessionStorage.getItem("adminAuth")) {
+          var ok = await promptAdminPassword();
+          if (!ok) return;
+        }
+        switchTab(tabName);
       });
     });
 
     // Attendance filter buttons
     var searchBtn = document.getElementById("btn-search");
-    if (searchBtn) searchBtn.addEventListener("click", loadRecords);
+    if (searchBtn) searchBtn.addEventListener("click", function () { currentPage = 1; loadRecords(); });
+
+    // Pagination buttons
+    var prevBtn = document.getElementById("btn-page-prev");
+    var nextBtn = document.getElementById("btn-page-next");
+    if (prevBtn) prevBtn.addEventListener("click", function () { if (currentPage > 1) loadRecords(currentPage - 1); });
+    if (nextBtn) nextBtn.addEventListener("click", function () { loadRecords(currentPage + 1); });
 
     var exportBtn = document.getElementById("btn-export-excel");
-    if (exportBtn) exportBtn.addEventListener("click", exportExcel);
+    if (exportBtn) exportBtn.addEventListener("click", function () { exportWithLoading(exportBtn, exportExcel); });
 
     // Receipt filter buttons
     var receiptSearchBtn = document.getElementById("btn-receipt-search");
     if (receiptSearchBtn) receiptSearchBtn.addEventListener("click", loadReceipts);
 
     var exportAllBtn = document.getElementById("btn-export-all-receipts");
-    if (exportAllBtn) exportAllBtn.addEventListener("click", exportAllReceipts);
+    if (exportAllBtn) exportAllBtn.addEventListener("click", function () { exportWithLoading(exportAllBtn, exportAllReceipts); });
 
     // Delegated click for receipt card actions (edit, save, cancel, export)
     document.addEventListener("click", function (e) {
@@ -1006,7 +1081,9 @@
 
       var target = e.target.closest('[data-action="export-receipt"]');
       if (target) {
-        window.location.href = "/export-full?" + target.getAttribute("data-params");
+        exportWithLoading(target, function () {
+          window.location.href = "/export-full?" + target.getAttribute("data-params");
+        });
       }
     });
 
@@ -1097,10 +1174,30 @@
     if (applyAmountBtn) applyAmountBtn.addEventListener("click", applyAmountToSelected);
 
     var customExportBtn = document.getElementById("btn-custom-export");
-    if (customExportBtn) customExportBtn.addEventListener("click", doCustomExport);
+    if (customExportBtn) customExportBtn.addEventListener("click", async function () {
+      var originalText = customExportBtn.textContent;
+      customExportBtn.disabled = true;
+      customExportBtn.textContent = "\u532F\u51FA\u4E2D...";
+      customExportBtn.style.opacity = "0.6";
+      try { await doCustomExport(); } finally {
+        customExportBtn.disabled = false;
+        customExportBtn.textContent = originalText;
+        customExportBtn.style.opacity = "";
+      }
+    });
 
     var customExportAttBtn = document.getElementById("btn-custom-export-attendance");
-    if (customExportAttBtn) customExportAttBtn.addEventListener("click", doCustomExportAttendance);
+    if (customExportAttBtn) customExportAttBtn.addEventListener("click", async function () {
+      var originalText = customExportAttBtn.textContent;
+      customExportAttBtn.disabled = true;
+      customExportAttBtn.textContent = "\u532F\u51FA\u4E2D...";
+      customExportAttBtn.style.opacity = "0.6";
+      try { await doCustomExportAttendance(); } finally {
+        customExportAttBtn.disabled = false;
+        customExportAttBtn.textContent = originalText;
+        customExportAttBtn.style.opacity = "";
+      }
+    });
 
     var customSelectAll = document.getElementById("custom-select-all");
     if (customSelectAll) customSelectAll.addEventListener("change", function () {

@@ -1,7 +1,7 @@
 const express = require("express");
 const ExcelJS = require("exceljs");
 const router = express.Router();
-const { docStore } = require("../utils");
+const { getDoc } = require("../utils");
 const { fbGet, userGet } = require("../firebase");
 const { fetchTasksFromFirebase } = require("../firebase");
 const { buildPersonSheet } = require("../templates/excel-builder");
@@ -48,9 +48,9 @@ router.get("/export", async (req, res) => {
 });
 
 // ── 下載課程記錄頁 ──────────────────────────────
-router.get("/download/:uid", (req, res) => {
-  const item = docStore.get(req.params.uid);
-  if (!item) return res.status(404).send("頁面不存在（伺服器重啟後連結會失效，請重新簽到簽退產生新記錄）");
+router.get("/download/:uid", async (req, res) => {
+  const item = await getDoc(req.params.uid);
+  if (!item) return res.status(404).send("頁面不存在或已過期（7天後自動刪除，請重新簽到簽退產生新記錄）");
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.send(item.html);
 });

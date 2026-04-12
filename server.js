@@ -6,13 +6,38 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 // ── CORS ──────────────────────────────────────
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "https://meetbot-check-in-system.onrender.com,http://localhost:3000,http://localhost:3001")
+  .split(",").map(s => s.trim());
+
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
   res.header("Access-Control-Allow-Headers", "Content-Type");
   res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
   if (req.method === "OPTIONS") return res.sendStatus(200);
   next();
 });
+
+// ── Rate Limiting ────────────────────────────
+const rateLimit = require("express-rate-limit");
+
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "請求過於頻繁，請稍後再試" }
+}));
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: "登入嘗試過於頻繁，請稍後再試" }
+});
+app.use("/login", authLimiter);
+app.use("/register", authLimiter);
 
 // ── Routes ────────────────────────────────────
 const { sendLine } = require("./src/line");
@@ -40,6 +65,11 @@ app.get("/", (req, res) => res.redirect("/checkin.html"));
 // ── 排程器 ────────────────────────────────────
 const { startScheduler } = require("./src/scheduler");
 startScheduler();
+
+// ── DocStore 過期清理 ─────────────────────────
+const { cleanupExpiredDocs } = require("./src/utils");
+cleanupExpiredDocs();
+setInterval(cleanupExpiredDocs, 24 * 60 * 60 * 1000);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {

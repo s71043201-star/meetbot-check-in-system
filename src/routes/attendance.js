@@ -3,9 +3,17 @@ const axios = require("axios");
 const router = express.Router();
 const { ATT_FB } = require("../config");
 const { toTaipei, toROCYear, storeDoc } = require("../utils");
-const { fbGet, fbPost, fbPut, fbDelete, userGet, userPost, userPut, userDelete } = require("../firebase");
+const { fbGet, fbPost, fbPut, fbDelete, userGet, userPost, userPut, userDelete, auditLog } = require("../firebase");
 const { sendSlack } = require("../slack");
 const { generateRecordHtml } = require("../templates/record-html");
+
+// ── 後台密碼驗證 ─────────────────────────────
+router.post("/admin/verify-password", (req, res) => {
+  const adminPw = process.env.ADMIN_PASSWORD;
+  if (!adminPw) return res.json({ ok: true });
+  if (req.body.password === adminPw) return res.json({ ok: true });
+  res.status(401).json({ error: "密碼錯誤" });
+});
 
 // ── 註冊 ──────────────────────────────────────
 router.post("/register", async (req, res) => {
@@ -206,7 +214,7 @@ router.post("/checkout", async (req, res) => {
       teacher, registeredCount, actualCount, walkInCount, summary,
       courses: coursesForHtml,
     });
-    const uid = storeDoc(recordHtml, `課程記錄_${record.name}`);
+    const uid = await storeDoc(recordHtml, `課程記錄_${record.name}`);
     const downloadUrl = `${process.env.BASE_URL || "https://meetbot-check-in-system.onrender.com"}/download/${uid}`;
 
     const msg = `🔚 臨時人員簽退\n\n👤 姓名：${record.name}\n🏷 類型：${typeLabel}\n📚 課程：${course || "-"}\n🏷 屬性：${courseType || "-"}\n⏰ 簽到：${checkinStr}　簽退：${checkoutStr}\n⏱ 時數：${hours} 小時\n👥 實到：${actualCount ?? "-"} 人\n\n📄 課程記錄（可列印/存PDF）：\n${downloadUrl}`;
@@ -304,9 +312,24 @@ router.get("/receipt-data", async (req, res) => {
 // ── 查詢記錄 ──────────────────────────────────
 router.get("/records", async (req, res) => {
   try {
-    const data    = await fbGet();
-    const records = data ? Object.entries(data).map(([id, r]) => ({ id, ...r })) : [];
-    res.json(records);
+    const data = await fbGet();
+    let records = data ? Object.entries(data).map(([id, r]) => ({ id, ...r })) : [];
+
+    const { page, limit: limitParam } = req.query;
+
+    // 無分頁參數時回傳完整陣列（向後相容）
+    if (!page && !limitParam) return res.json(records);
+
+    const total = records.length;
+    const perPage = Math.min(parseInt(limitParam) || 50, 200);
+    const currentPage = Math.max(parseInt(page) || 1, 1);
+    const totalPages = Math.ceil(total / perPage) || 1;
+    const start = (currentPage - 1) * perPage;
+
+    records.sort((a, b) => new Date(b.checkinTime || 0) - new Date(a.checkinTime || 0));
+    const pageRecords = records.slice(start, start + perPage);
+
+    res.json({ records: pageRecords, total, page: currentPage, totalPages });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -322,6 +345,7 @@ router.post("/records/batch-delete", async (req, res) => {
       const existing = await fbGet(`/${id}`);
       if (existing) await fbPut(`/${id}`, { ...existing, attendanceDeleted: true, deletedAt: now });
     }
+    auditLog({ action: "batch-delete", recordIds: ids });
     res.json({ ok: true, deleted: ids.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -335,6 +359,7 @@ router.put("/records/:id", async (req, res) => {
     if (!existing) return res.status(404).json({ error: "not found" });
     const updated = { ...existing, ...req.body };
     await fbPut(`/${req.params.id}`, updated);
+    auditLog({ action: "update", recordId: req.params.id, changes: { before: existing, after: req.body } });
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -347,6 +372,7 @@ router.delete("/records/:id", async (req, res) => {
     const existing = await fbGet(`/${req.params.id}`);
     if (!existing) return res.status(404).json({ error: "not found" });
     await fbPut(`/${req.params.id}`, { ...existing, attendanceDeleted: true, deletedAt: new Date().toISOString() });
+    auditLog({ action: "soft-delete", recordId: req.params.id });
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -360,6 +386,7 @@ router.post("/records/:id/restore", async (req, res) => {
     if (!existing) return res.status(404).json({ error: "not found" });
     const { attendanceDeleted, deletedAt, ...rest } = existing;
     await fbPut(`/${req.params.id}`, rest);
+    auditLog({ action: "restore", recordId: req.params.id });
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

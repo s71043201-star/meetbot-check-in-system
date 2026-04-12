@@ -42,10 +42,10 @@ const ATT_NOTIFY_IDS = [
   "Uece4baaf97cfab39ad79c6ed0ee55d03", // 戴豐逸
 ];
 
-const TASKS_FB = "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/meetbot/tasks.json";
-const ROUTINE_TASKS_FB = "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/meetbot/routineTasks.json";
-const ATT_FB   = "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/attendance";
-const USERS_FB = "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/users";
+const TASKS_FB = process.env.TASKS_FB || "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/meetbot/tasks.json";
+const ROUTINE_TASKS_FB = process.env.ROUTINE_TASKS_FB || "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/meetbot/routineTasks.json";
+const ATT_FB   = process.env.ATT_FB || "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/attendance";
+const USERS_FB = process.env.USERS_FB || "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/users";
 
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
 const SLACK_BOT_TOKEN   = process.env.SLACK_BOT_TOKEN;

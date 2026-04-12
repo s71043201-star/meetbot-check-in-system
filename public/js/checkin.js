@@ -20,9 +20,34 @@
 
   var ALL_SECTIONS = ["sec-login", "sec-register", "sec-info", "sec-type", "sec-form-regular", "sec-form-prescription", "sec-form-admin", "sec-done"];
 
+  var SECTION_STEP = {
+    "sec-login": 1, "sec-info": 2, "sec-type": 3,
+    "sec-form-regular": 4, "sec-form-prescription": 4, "sec-form-admin": 4,
+    "sec-done": 5
+  };
+
+  function updateProgressBar(sectionId) {
+    var bar = document.getElementById("progress-bar");
+    var step = SECTION_STEP[sectionId];
+    if (!step) { bar.classList.add("hidden"); return; }
+    bar.classList.remove("hidden");
+    var steps = bar.querySelectorAll(".progress-step");
+    var lines = bar.querySelectorAll(".progress-line");
+    steps.forEach(function (el, i) {
+      var s = i + 1;
+      el.classList.remove("active", "done");
+      if (s < step) el.classList.add("done");
+      else if (s === step) el.classList.add("active");
+    });
+    lines.forEach(function (el, i) {
+      el.classList.toggle("done", i + 1 < step);
+    });
+  }
+
   function showSection(id) {
     ALL_SECTIONS.forEach(function (s) { document.getElementById(s).classList.add("hidden"); });
     document.getElementById(id).classList.remove("hidden");
+    updateProgressBar(id);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
