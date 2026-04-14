@@ -27,9 +27,7 @@ const SYSTEMS = {
   "歷次列管": { name: "會議歷次列管事項生成系統",  url: "https://s71043201-star.github.io/meeting-system/" },
   "簽到":     { name: "臨時人員簽到系統",          url: "https://meetbot-check-in-system.onrender.com/checkin.html" },
   "後台":     { name: "出缺勤後台管理",            url: "https://meetbot-check-in-system.onrender.com/admin.html" },
-  "問題回報": { name: "問題回報表單",              url: "https://meetbot-qa-system.onrender.com/qa-submit.html" },
-  "問題管理": { name: "問題回報管理系統",          url: "https://meetbot-qa-system.onrender.com/qa-admin.html" },
-  "問題查詢": { name: "問題進度查詢",              url: "https://meetbot-qa-system.onrender.com/qa-query.html" },
+  "問題回報": { name: "問題回報管理系統",            url: "https://meetbot-qa-system.onrender.com/index.html" },
 };
 
 const ATT_BOSS_IDS = [
