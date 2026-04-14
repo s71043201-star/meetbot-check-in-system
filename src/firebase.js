@@ -1,6 +1,6 @@
 const axios = require("axios");
 const https = require("https");
-const { TASKS_FB, ROUTINE_TASKS_FB, ATT_FB, USERS_FB } = require("./config");
+const { TASKS_FB, ROUTINE_TASKS_FB, ATT_FB, USERS_FB, QA_FB } = require("./config");
 
 // ── Firebase：任務 ─────────────────────────────
 async function fetchTasksFromFirebase() {
@@ -163,6 +163,27 @@ async function auditLog(entry) {
   }
 }
 
+// ── Firebase：QA 問題回報 ────────────────────────
+async function qaGet(subPath) {
+  const { data } = await axios.get(`${QA_FB}${subPath || ""}.json`);
+  return data;
+}
+
+async function qaPost(record) {
+  const { data } = await axios.post(`${QA_FB}.json`, record);
+  return data;
+}
+
+async function qaPut(subPath, record) {
+  const { data } = await axios.put(`${QA_FB}${subPath}.json`, record);
+  return data;
+}
+
+async function qaDelete(subPath) {
+  const { data } = await axios.delete(`${QA_FB}${subPath}.json`);
+  return data;
+}
+
 module.exports = {
   fetchTasksFromFirebase,
   fetchRoutineTasksFromFirebase,
@@ -176,4 +197,8 @@ module.exports = {
   userPut,
   userDelete,
   auditLog,
+  qaGet,
+  qaPost,
+  qaPut,
+  qaDelete,
 };

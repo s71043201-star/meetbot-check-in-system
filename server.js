@@ -46,6 +46,7 @@ app.use(require("./src/routes/webhook"));
 app.use(require("./src/routes/attendance"));
 app.use(require("./src/routes/export"));
 app.use(require("./src/routes/meetbot"));
+app.use(require("./src/routes/questions"));
 
 // ── 測試 ──────────────────────────────────────
 app.get("/test-me", async (req, res) => {
@@ -73,11 +74,5 @@ setInterval(cleanupExpiredDocs, 24 * 60 * 60 * 1000);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`MeetBot + 出缺勤系統啟動，port ${PORT}`);
-
-  // ── 自我 ping（每 14 分鐘，防止 Render 免費方案休眠）──
-  const BASE = process.env.BASE_URL || "https://meetbot-check-in-system.onrender.com";
-  setInterval(() => {
-    require("https").get(`${BASE}/health`, () => {}).on("error", () => {});
-  }, 14 * 60 * 1000);
+  console.log(`MeetBot + 出缺勤 + QA 系統啟動，port ${PORT}`);
 });

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>問題回報管理系統 — 健康台灣深耕計畫</title>
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/qa-app.css">
+</head>
+<body>
+
+<!-- ── 頂部導航 Tab ── -->
+<div class="app-header">
+  <h1>健康台灣深耕計畫</h1>
+  <p class="app-subtitle">社團法人台北市醫師公會 · 問題回報與管理系統</p>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-tab="submit">問題回報</button>
+    <button class="nav-tab" data-tab="query">進度查詢</button>
+    <button class="nav-tab" data-tab="admin">管理後台</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- Tab 1: 問題回報 -->
+<!-- ═══════════════════════════════════════════════ -->
+<div id="tab-submit" class="tab-panel active">
+  <div class="panel-container narrow">
+
+    <!-- 表單區 -->
+    <div id="sec-form">
+      <div class="card info-card">
+        <p>如有任何問題或建議，請填寫以下表單，我們將盡快回覆</p>
+      </div>
+
+      <!-- 提問單位 -->
+      <div class="card">
+        <div class="q-title required">提問單位</div>
+        <select id="unit">
+          <option value="">請選擇您的單位</option>
+          <option value="衛服部">衛服部</option>
+          <option value="健康處方管理系統">健康處方管理系統</option>
+          <option value="合作診所相關">合作診所相關</option>
+          <option value="社區駐點辦公室">社區駐點辦公室</option>
+          <option value="課務與社區資源">課務與社區資源</option>
+          <option value="行政與人事管理">行政與人事管理</option>
+        </select>
+        <div class="err hidden" id="err-unit">請選擇提問單位</div>
+      </div>
+
+      <!-- 聯絡人姓名 -->
+      <div class="card">
+        <div class="q-title required">聯絡人姓名</div>
+        <input type="text" id="contactName" placeholder="請輸入您的姓名">
+        <div class="err hidden" id="err-contactName">請填寫聯絡人姓名</div>
+      </div>
+
+      <!-- 聯絡方式 -->
+      <div class="card">
+        <div class="q-title required">聯絡方式（Email 或電話）</div>
+        <input type="text" id="contactInfo" placeholder="請輸入 Email 或電話號碼">
+        <p style="font-size:12px;color:var(--color-text-muted);margin-top:6px;">此資訊將用於日後查詢您的問題處理進度</p>
+        <div class="err hidden" id="err-contactInfo">請填寫聯絡方式</div>
+      </div>
+
+      <!-- 問題類別 -->
+      <div class="card">
+        <div class="q-title required">問題類別</div>
+        <select id="category">
+          <option value="">請選擇問題類別</option>
+          <option value="系統操作">系統操作</option>
+          <option value="資料問題">資料問題</option>
+          <option value="流程疑問">流程疑問</option>
+          <option value="技術問題">技術問題</option>
+          <option value="建議回饋">建議回饋</option>
+          <option value="其他">其他</option>
+        </select>
+        <div class="err hidden" id="err-category">請選擇問題類別</div>
+      </div>
+
+      <!-- 問題內容 -->
+      <div class="card">
+        <div class="q-title required">問題內容</div>
+        <textarea id="content" rows="5" placeholder="請詳細描述您遇到的問題或建議"></textarea>
+        <div class="err hidden" id="err-content">請填寫問題內容</div>
+      </div>
+
+      <!-- 優先等級 -->
+      <div class="card">
+        <div class="q-title required">優先等級</div>
+        <div class="radio-group">
+          <label class="opt"><input type="radio" name="priority" value="一般" checked> 一般</label>
+          <label class="opt"><input type="radio" name="priority" value="緊急"> 緊急</label>
+        </div>
+      </div>
+
+      <!-- 提交按鈕 -->
+      <div class="card">
+        <button class="submit-btn" id="btn-submit">提交問題</button>
+      </div>
+    </div>
+
+    <!-- 成功區 -->
+    <div id="sec-success" class="hidden">
+      <div class="card">
+        <div class="success-section">
+          <div class="success-icon">&#10004;&#65039;</div>
+          <div class="success-title">問題已成功提交</div>
+          <div class="success-desc">
+            感謝您的回報，我們將盡快處理您的問題。<br>
+            您可以使用填寫的聯絡方式查詢處理進度。
+          </div>
+          <div>
+            <button class="link-btn" id="btn-go-query">查詢問題進度</button>
+            <button class="link-btn" id="btn-new">再提交一個問題</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- Tab 2: 進度查詢 -->
+<!-- ═══════════════════════════════════════════════ -->
+<div id="tab-query" class="tab-panel">
+  <div class="panel-container narrow">
+    <div class="card info-card">
+      <p>輸入您提交問題時填寫的 Email 或電話，查詢問題處理狀態</p>
+    </div>
+
+    <div class="search-card">
+      <div class="search-row">
+        <input type="text" id="searchInput" placeholder="請輸入 Email 或電話號碼">
+        <button id="btn-query-search">查詢</button>
+      </div>
+      <div class="filter-row" id="query-filter-row" style="margin-top:12px;display:none;">
+        <label style="font-size:13px;color:var(--color-text-secondary);font-weight:500;display:flex;align-items:center;gap:6px;">
+          類別篩選
+          <select id="queryFilterCategory" style="width:auto;padding:6px 10px;font-size:13px;">
+            <option value="">全部</option>
+            <option value="系統操作">系統操作</option>
+            <option value="資料問題">資料問題</option>
+            <option value="流程疑問">流程疑問</option>
+            <option value="技術問題">技術問題</option>
+            <option value="建議回饋">建議回饋</option>
+            <option value="其他">其他</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div id="query-results" class="result-cards"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- Tab 3: 管理後台 -->
+<!-- ═══════════════════════════════════════════════ -->
+<div id="tab-admin" class="tab-panel">
+  <div class="panel-container wide">
+
+    <!-- 管理子 Tab -->
+    <div class="sub-tabs">
+      <button class="sub-tab active">問題總覽</button>
+      <button class="sub-tab">統計分析</button>
+    </div>
+
+    <!-- 子 Tab 1: 問題總覽 -->
+    <div id="admin-questions" class="sub-tab-content active">
+
+      <!-- 單位按鈕列 -->
+      <div class="unit-btn-bar" id="unitBtnBar">
+        <button class="unit-btn active" data-unit="">全部</button>
+        <button class="unit-btn" data-unit="衛服部">衛服部</button>
+        <button class="unit-btn" data-unit="健康處方管理系統">健康處方管理系統</button>
+        <button class="unit-btn" data-unit="合作診所相關">合作診所相關</button>
+        <button class="unit-btn" data-unit="社區駐點辦公室">社區駐點辦公室</button>
+        <button class="unit-btn" data-unit="課務與社區資源">課務與社區資源</button>
+        <button class="unit-btn" data-unit="行政與人事管理">行政與人事管理</button>
+      </div>
+
+      <div class="filter-bar">
+        <label>狀態
+          <select id="filterStatus">
+            <option value="">全部</option>
+            <option value="待處理">待處理</option>
+            <option value="處理中">處理中</option>
+            <option value="已回覆">已回覆</option>
+            <option value="已結案">已結案</option>
+          </select>
+        </label>
+        <label>類別
+          <select id="filterCategory">
+            <option value="">全部</option>
+          </select>
+        </label>
+        <label>從
+          <input type="date" id="filterDateFrom" style="width:140px">
+        </label>
+        <label>到
+          <input type="date" id="filterDateTo" style="width:140px">
+        </label>
+        <label>關鍵字
+          <input type="text" id="filterKeyword" placeholder="搜尋內容" style="width:140px">
+        </label>
+        <button class="btn btn-primary" id="btn-admin-search">搜尋</button>
+        <button class="btn btn-success" id="btn-export">匯出 Excel</button>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-num" id="stat-total">-</div>
+          <div class="stat-label">問題總數</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num warn" id="stat-pending">-</div>
+          <div class="stat-label">待處理</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num ok" id="stat-answered">-</div>
+          <div class="stat-label">已回覆</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num mute" id="stat-closed">-</div>
+          <div class="stat-label">已結案</div>
+        </div>
+      </div>
+
+      <div id="batch-bar" class="batch-bar hidden">
+        <span id="batch-count">0</span> 筆已選取
+        <label>批量更新為
+          <select id="batch-status">
+            <option value="處理中">處理中</option>
+            <option value="已回覆">已回覆</option>
+            <option value="已結案">已結案</option>
+          </select>
+        </label>
+        <button class="btn btn-primary btn-sm" id="btn-batch-update">套用</button>
+      </div>
+
+      <div id="question-list" class="question-cards">
+        <div class="empty">載入中…</div>
+      </div>
+    </div>
+
+    <!-- 子 Tab 2: 統計分析 -->
+    <div id="admin-stats" class="sub-tab-content">
+      <div id="stats-container">
+        <div class="empty">載入中…</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="js/shared.js"></script>
+<script src="js/qa-app.js"></script>
+</body>
+</html>

@@ -27,7 +27,7 @@ const SYSTEMS = {
   "歷次列管": { name: "會議歷次列管事項生成系統",  url: "https://s71043201-star.github.io/meeting-system/" },
   "簽到":     { name: "臨時人員簽到系統",          url: "https://meetbot-check-in-system.onrender.com/checkin.html" },
   "後台":     { name: "出缺勤後台管理",            url: "https://meetbot-check-in-system.onrender.com/admin.html" },
-  "問題回報": { name: "問題回報管理系統",            url: "https://meetbot-qa-system.onrender.com/index.html" },
+  "問題回報": { name: "問題回報管理系統",            url: "https://meetbot-check-in-system.onrender.com/qa.html" },
 };
 
 const ATT_BOSS_IDS = [
@@ -44,6 +44,7 @@ const TASKS_FB = process.env.TASKS_FB || "https://meetbot-ede53-default-rtdb.asi
 const ROUTINE_TASKS_FB = process.env.ROUTINE_TASKS_FB || "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/meetbot/routineTasks.json";
 const ATT_FB   = process.env.ATT_FB || "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/attendance";
 const USERS_FB = process.env.USERS_FB || "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/users";
+const QA_FB    = process.env.QA_FB   || "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/questions";
 
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
 const SLACK_BOT_TOKEN   = process.env.SLACK_BOT_TOKEN;
@@ -72,6 +73,7 @@ module.exports = {
   ROUTINE_TASKS_FB,
   ATT_FB,
   USERS_FB,
+  QA_FB,
   SLACK_WEBHOOK_URL,
   SLACK_BOT_TOKEN,
   SLACK_MEMBERS,
