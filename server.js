@@ -7,7 +7,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 // -- CORS --
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || "https://meetbot-check-in-system.onrender.com,http://localhost:3000,http://localhost:3001")
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "https://meetbot-check-in-system.onrender.com,https://s71043201-star.github.io,http://localhost:3000,http://localhost:3001")
   .split(",").map(s => s.trim());
 
 app.use((req, res, next) => {
