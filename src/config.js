@@ -1,6 +1,6 @@
 const TOKEN = process.env.LINE_TOKEN;
 
-const TEAM = ["黃琴茹","蔡蕙芳","吳承儒","張鈺微","吳亞璇","許雅淇","戴豐逸","陳佩研"];
+const TEAM = ["黃琴茹","蔡蕙芳","吳承儒","張鈺微","吳亞璇","許雅淇","戴豐逸","陳佩研","彭琦雅"];
 
 const MEMBERS = {
   "黃琴茹": "U858b6b722d9a01e1a927d07f8ffc65ed",
@@ -11,6 +11,7 @@ const MEMBERS = {
   "許雅淇": "U87efc2433f2ab838929cbfbdb2851748",
   "戴豐逸": "Uece4baaf97cfab39ad79c6ed0ee55d03",
   "陳佩研": "Uc8e074d50b3b20581945f5c6aca80d1d",
+  "彭琦雅": "Ua4cad749d974d509766b430de960a927",
 };
 
 const ID_TO_NAME = Object.fromEntries(Object.entries(MEMBERS).map(([k, v]) => [v, k]));
@@ -45,6 +46,7 @@ const ROUTINE_TASKS_FB = process.env.ROUTINE_TASKS_FB || "https://meetbot-ede53-
 const ATT_FB   = process.env.ATT_FB || "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/attendance";
 const USERS_FB = process.env.USERS_FB || "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/users";
 const QA_FB    = process.env.QA_FB   || "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/questions";
+const MEETINGS_FB = process.env.MEETINGS_FB || "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/meetbot/meetings";
 
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
 const SLACK_BOT_TOKEN   = process.env.SLACK_BOT_TOKEN;
@@ -58,7 +60,14 @@ const SLACK_MEMBERS = {
   "吳亞璇": "U0AFJ9QMVNX",
   "戴豐逸": "U0AFCSWKYB1",
   "陳佩研": "U0AFRH2PB56",
+  "彭琦雅": "U0AJRNSRE04",
 };
+
+// 圖文選單：只有蔡蕙芳、陳佩研保留管理選單
+const RICHMENU_ADMIN_IDS = new Set([
+  "Uc05e7076d830f4f75ecc14a07b697e5c", // 蔡蕙芳
+  "Uc8e074d50b3b20581945f5c6aca80d1d", // 陳佩研
+]);
 
 module.exports = {
   TOKEN,
@@ -74,7 +83,9 @@ module.exports = {
   ATT_FB,
   USERS_FB,
   QA_FB,
+  MEETINGS_FB,
   SLACK_WEBHOOK_URL,
   SLACK_BOT_TOKEN,
   SLACK_MEMBERS,
+  RICHMENU_ADMIN_IDS,
 };
