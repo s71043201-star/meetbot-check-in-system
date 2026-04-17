@@ -65,7 +65,10 @@ function buildPersonSheet(wb, personName, records) {
     ws.getRow(rn).height = 30;
     const ci  = toTaipei(new Date(r.checkinTime)).toLocaleTimeString("zh-TW",  { hour:"2-digit", minute:"2-digit" });
     const co  = toTaipei(new Date(r.checkoutTime)).toLocaleTimeString("zh-TW", { hour:"2-digit", minute:"2-digit" });
-    const row = ["", idx+1, r.year, r.month, r.day, r.course||"", ci, co, r.hours];
+    const workItem = Array.isArray(r.workContent)
+      ? r.workContent.join("、")
+      : (r.workContent || r.course || "");
+    const row = ["", idx+1, r.year, r.month, r.day, workItem, ci, co, r.hours];
     row.forEach((v, i) => {
       if (i === 0) return;
       const cell = ws.getCell(rn, i+1);
