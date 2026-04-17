@@ -61,7 +61,8 @@ router.post("/gemini-proxy", async (req, res) => {
     delete req.body.model;
     if (model.includes("2.5")) {
       req.body.generationConfig = { maxOutputTokens: 65536, ...(req.body.generationConfig || {}) };
-      if (!req.body.thinkingConfig) req.body.thinkingConfig = { thinkingBudget: 128 };
+      if (!req.body.generationConfig.thinkingConfig) req.body.generationConfig.thinkingConfig = { thinkingBudget: 128 };
+      delete req.body.thinkingConfig;
     }
     const geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + geminiKey;
     const response = await axios.post(geminiUrl, req.body, { headers: { "Content-Type": "application/json" } });
