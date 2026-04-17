@@ -19,7 +19,7 @@ function buildPersonSheet(wb, personName, records) {
   const lmid = { horizontal:"left",   vertical:"middle", wrapText:true };
   const tk   = { name:"DFKai-SB", size:12, charset:136 };
 
-  // 欄寬：A(1) B(2)編號 C(3)年 D(4)月 E(5)日 F(6)課程名稱 G(7)時分 H(8)至時分 I(9)共計
+  // 欄寬：A(1) B(2)編號 C(3)年 D(4)月 E(5)日 F(6)工作項目 G(7)時分 H(8)至時分 I(9)共計
   [5, 8, 8, 12, 12, 32, 13, 13, 13].forEach((w, i) => { ws.getColumn(i+1).width = w; });
 
   // Row 1 大標題
@@ -50,7 +50,7 @@ function buildPersonSheet(wb, personName, records) {
 
   // Row 4 欄位標題
   ws.getRow(4).height = 30;
-  ["", "編號", "年", "月", "日", "課程名稱", "時　分", "至時分", "共計（時）"].forEach((h, i) => {
+  ["", "編號", "年", "月", "日", "工作項目", "時　分", "至時分", "共計（時）"].forEach((h, i) => {
     if (i === 0) return;
     const cell = ws.getCell(4, i+1);
     cell.value = h;

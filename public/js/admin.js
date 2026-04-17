@@ -120,7 +120,7 @@
 
       tbody.innerHTML = pageRecords.map(function (r, i) {
         var dateStr   = r.year ? r.year + "/" + r.month + "/" + r.day : "-";
-        var content   = Array.isArray(r.workContent) ? r.workContent.join("\u3001") : "-";
+        var content   = Array.isArray(r.workContent) ? r.workContent.join("\u3001") : (r.workContent || "-");
         var typeLabel = r.checkinType === "prescription" ? "\u8655\u65B9\u65E5" : "\u4E00\u822C";
         var courseStr = Array.isArray(r.courses) && r.courses.length > 0
           ? r.courses.join("\u3001") : (r.course || "-");
