@@ -7,12 +7,14 @@ const UNITS = ["衛服部", "健康處方管理系統", "合作診所相關", "�
 const STATUSES = ["待處理", "處理中", "已回覆", "已結案"];
 
 // ── 輔助：取得所有未刪除問題 ─────────────────────
-async function getAllQuestions() {
+// includeArchived=true 時連同已隱藏的一起回傳
+async function getAllQuestions(includeArchived = false) {
   const data = await qaGet();
   if (!data) return [];
   return Object.entries(data)
     .map(([id, r]) => ({ id, ...r }))
-    .filter(r => !r.deleted);
+    .filter(r => !r.deleted)
+    .filter(r => includeArchived ? true : !r.archived);
 }
 
 // ── 輔助：篩選 ──────────────────────────────────
@@ -41,9 +43,10 @@ function applyFilters(questions, query) {
 }
 
 // ── 統計 ─────────────────────────────────────────
+// 統計僅計算未隱藏資料；加 ?includeArchived=1 可含已隱藏
 router.get("/api/questions/stats", async (req, res) => {
   try {
-    const all = await getAllQuestions();
+    const all = await getAllQuestions(req.query.includeArchived === "1");
     const byStatus = {};
     const byUnit = {};
     const byCategory = {};
@@ -63,7 +66,7 @@ router.get("/api/questions/stats", async (req, res) => {
 // ── 匯出 Excel ──────────────────────────────────
 router.get("/api/questions/export", async (req, res) => {
   try {
-    const all = await getAllQuestions();
+    const all = await getAllQuestions(req.query.includeArchived === "1");
     const filtered = applyFilters(all, req.query);
 
     const wb = new ExcelJS.Workbook();
@@ -139,7 +142,7 @@ router.get("/api/questions/public/search", async (req, res) => {
 // ── 列表查詢 ─────────────────────────────────────
 router.get("/api/questions", async (req, res) => {
   try {
-    const all = await getAllQuestions();
+    const all = await getAllQuestions(req.query.includeArchived === "1");
     const filtered = applyFilters(all, req.query);
     res.json(filtered);
   } catch (e) {
@@ -194,7 +197,7 @@ router.put("/api/questions/:id", async (req, res) => {
     if (!existing || existing.deleted) return res.status(404).json({ error: "not found" });
 
     const updates = {};
-    const allowed = ["answer", "answeredBy", "status", "category", "priority"];
+    const allowed = ["answer", "answeredBy", "status", "category", "priority", "archived"];
     allowed.forEach(k => { if (req.body[k] !== undefined) updates[k] = req.body[k]; });
     updates.updatedAt = new Date().toISOString();
 

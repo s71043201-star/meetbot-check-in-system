@@ -783,6 +783,10 @@ input[type="radio"] {
 .badge-answered   { background: var(--color-success-light); color: var(--color-success); }
 .badge-closed     { background: #f1f5f9; color: var(--color-text-muted); }
 .badge-category   { background: #f3e8ff; color: #7c3aed; }
+.badge-archived   { background: #fef3c7; color: #92400e; }
+
+.question-card.archived { opacity: 0.55; background: #fafafa; }
+.question-card.archived:hover { opacity: 0.85; }
 
 .badge-priority-normal {
   background: var(--color-bg);

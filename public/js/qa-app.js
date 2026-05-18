@@ -285,6 +285,8 @@
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
     if (keyword) params.set("keyword", keyword);
+    var includeArchived = document.getElementById("filterIncludeArchived");
+    if (includeArchived && includeArchived.checked) params.set("includeArchived", "1");
     return params;
   }
 
@@ -350,7 +352,7 @@
           '</div></div>';
       }
 
-      return '<div class="question-card" data-id="' + q.id + '">' +
+      return '<div class="question-card' + (q.archived ? ' archived' : '') + '" data-id="' + q.id + '">' +
         '<div class="question-card-header">' +
           '<input type="checkbox" class="question-card-check" data-id="' + q.id + '"' +
             (selectedIds.has(q.id) ? " checked" : "") + '>' +
@@ -359,6 +361,7 @@
             '<span class="badge ' + statusCls + '">' + escapeHtml(q.status) + '</span>' +
             '<span class="badge ' + priorityCls + '">' + escapeHtml(q.priority) + '</span>' +
             (q.category ? '<span class="badge badge-category">' + escapeHtml(q.category) + '</span>' : '') +
+            (q.archived ? '<span class="badge badge-archived">已隱藏</span>' : '') +
             '<span style="font-size:13px;color:var(--color-text);font-weight:500;">' + escapeHtml(q.contactName) + '</span>' +
           '</div>' +
           '<span class="question-card-date">' + dateStr + '</span>' +
@@ -378,6 +381,9 @@
             '<button class="btn btn-primary btn-sm btn-reply" data-id="' + q.id + '">' +
               (q.answer ? '編輯回覆' : '回覆') +
             '</button>' +
+            (q.archived
+              ? '<button class="btn btn-outline btn-sm btn-unarchive" data-id="' + q.id + '">取消隱藏</button>'
+              : '<button class="btn btn-outline btn-sm btn-archive" data-id="' + q.id + '">隱藏</button>') +
             '<button class="btn btn-danger btn-sm btn-delete" data-id="' + q.id + '">刪除</button>' +
           '</div>' +
           '<div class="answer-editor-container" data-id="' + q.id + '"></div>' +
@@ -420,6 +426,16 @@
     if (target.classList.contains("btn-delete")) {
       var did = target.getAttribute("data-id");
       deleteQuestion(did);
+      return;
+    }
+
+    // Archive / Unarchive
+    if (target.classList.contains("btn-archive")) {
+      setArchived(target.getAttribute("data-id"), true);
+      return;
+    }
+    if (target.classList.contains("btn-unarchive")) {
+      setArchived(target.getAttribute("data-id"), false);
       return;
     }
 
@@ -509,6 +525,20 @@
     }
   }
 
+  async function setArchived(id, archived) {
+    try {
+      await fetchJSON("/api/questions/" + id, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: archived })
+      });
+      showToast(archived ? "已隱藏" : "已取消隱藏", "success");
+      loadQuestions();
+    } catch (e) {
+      showToast((archived ? "隱藏" : "取消隱藏") + "失敗：" + e.message, "error");
+    }
+  }
+
   // ── Batch operations ──
   function updateBatchBar() {
     var bar = document.getElementById("batch-bar");
@@ -592,5 +622,7 @@
   document.getElementById("filterKeyword").addEventListener("keydown", function (e) {
     if (e.key === "Enter") loadQuestions();
   });
+
+  document.getElementById("filterIncludeArchived").addEventListener("change", loadQuestions);
 
 })();
