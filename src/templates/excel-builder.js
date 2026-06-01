@@ -65,9 +65,12 @@ function buildPersonSheet(wb, personName, records) {
     ws.getRow(rn).height = 30;
     const ci  = toTaipei(new Date(r.checkinTime)).toLocaleTimeString("zh-TW",  { hour:"2-digit", minute:"2-digit" });
     const co  = toTaipei(new Date(r.checkoutTime)).toLocaleTimeString("zh-TW", { hour:"2-digit", minute:"2-digit" });
-    const workItem = Array.isArray(r.workContent)
-      ? r.workContent.join("、")
-      : (r.workContent || r.course || "");
+    // 工作項目欄顯示「課程名稱」（與後台課程名稱/課程概況欄一致）：
+    // courses 陣列優先（處方日多課程），否則取 course（規律課程單堂 / 行政庶務工作名稱）
+    // courses 可能為字串陣列（舊格式）或物件陣列（處方日新格式），皆取課程名稱
+    const workItem = Array.isArray(r.courses) && r.courses.length > 0
+      ? r.courses.map(c => (typeof c === "object" ? (c.course || "") : c)).filter(Boolean).join("、")
+      : (r.course || "");
     const row = ["", idx+1, r.year, r.month, r.day, workItem, ci, co, r.hours];
     row.forEach((v, i) => {
       if (i === 0) return;
