@@ -6,6 +6,10 @@ const { sendLine, sendLineWithQuickReply } = require("./line");
 const { MEMBERS, BOSS_IDS } = require("./config");
 const { fetchRoutineTasksFromFirebase } = require("./firebase");
 
+// 2026-06-09 關閉下午 16:30 / 16:50 的工作進度提醒（LINE + Slack）。
+// 要重新開啟只需把這個開關改回 true。
+const AFTERNOON_REMINDERS_ON = false;
+
 let lastRun430 = "";
 let lastRun450 = "";
 const routineReminderSent = {};
@@ -85,7 +89,7 @@ function startScheduler() {
     if (day === 0 || day === 6) return;
 
     // 16:30 -- all members reminder via LINE
-    if (hour === 16 && min === 30 && lastRun430 !== dateKey) {
+    if (AFTERNOON_REMINDERS_ON && hour === 16 && min === 30 && lastRun430 !== dateKey) {
       lastRun430 = dateKey;
       const targets = Object.entries(MEMBERS)
         .filter(([name]) => name !== "\u8521\u8559\u82B3")
@@ -97,7 +101,7 @@ function startScheduler() {
     }
 
     // 16:50 -- boss reminder via LINE with quick reply
-    if (hour === 16 && min === 50 && lastRun450 !== dateKey) {
+    if (AFTERNOON_REMINDERS_ON && hour === 16 && min === 50 && lastRun450 !== dateKey) {
       lastRun450 = dateKey;
       const memberNames = TEAM.filter(n => n !== "\u8521\u8559\u82B3");
       const quickItems = memberNames.map(name => ({

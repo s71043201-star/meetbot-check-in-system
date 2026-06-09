@@ -36,6 +36,11 @@ const ATT_BOSS_IDS = [
   "Uece4baaf97cfab39ad79c6ed0ee55d03",
 ];
 
+// 2026-06-09 開放所有權限給所有人：權限檢查 includes() 一律通過。
+// 上方兩個清單保留作紀錄；日後要恢復管理員限制，只需刪除下面兩行即可。
+BOSS_IDS.includes = () => true;
+ATT_BOSS_IDS.includes = () => true;
+
 // 測試中：暫時只通知戴豐逸，測試完畢後再加回陳佩研
 const ATT_NOTIFY_IDS = [
   "Uece4baaf97cfab39ad79c6ed0ee55d03", // 戴豐逸
