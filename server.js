@@ -7,7 +7,12 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 // -- 跟課班表系統（自帶登入/限流；放在全域 rate limiter 之前避免被卡）--
-app.use("/schedule", require("./src/schedule"));
+// 用 try/catch 包住：即使排班模組載入失敗，也不影響既有簽到/webhook 等系統
+try {
+  app.use("/schedule", require("./src/schedule"));
+} catch (e) {
+  console.error("[server] 掛載 /schedule 失敗（不影響其他系統）:", e && e.message);
+}
 
 // -- CORS --
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "https://meetbot-check-in-system.onrender.com,https://s71043201-star.github.io,http://localhost:3000,http://localhost:3001")
