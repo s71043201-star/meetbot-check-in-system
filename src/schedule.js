@@ -69,6 +69,7 @@ const MSG_MAP = {
   pw_wrong:        "目前密碼輸入錯誤",
   pw_short:        "新密碼至少需要 6 個字元",
   pw_short4:       "新密碼至少需要 4 個字元",
+  pw_need4:        "密碼需為 4 位數字",
   pw_changed_home: "✓ 密碼已成功變更",
   pw_mismatch:     "兩次輸入的新密碼不一致",
   pw_set:          "✓ 已設定工讀生新密碼",
@@ -228,6 +229,11 @@ async function regUsersGet() {
 async function regUsersDelete(id) {
   await axios.delete(`${USERS_REG_FB}/${id}.json`);
 }
+async function regUsersPost(user) {
+  const { data } = await axios.post(`${USERS_REG_FB}.json`, user);
+  return data;
+}
+const FEE_TYPES = ["稿費", "審查費", "講座鐘點費", "臨時人員費", "出席費", "交通差旅費", "其他"];
 
 // ── 開放跟課 / 不跟課 清單（存 Firebase；以 slot_id 為準，預設全部開放）──
 function nameKey(name) {
@@ -360,11 +366,11 @@ async function ensureAdmin() {
     if (!users.some(u => u.username === "admin")) {
       await rpost("/users", {
         username: "admin",
-        password_hash: hp("admin123"),
+        password_hash: hp("0000"),
         display_name: "管理員",
         role: "admin",
       });
-      console.log("[schedule] 已建立預設管理員 admin / admin123");
+      console.log("[schedule] 已建立預設管理員 管理員 / 0000（請盡快變更）");
     }
   } catch (e) {
     console.error("[schedule] ensureAdmin failed:", e.message);
@@ -1049,14 +1055,14 @@ router.get("/change-password", (req, res) => {
     `${notice}` +
     `<div class='card' style='max-width:460px'>` +
     `<div class='card-title'>修改密碼</div>` +
-    `<p style='font-size:12px;color:var(--muted);margin-bottom:14px'>預設密碼為身分證後 4 碼；可改成你自己的密碼（至少 4 字元）。</p>` +
+    `<p style='font-size:12px;color:var(--muted);margin-bottom:14px'>預設密碼為身分證後 4 碼；可改成你自己的 4 位數字密碼。</p>` +
     `<form method='post' action='${PREFIX}/change-password'>${hiddenCsrf(sess)}` +
     `<div class='form-group' style='margin-bottom:12px'><label class='form-label'>目前密碼</label>` +
-    `<input name='current_password' type='password' required></div>` +
-    `<div class='form-group' style='margin-bottom:12px'><label class='form-label'>新密碼（至少 4 字元）</label>` +
-    `<input name='new_password' type='password' required minlength='4'></div>` +
+    `<input name='current_password' type='password' inputmode='numeric' maxlength='4' required></div>` +
+    `<div class='form-group' style='margin-bottom:12px'><label class='form-label'>新密碼（4 位數字）</label>` +
+    `<input name='new_password' type='password' inputmode='numeric' maxlength='4' pattern='\\d{4}' required></div>` +
     `<div class='form-group' style='margin-bottom:16px'><label class='form-label'>確認新密碼</label>` +
-    `<input name='confirm_password' type='password' required></div>` +
+    `<input name='confirm_password' type='password' inputmode='numeric' maxlength='4' required></div>` +
     `<button class='btn btn-primary'>變更密碼</button>` +
     `</form></div>`;
   res.send(layout("修改密碼", body, sess));
@@ -1068,7 +1074,7 @@ router.post("/change-password", async (req, res) => {
   const { current_password, new_password, confirm_password } = req.body;
   const me = await getUser(sess.id);
   if (!me || me.password_hash !== hp(current_password || "")) return res.redirect(`${PREFIX}/change-password?msg=pw_wrong`);
-  if (!new_password || new_password.length < 4) return res.redirect(`${PREFIX}/change-password?msg=pw_short4`);
+  if (!/^\d{4}$/.test(new_password || "")) return res.redirect(`${PREFIX}/change-password?msg=pw_need4`);
   if (new_password !== confirm_password) return res.redirect(`${PREFIX}/change-password?msg=pw_mismatch`);
   await rpatch(`/users/${sess.id}`, { password_hash: hp(new_password) });
   res.redirect(`${PREFIX}/home?msg=pw_changed_home`);
@@ -1384,11 +1390,11 @@ router.get("/admin", async (req, res) => {
     `<form method='post' action='${PREFIX}/admin/change-password'>${csrf}` +
     `<div class='form-row cols-3'>` +
     `<div class='form-group'><label class='form-label'>目前密碼</label>` +
-    `<input name='current_password' type='password' required autocomplete='current-password'></div>` +
-    `<div class='form-group'><label class='form-label'>新密碼（至少 4 字元）</label>` +
-    `<input name='new_password' type='password' required minlength='4' autocomplete='new-password'></div>` +
+    `<input name='current_password' type='password' inputmode='numeric' maxlength='4' required autocomplete='current-password'></div>` +
+    `<div class='form-group'><label class='form-label'>新密碼（4 位數字）</label>` +
+    `<input name='new_password' type='password' inputmode='numeric' maxlength='4' pattern='\\d{4}' required autocomplete='new-password'></div>` +
     `<div class='form-group'><label class='form-label'>確認新密碼</label>` +
-    `<input name='confirm_password' type='password' required autocomplete='new-password'></div>` +
+    `<input name='confirm_password' type='password' inputmode='numeric' maxlength='4' required autocomplete='new-password'></div>` +
     `</div>` +
     `<button class='btn btn-primary'>變更密碼</button>` +
     `</form>` +
@@ -2348,7 +2354,7 @@ router.post("/admin/change-password", async (req, res) => {
   const { current_password, new_password, confirm_password } = req.body;
   const me = await getUser(sess.id);
   if (!me || me.password_hash !== hp(current_password || "")) return res.redirect(`${PREFIX}/admin?msg=pw_wrong&tab=password`);
-  if (!new_password || new_password.length < 4) return res.redirect(`${PREFIX}/admin?msg=pw_short4&tab=password`);
+  if (!/^\d{4}$/.test(new_password || "")) return res.redirect(`${PREFIX}/admin?msg=pw_need4&tab=password`);
   if (new_password !== confirm_password)         return res.redirect(`${PREFIX}/admin?msg=pw_mismatch&tab=password`);
   await rpatch(`/users/${sess.id}`, { password_hash: hp(new_password) });
   res.redirect(`${PREFIX}/login?msg=pw_changed`);
