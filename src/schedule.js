@@ -70,6 +70,10 @@ const MSG_MAP = {
   pw_short:        "新密碼至少需要 6 個字元",
   pw_short4:       "新密碼至少需要 4 個字元",
   pw_need4:        "密碼需為 4 位數字",
+  registered:      "✓ 註冊成功！請用「姓名＋身分證後4碼」登入",
+  reg_badid:       "請填寫姓名，身分證字號需 10 碼",
+  reg_dup:         "此姓名與身分證後4碼已註冊過，請直接登入",
+  reg_fail:        "註冊失敗，請稍後再試",
   pw_changed_home: "✓ 密碼已成功變更",
   pw_mismatch:     "兩次輸入的新密碼不一致",
   pw_set:          "✓ 已設定工讀生新密碼",
@@ -861,7 +865,7 @@ const ATT_CLIENT_JS = `<script>
 // ══════════════════════════════════════════════
 router.get("/login", (req, res) => {
   const msg = req.query.msg || "";
-  const okMsgs = new Set(["pw_changed"]);
+  const okMsgs = new Set(["pw_changed", "registered"]);
   let err = "";
   if (okMsgs.has(msg)) err = `<div class='alert alert-ok'>${esc(MSG_MAP[msg] || msg)}</div>`;
   else if (msg) err = alertHtml(msg, "err");
@@ -882,6 +886,7 @@ router.get("/login", (req, res) => {
     `<label class='form-label'>身分證後 4 碼</label>` +
     `<input name='code' type='password' inputmode='numeric' maxlength='4' autocomplete='current-password' required placeholder='••••'></div>` +
     `<button class='btn btn-primary' style='width:100%;justify-content:center;padding:10px'>登入</button>` +
+    `<div style='text-align:center;margin-top:14px;font-size:13px'>第一次使用？<a href='${PREFIX}/register'>點此註冊</a></div>` +
     `</form></div></div></body></html>`
   );
 });
@@ -898,6 +903,99 @@ router.post("/login", async (req, res) => {
   const { token } = newSession(u.id, u);
   setSessionCookie(res, req, token, Math.floor(SESSION_TTL / 1000));
   res.redirect(u.role === "admin" ? `${PREFIX}/admin` : `${PREFIX}/home`);
+});
+
+// ══════════════════════════════════════════════
+//  註冊（臨時人員自填領據資料；註冊即建立登入帳號＋領據資料）
+// ══════════════════════════════════════════════
+router.get("/register", (req, res) => {
+  const msg = req.query.msg || "";
+  const err = msg ? alertHtml(msg, "err") : "";
+  const feeBoxes = FEE_TYPES.map(f =>
+    `<label style='display:inline-flex;align-items:center;gap:4px;margin:0 12px 6px 0;font-size:13px'>` +
+    `<input type='checkbox' name='feeTypes' value='${esc(f)}' style='width:auto'>${esc(f)}</label>`
+  ).join("");
+  res.send(
+    `<!DOCTYPE html><html lang='zh-TW'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>` +
+    `<title>註冊 — 跟課班表系統</title>` +
+    `<link href='https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600&display=swap' rel='stylesheet'>${CSS}</head><body>` +
+    `<div class='login-wrap' style='padding:24px 12px'><div class='login-card' style='width:560px;max-width:100%'>` +
+    `<div class='login-logo'><h1>📋 新人註冊</h1><p>填寫請款（領據）資料</p></div>` +
+    `${err}` +
+    `<form method='post' action='${PREFIX}/register'>` +
+    `<div class='form-row cols-2'>` +
+    `<div class='form-group'><label class='form-label'>姓名 *</label><input name='name' required></div>` +
+    `<div class='form-group'><label class='form-label'>身分證字號 *（10 碼，末 4 碼為登入密碼）</label><input name='idNumber' maxlength='10' required placeholder='A123456789'></div>` +
+    `</div>` +
+    `<div class='form-row cols-2'>` +
+    `<div class='form-group'><label class='form-label'>電話</label><input name='phone' inputmode='numeric'></div>` +
+    `<div class='form-group'><label class='form-label'>事由名稱</label><input name='eventName' placeholder='例：處方兌換日跟課'></div>` +
+    `</div>` +
+    `<div class='form-group' style='margin-bottom:12px'><label class='form-label'>工作內容</label><input name='workDescription' placeholder='例：場佈、報到、出席紀錄'></div>` +
+    `<div class='form-group' style='margin-bottom:12px'><label class='form-label'>費用別</label><div>${feeBoxes}</div></div>` +
+    `<div class='form-group' style='margin-bottom:12px'><label class='form-label'>領款方式</label>` +
+    `<div style='display:flex;gap:16px'>` +
+    `<label style='display:inline-flex;align-items:center;gap:4px'><input type='radio' name='payMethod' value='現金' checked style='width:auto'>現金</label>` +
+    `<label style='display:inline-flex;align-items:center;gap:4px'><input type='radio' name='payMethod' value='匯款' style='width:auto'>匯款</label>` +
+    `</div></div>` +
+    `<div id='bank-box' style='display:none;border:1px solid var(--border-l);border-radius:4px;padding:12px;margin-bottom:12px'>` +
+    `<div class='form-row cols-3'>` +
+    `<div class='form-group'><label class='form-label'>銀行/分行</label><input name='bankName'></div>` +
+    `<div class='form-group'><label class='form-label'>戶名</label><input name='accountName'></div>` +
+    `<div class='form-group'><label class='form-label'>帳號</label><input name='account' inputmode='numeric'></div>` +
+    `</div></div>` +
+    `<div class='form-group' style='margin-bottom:12px'><label class='form-label'>戶籍地址</label><input name='address' id='reg-addr'></div>` +
+    `<div class='form-group' style='margin-bottom:6px'><label class='form-label'>居住地址</label><input name='liveAddress' id='reg-live'></div>` +
+    `<label style='display:inline-flex;align-items:center;gap:4px;font-size:13px;margin-bottom:16px'><input type='checkbox' id='same-addr' style='width:auto'>同戶籍地址</label>` +
+    `<button class='btn btn-primary' style='width:100%;justify-content:center;padding:10px'>註冊</button>` +
+    `<div style='text-align:center;margin-top:14px'><a href='${PREFIX}/login'>已有帳號？返回登入</a></div>` +
+    `</form></div></div>` +
+    `<script>(function(){` +
+    `var r=document.querySelectorAll('input[name=payMethod]');var box=document.getElementById('bank-box');` +
+    `function upd(){box.style.display=(document.querySelector('input[name=payMethod]:checked').value==='匯款')?'block':'none';}` +
+    `r.forEach(function(x){x.addEventListener('change',upd);});upd();` +
+    `var same=document.getElementById('same-addr'),a=document.getElementById('reg-addr'),l=document.getElementById('reg-live');` +
+    `function sync(){if(same.checked){l.value=a.value;l.readOnly=true;}else{l.readOnly=false;}}` +
+    `same.addEventListener('change',sync);a.addEventListener('input',function(){if(same.checked)l.value=a.value;});` +
+    `})();</script></body></html>`
+  );
+});
+router.post("/register", async (req, res) => {
+  const b = req.body;
+  const name = (b.name || "").trim();
+  const idNumber = (b.idNumber || "").trim();
+  if (!name || idNumber.length !== 10) return res.redirect(`${PREFIX}/register?msg=reg_badid`);
+  const id4 = idNumber.slice(-4);
+  try {
+    const existing = await regUsersGet();
+    if (existing.some(u => u.name === name && String(u.idNumber || "").slice(-4) === id4))
+      return res.redirect(`${PREFIX}/register?msg=reg_dup`);
+    const feeTypes = [].concat(b.feeTypes || []).filter(Boolean);
+    const bankInfo = b.payMethod === "匯款"
+      ? { bankName: (b.bankName || "").trim(), accountName: (b.accountName || "").trim(), account: (b.account || "").trim() }
+      : {};
+    await regUsersPost({
+      name, idNumber,
+      phone: (b.phone || "").trim(),
+      eventName: (b.eventName || "").trim(),
+      workDescription: (b.workDescription || "").trim(),
+      feeTypes,
+      payMethod: b.payMethod || "",
+      bankInfo,
+      address: (b.address || "").trim(),
+      liveAddress: (b.liveAddress || "").trim(),
+      registeredAt: new Date().toISOString(),
+    });
+    // 建立登入帳號（姓名＋身分證後4碼），若尚無相同帳號
+    const sUsers = await getUsers();
+    if (!sUsers.some(u => u.display_name === name && u.password_hash === hp(id4))) {
+      await rpost("/users", { username: name, password_hash: hp(id4), display_name: name, role: "worker" });
+    }
+    res.redirect(`${PREFIX}/login?msg=registered`);
+  } catch (e) {
+    console.error("[schedule] register:", e.message);
+    res.redirect(`${PREFIX}/register?msg=reg_fail`);
+  }
 });
 
 router.get("/logout", (req, res) => {
