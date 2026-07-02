@@ -4,6 +4,10 @@ const axios   = require("axios");
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
+
+// 舊簽到頁 → 導向新的合併系統（放在 static 之前才能覆蓋 public/checkin.html）
+app.get("/checkin.html", (req, res) => res.redirect(302, "/schedule/login"));
+
 app.use(express.static(path.join(__dirname, "public")));
 
 // -- 跟課班表系統（自帶登入/限流；放在全域 rate limiter 之前避免被卡）--
