@@ -30,6 +30,7 @@ const SYSTEMS = {
   "簽到":     { name: "臨時人員簽到系統",          url: "https://meetbot-check-in-system.onrender.com/checkin.html" },
   "後台":     { name: "出缺勤後台管理",            url: "https://meetbot-check-in-system.onrender.com/admin.html" },
   "問題回報": { name: "問題回報管理系統",            url: "https://meetbot-check-in-system.onrender.com/qa.html" },
+  "排班":     { name: "跟課班表系統",              url: "https://meetbot-check-in-system.onrender.com/schedule" },
 };
 
 const ATT_BOSS_IDS = [

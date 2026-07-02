@@ -6,12 +6,6 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["server.js"],
       "port": 3001
-    },
-    {
-      "name": "schedule-preview",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["dev-preview.js"],
-      "port": 3001
     }
   ]
 }
