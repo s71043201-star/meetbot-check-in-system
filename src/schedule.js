@@ -81,6 +81,9 @@ const MSG_MAP = {
   time_reset:      "✓ 已還原為原始時間",
   presc_saved:     "✓ 已儲存處方日工作項目",
   presc_courses_saved: "✓ 已將勾選課程設為處方日",
+  presc_signup:    "✓ 已報名此處方日",
+  presc_cancel:    "✓ 已取消報名",
+  presc_full:      "此處方日已額滿",
   presc_assigned:  "✓ 已加入工讀生",
   presc_unassigned:"✓ 已移除工讀生",
 };
@@ -693,6 +696,7 @@ const CAL_CLIENT_JS = `<script>
   var months=Array.from(new Set(all.map(function(c){return c.date.slice(0,7);}))).sort();
   var cur=months.length?months[0]:'';
   var sel=null, reg='';
+  try{var _qd=new URLSearchParams(location.search).get('day');if(_qd){cur=_qd.slice(0,7);sel=_qd;}}catch(e){}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function shift(m,d){var p=m.split('-').map(Number);var y=p[0],mo=p[1]+d;if(mo<1){mo=12;y--;}if(mo>12){mo=1;y++;}return y+'-'+String(mo).padStart(2,'0');}
   function cs(){return reg?all.filter(function(c){return c.region===reg;}):all;}
@@ -1689,6 +1693,27 @@ router.delete("/records/:id", async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── 工讀生報名處方日（自行登記，額滿為止；toggle）──
+router.post("/presc-signup/:date/:region", async (req, res) => {
+  const sess = getSess(req);
+  if (!sess || sess.role !== "worker") return res.redirect(`${PREFIX}/login`);
+  const { date, region } = req.params;
+  const back = `${PREFIX}/dashboard?day=${date}`;
+  if (!csrfOk(req, req.body.csrf_token)) return res.redirect(`${back}&msg=csrf_err`);
+  const wid = sess.id;
+  const cur = await rget(`/presc_assignments/${date}/${region}/${wid}`);
+  if (cur) { // 已報名 → 取消
+    await rdel(`/presc_assignments/${date}/${region}/${wid}`);
+    return res.redirect(`${back}&msg=presc_cancel`);
+  }
+  const cfg = await rget(`/presc_days/${date}/${region}`) || {};
+  const needed = ((cfg.items) || []).reduce((s, it) => s + (Number(it.count) || 0), 0);
+  const assignObj = await rget(`/presc_assignments/${date}/${region}`) || {};
+  if (needed && Object.keys(assignObj).length >= needed) return res.redirect(`${back}&msg=presc_full`);
+  await rput(`/presc_assignments/${date}/${region}/${wid}`, { assigned_at: nowTaipei(), self: true });
+  res.redirect(`${back}&msg=presc_signup`);
+});
+
 // ══════════════════════════════════════════════
 //  工讀生 Dashboard
 // ══════════════════════════════════════════════
@@ -1710,15 +1735,30 @@ router.get("/dashboard", async (req, res) => {
     const parts = [];
     for (const [region, cfg] of Object.entries(regs || {})) {
       const items = (cfg && cfg.items) || [];
-      const assignedN = Object.keys((prescAssign[date] || {})[region] || {}).length;
+      const courseIds = (cfg && cfg.courseIds) || [];
+      const assignObj = (prescAssign[date] || {})[region] || {};
+      const assignedN = Object.keys(assignObj).length;
       const neededN = items.reduce((s, it) => s + (Number(it.count) || 0), 0);
-      (prescCal[date] = prescCal[date] || {})[region] = { needed: neededN, assigned: assignedN, courseIds: (cfg && cfg.courseIds) || [] };
-      if (!items.length) continue;
-      const mine = !!(((prescAssign[date] || {})[region] || {})[wid]);
-      const li = items.map(it => `${esc(it.desc)} ${Number(it.count) || 0}人`).join("、");
-      parts.push(`<div style='font-size:13px;margin-bottom:4px'><span class='badge b-blue'>${esc(region)} 處方日</span> ${li}${mine ? " <span class='badge b-green'>你已排入</span>" : ""}</div>`);
+      (prescCal[date] = prescCal[date] || {})[region] = { needed: neededN, assigned: assignedN, courseIds };
+      if (!items.length && !courseIds.length) continue;
+      const mine = !!assignObj[wid];
+      const li = items.map(it => `${esc(it.desc)} ${Number(it.count) || 0}人`).join("、") || "（尚未設定工作項目）";
+      const act = `/schedule/presc-signup/${date}/${encodeURIComponent(region)}`;
+      let btn;
+      if (mine) btn = `<form method='post' action='${act}' style='display:inline'>${hiddenCsrf(sess)}<button class='btn btn-sm btn-warn'>取消登記</button></form>`;
+      else if (neededN && assignedN >= neededN) btn = `<button class='btn btn-sm btn-ghost' disabled>已額滿</button>`;
+      else btn = `<form method='post' action='${act}' style='display:inline'>${hiddenCsrf(sess)}<button class='btn btn-sm btn-success'>我可以跟課</button></form>`;
+      parts.push(
+        `<div style='padding:12px 0;border-top:1px solid rgba(0,0,0,.06)'>` +
+        `<div style='display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px'>` +
+        `<span class='badge b-blue'>${esc(region)} 處方日</span>` +
+        `<span class='badge b-gray'>已登記 ${assignedN}/${neededN} 人</span>` +
+        (mine ? `<span class='badge b-green'>你已報名</span>` : "") +
+        `<span style='margin-left:auto'>${btn}</span></div>` +
+        `<div style='font-size:13px;color:var(--text)'>工作內容：${li}</div></div>`
+      );
     }
-    if (parts.length) prescWork[date] = `<div style='background:#f3e8ff;border-radius:8px;padding:10px'>${parts.join("")}</div>`;
+    if (parts.length) prescWork[date] = `<div style='background:#f3e8ff;border-radius:8px;padding:2px 14px 6px'>${parts.join("")}</div>`;
   }
 
   const iAvail    = c => !!(availAll[c.id]  && availAll[c.id][wid]);
