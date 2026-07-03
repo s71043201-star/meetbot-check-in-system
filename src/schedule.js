@@ -506,11 +506,18 @@ tbody tr:hover td{background:var(--accent-l)}
 @media(max-width:640px){.form-row.cols-2,.form-row.cols-3,.form-row.cols-4{grid-template-columns:1fr}}
 .form-group{display:flex;flex-direction:column;gap:6px}
 .form-label{font-size:15px;font-weight:700;color:var(--heading)}
-input[type=text],input[type=password],input[type=number],input[type=date],input[type=time],input[type=datetime-local],select,textarea,input[type=file]{
+/* 文字類控件（含沒寫 type 的 input）統一樣式 */
+input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]):not([type=submit]):not([type=button]):not([type=reset]),select,textarea{
   width:100%;padding:11px 14px;border:1px solid #CFCFCF;border-radius:var(--radius-btn);font-size:16px;
   background:#fff;color:var(--text);transition:border .15s,box-shadow .15s;font-family:inherit;outline:none}
 input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(26,158,122,.15)}
-input[type=file]{padding:7px 11px;background:var(--bg)}
+/* 單行控件統一高度 44px，與按鈕、彼此對齊（含沒寫 type 的 input）*/
+input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]):not([type=submit]):not([type=button]):not([type=reset]),select{height:44px}
+textarea{min-height:88px;resize:vertical}
+input[type=file]{padding:7px 11px;background:var(--bg);height:44px}
+/* 核取方塊／選取列：等高置中 */
+.chk-row{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 10px;cursor:pointer}
+input[type=checkbox],input[type=radio]{width:18px;height:18px;flex:none;margin:0}
 .alert{padding:11px 16px;border-radius:var(--radius-btn);border:1px solid transparent;font-size:13px;margin-bottom:16px}
 .alert-ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-b)}
 .alert-err{background:var(--err-bg);color:var(--err);border-color:var(--err-b)}
