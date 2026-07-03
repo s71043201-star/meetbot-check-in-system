@@ -456,7 +456,7 @@ a{color:var(--accent);text-decoration:none}
 .nav-right a:hover{background:rgba(255,255,255,.14)}
 .wrap{max-width:1080px;margin:32px auto;padding:0 24px}
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-card);padding:26px;margin-bottom:20px;box-shadow:var(--shadow-card)}
-.card-title{font-size:15px;font-weight:700;color:var(--subheading);margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border-l)}
+.card-title{font-size:14px;font-weight:700;color:var(--muted);letter-spacing:.05em;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border-l)}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
 .tab-btn{padding:8px 20px;background:#EFEEE8;color:var(--muted);border:none;border-radius:999px;cursor:pointer;font-size:13px;font-weight:500;transition:.15s}
 .tab-btn:hover{background:#E4E3DB}
@@ -523,8 +523,9 @@ input[type=file]{padding:7px 11px;background:var(--bg)}
 .login-foot{display:flex;justify-content:center;align-items:baseline;gap:6px;margin-top:20px;padding-top:18px;border-top:1px solid var(--border);font-size:15px}
 .login-foot a{color:var(--accent);font-weight:700}
 .stats{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px}
-.stat{background:var(--accent-l);border:1px solid #C6E7DA;border-radius:var(--radius-card);padding:12px 18px;font-size:12px;color:var(--accent)}
-.stat strong{font-size:22px;display:block;line-height:1.2;color:var(--accent-h)}
+.stat{background:#fff;border:1px solid var(--border);border-radius:var(--radius-card);padding:14px 22px;font-size:13px;color:var(--muted);text-align:center;min-width:84px;box-shadow:var(--shadow-card)}
+.stat strong{font-size:26px;display:block;line-height:1.2;color:#1E3A6E;font-weight:700}
+.stat.hl strong{color:var(--accent)}
 /* 跟課設定：每列獨佔一行（不可用 !important，否則 JS 無法隱藏過濾） */
 .fs-row{display:flex;width:100%;box-sizing:border-box}
 .region-bar button{cursor:pointer}
@@ -1862,7 +1863,7 @@ router.get("/admin", async (req, res) => {
 
   const statsHtml = `<div class='stats'>` +
     `<div class='stat'><strong>${courses.length}</strong>堂課程</div>` +
-    `<div class='stat'><strong>${canOpen}</strong>可開課</div>` +
+    `<div class='stat hl'><strong>${canOpen}</strong>可開課</div>` +
     `<div class='stat'><strong>${workers.length}</strong>位工讀生</div>` +
     `</div>`;
 
