@@ -447,7 +447,7 @@ const CSS = `
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Noto Sans TC',Arial,'Microsoft JhengHei',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.65}
 a{color:var(--accent);text-decoration:none}
-.nav{background:var(--nav);height:56px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.nav{background:linear-gradient(115deg,#A5C56A 0%,#55B07E 55%,#2F8A5F 100%);height:56px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 6px rgba(0,0,0,.08)}
 .nav-brand{color:#fff;font-size:15px;font-weight:700;letter-spacing:.02em}
 .nav-brand span{opacity:.7;font-weight:400;font-size:13px;margin-left:8px}
 .nav-right{display:flex;align-items:center;gap:18px}
@@ -510,11 +510,18 @@ input[type=file]{padding:7px 11px;background:var(--bg)}
 .alert-ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-b)}
 .alert-err{background:var(--err-bg);color:var(--err);border-color:var(--err-b)}
 .divider{border:none;border-top:1px solid var(--border-l);margin:22px 0}
-.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg)}
-.login-card{width:360px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:40px 36px;box-shadow:var(--shadow-raised)}
-.login-logo{text-align:center;margin-bottom:28px}
-.login-logo h1{font-size:20px;color:var(--accent);font-weight:700;letter-spacing:.02em}
-.login-logo p{font-size:12px;color:var(--light);margin-top:4px;letter-spacing:.08em}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:60px 24px}
+.login-card{width:420px;max-width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:44px 40px 32px;box-shadow:var(--shadow-card)}
+.login-logo{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;margin-bottom:30px}
+.login-badge{width:56px;height:56px;border-radius:14px;background:rgba(26,158,122,.12);color:var(--accent);display:flex;align-items:center;justify-content:center;margin-bottom:6px}
+.login-logo h1{font-size:24px;color:var(--subheading);font-weight:700;letter-spacing:0;margin:0}
+.login-logo p{font-size:12px;color:var(--muted);margin:0;letter-spacing:.24em;font-weight:500}
+.login-card .form-group{margin-bottom:20px}
+.login-card .form-label{font-size:13px;color:var(--subheading);font-weight:700}
+.login-card input{padding:12px 14px;font-size:15px}
+.login-card .btn-primary{width:100%;justify-content:center;height:48px;font-size:15px}
+.login-foot{display:flex;justify-content:center;align-items:baseline;gap:6px;margin-top:20px;padding-top:18px;border-top:1px solid var(--border);font-size:15px}
+.login-foot a{color:var(--accent);font-weight:700}
 .stats{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px}
 .stat{background:var(--accent-l);border:1px solid #C6E7DA;border-radius:var(--radius-card);padding:12px 18px;font-size:12px;color:var(--accent)}
 .stat strong{font-size:22px;display:block;line-height:1.2;color:var(--accent-h)}
@@ -974,18 +981,21 @@ router.get("/login", (req, res) => {
     `<link href='https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600&display=swap' rel='stylesheet'>` +
     `${CSS}</head><body>` +
     `<div class='login-wrap'><div class='login-card'>` +
-    `<div class='login-logo'><h1>📋 跟課班表系統</h1><p>SCHEDULE MANAGEMENT</p></div>` +
+    `<div class='login-logo'>` +
+    `<div class='login-badge'><svg width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect width='8' height='4' x='8' y='2' rx='1'></rect><path d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'></path><path d='M12 11h4'></path><path d='M12 16h4'></path><path d='M8 11h.01'></path><path d='M8 16h.01'></path></svg></div>` +
+    `<h1>跟課班表系統</h1><p>SCHEDULE MANAGEMENT</p></div>` +
     `${err}` +
-    `<form method='post' action='${PREFIX}/login'>` +
-    `<div class='form-group' style='margin-bottom:14px'>` +
+    `<form method='post' action='${PREFIX}/login' style='display:flex;flex-direction:column;gap:0'>` +
+    `<div class='form-group'>` +
     `<label class='form-label'>姓名</label>` +
     `<input name='name' autocomplete='name' required placeholder='請輸入姓名'></div>` +
-    `<div class='form-group' style='margin-bottom:20px'>` +
+    `<div class='form-group'>` +
     `<label class='form-label'>身分證後 4 碼</label>` +
-    `<input name='code' type='password' inputmode='numeric' maxlength='4' autocomplete='current-password' required placeholder='••••'></div>` +
-    `<button class='btn btn-primary' style='width:100%;justify-content:center;padding:10px'>登入</button>` +
-    `<div style='text-align:center;margin-top:14px;font-size:13px'>第一次使用？<a href='${PREFIX}/register'>點此註冊</a></div>` +
-    `</form></div></div></body></html>`
+    `<input name='code' type='password' inputmode='numeric' maxlength='4' autocomplete='current-password' required placeholder='例如：1234'></div>` +
+    `<button class='btn btn-primary'>登入</button>` +
+    `</form>` +
+    `<div class='login-foot'><span style='color:var(--muted)'>第一次使用？</span><a href='${PREFIX}/register'>點此註冊</a></div>` +
+    `</div></div></body></html>`
   );
 });
 
@@ -1151,29 +1161,35 @@ router.get("/home", async (req, res) => {
   try {
     const att = await rgetAtt();
     const active = Object.values(att || {}).find(r => r && r.name === sess.display_name && r.status === "checked-in");
-    if (active) activeHint = `<div style='margin-top:8px'><span class='badge b-warn'>● 目前有一筆未簽退</span></div>`;
+    if (active) activeHint = `<div style='margin-top:10px'><span style='display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:#FDF3E3;color:var(--warn)'>● 目前有一筆未簽退</span></div>`;
   } catch (_) {}
 
-  const card = (href, icon, title, desc, extra = "") =>
-    `<a href='${href}' class='card' style='display:block;text-decoration:none;color:inherit;transition:.15s'>` +
-    `<div style='font-size:32px;margin-bottom:10px'>${icon}</div>` +
-    `<div style='font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px'>${esc(title)}</div>` +
-    `<div style='font-size:13px;color:var(--muted)'>${esc(desc)}</div>${extra}</a>`;
+  const ICO = {
+    checkin: `<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>`,
+    dash: `<path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path>`,
+    time: `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M16 13H8"></path><path d="M16 17H8"></path><path d="M10 9H8"></path>`,
+    key: `<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"></path><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"></circle>`,
+  };
+  const iconCard = (href, ico, title, desc, extra = "") =>
+    `<a href='${href}' style='background:#fff;border:1px solid var(--border);border-radius:8px;padding:22px;box-shadow:var(--shadow-card);display:block;text-decoration:none;color:inherit;transition:box-shadow .2s' onmouseover="this.style.boxShadow='var(--shadow-raised)'" onmouseout="this.style.boxShadow='var(--shadow-card)'">` +
+    `<div style='width:44px;height:44px;border-radius:10px;background:rgba(26,158,122,.12);color:var(--accent);display:flex;align-items:center;justify-content:center;margin-bottom:12px'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ico}</svg></div>` +
+    `<div style='font-size:16px;font-weight:700;color:var(--subheading);margin-bottom:4px'>${esc(title)}</div>` +
+    `<div style='font-size:13px;color:var(--muted);line-height:1.5'>${esc(desc)}</div>${extra}</a>`;
 
   const homeMsg = req.query.msg ? alertHtml(req.query.msg, "ok") : "";
   const body =
     `${homeMsg}` +
-    `<div style='margin:8px 0 20px'>` +
-    `<h2 style='font-size:18px;font-weight:600'>嗨，${esc(sess.display_name)} 👋</h2>` +
-    `<p style='font-size:13px;color:var(--muted);margin-top:4px'>請選擇要使用的功能</p></div>` +
-    `<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px'>` +
-    `${card(`${PREFIX}/checkin`, "⏱", "簽到 / 簽退", "上課現場簽到、下課回報時數與內容", activeHint)}` +
-    `${card(`${PREFIX}/dashboard`, "📋", "我的班表", "查看可跟課的課程、登記與已被指派的班")}` +
-    `${card(`${PREFIX}/timesheet`, "🧾", "我的工時", "查看已完成的課程與累計工作時數")}` +
-    `${card(`${PREFIX}/change-password`, "🔑", "修改密碼", "更改自己的登入密碼")}` +
+    `<div style='margin-bottom:22px'>` +
+    `<h2 style='margin:0;font-size:22px;font-weight:700;color:var(--subheading)'>嗨，${esc(sess.display_name)}</h2>` +
+    `<p style='margin:4px 0 0;font-size:15px;color:var(--muted)'>請選擇要使用的功能</p></div>` +
+    `<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;margin-bottom:20px'>` +
+    `${iconCard(`${PREFIX}/checkin`, ICO.checkin, "簽到 / 簽退", "上課現場簽到、下課回報時數與內容", activeHint)}` +
+    `${iconCard(`${PREFIX}/dashboard`, ICO.dash, "我的班表", "查看可跟課的課程、登記與已被指派的班")}` +
+    `${iconCard(`${PREFIX}/timesheet`, ICO.time, "我的工時", "查看已完成的課程與累計工作時數")}` +
+    `${iconCard(`${PREFIX}/change-password`, ICO.key, "修改密碼", "更改自己的登入密碼")}` +
     `</div>` +
-    `<div class='card' id='push-card' style='margin-top:20px'>` +
-    `<div class='card-title'>🔔 指派通知</div>` +
+    `<div class='card' id='push-card'>` +
+    `<div style='display:flex;align-items:center;gap:8px;margin-bottom:8px;color:var(--nav-navy,#1E3A6E)'><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"></path><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"></path></svg><span style='font-size:15px;font-weight:700'>指派通知</span></div>` +
     `<p style='font-size:13px;color:var(--muted);margin-bottom:10px'>開啟後，管理員指派課程給你時，手機／電腦會跳出通知。</p>` +
     `<div id='push-status' style='margin-bottom:10px'></div>` +
     `<button class='btn btn-primary' id='push-btn'>開啟通知</button>` +
