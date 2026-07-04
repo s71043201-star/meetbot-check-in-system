@@ -158,9 +158,10 @@ async function fetchSupabaseCourses(force = false) {
     });
     const slots = (data[0] && data[0].course_slots) || [];
     const clinicMap = (data[0] && data[0].clinic_region_map) || {};
-    const today = todayTaipei();
+    // 保留過去 180 天～未來的課程（讓管理端可補登過去的工讀生；工讀生端另行過濾只顯示未來）
+    const cutoff = new Date(Date.now() - 180 * 86400000).toLocaleString("sv-SE", { timeZone: "Asia/Taipei" }).slice(0, 10);
     const courses = slots
-      .filter(s => s && s.slot_date >= today && s.status !== "cancelled" && COURSE_TYPE_MAP[s.course_type])
+      .filter(s => s && s.slot_date >= cutoff && s.status !== "cancelled" && COURSE_TYPE_MAP[s.course_type])
       .map(s => ({
         id: s.slot_id,
         course_name: s.course_name || "",
@@ -553,6 +554,23 @@ input[type=checkbox],input[type=radio]{width:18px;height:18px;flex:none;margin:0
 .cband{display:block;border-radius:4px;padding:1px 4px;margin-top:2px;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cband.has{background:var(--ok-bg);color:var(--ok)}
 .cband.full{background:var(--warn-bg);color:var(--warn)}
+/* ── 手機 RWD ── */
+@media(max-width:640px){
+  .wrap{padding:0 12px;margin:18px auto}
+  .nav{padding:0 14px}
+  .nav-brand{font-size:14px}
+  .nav-brand span{display:none}
+  .nav-right{gap:10px}
+  .nav-right .user{display:none}
+  .card{padding:18px 14px;overflow-x:auto}
+  .tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;max-width:100%;justify-content:flex-start;-webkit-overflow-scrolling:touch}
+  .tab-btn{padding:9px 18px;font-size:15px;white-space:nowrap}
+  .stats{gap:10px}
+  .stat{flex:1;min-width:0;padding:12px 10px}
+  .cal{min-width:600px}
+  .btn{padding:10px 16px}
+  h2{font-size:20px}
+}
 </style>`;
 
 const JS = `<script>
@@ -1730,7 +1748,7 @@ router.get("/dashboard", async (req, res) => {
   const wid = sess.id;
 
   const nf         = await nofollowSets();
-  const courses    = (await allCourses()).filter(c => isFollow(c, nf)); // 只顯示開放跟課
+  const courses    = (await allCourses()).filter(c => isFollow(c, nf) && c.date >= todayTaipei()); // 只顯示開放跟課
   const availAll   = await rget("/availability") || {};
   const assignAll  = await rget("/assignments") || {};
 
@@ -2186,7 +2204,7 @@ router.get("/calendar", async (req, res) => {
   const assignAll = await rget("/assignments") || {};
   const iAvail = c => !!(availAll[c.id] && availAll[c.id][wid]);
   const iAssigned = c => !!(assignAll[c.id] && assignAll[c.id][wid]);
-  const courses = (await allCourses()).filter(c => isFollow(c, nf))
+  const courses = (await allCourses()).filter(c => isFollow(c, nf) && c.date >= todayTaipei())
     .map(c => ({ ...c, _x: !iAvail(c) && !iAssigned(c) })); // x = 尚可報名（未報名且未指派）
   const grid = calendarGrid(courses, month, `${PREFIX}/calendar`, day);
   const csrf = hiddenCsrf(sess);
