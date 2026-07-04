@@ -63,6 +63,10 @@ const MSG_MAP = {
   worker_updated:  "✓ 已更新工讀生資料",
   user_deleted:    "✓ 已刪除使用者報名資料",
   notify_sent:     "✓ 已發送通知",
+  info_saved:      "✓ 資料已儲存",
+  adj_saved:       "✓ 已新增時數調整",
+  adj_deleted:     "✓ 已刪除時數調整",
+  adj_need:        "請填寫年、月與時數（時數不可為 0）",
   notify_need:     "請填寫內容並至少勾選一位",
   csrf_err:        "請求驗證失敗，請重試",
   pw_changed:      "✓ 密碼已成功變更",
@@ -300,6 +304,10 @@ async function regUsersDelete(id) {
 }
 async function regUsersPost(user) {
   const { data } = await axios.post(`${USERS_REG_FB}.json`, user);
+  return data;
+}
+async function regUsersPatch(id, obj) {
+  const { data } = await axios.patch(`${USERS_REG_FB}/${id}.json`, obj);
   return data;
 }
 const FEE_TYPES = ["稿費", "審查費", "講座鐘點費", "臨時人員費", "出席費", "交通差旅費", "其他"];
@@ -594,6 +602,9 @@ input[type=checkbox],input[type=radio]{width:18px;height:18px;flex:none;margin:0
   .cband{font-size:9px;padding:1px 3px;margin-top:2px}
   .btn{padding:10px 16px}
   h2{font-size:20px}
+  /* 管理員動作按鈕：手機改整齊全寬堆疊，避免大小不一顯得雜亂 */
+  .btn-row{flex-direction:column;gap:8px}
+  .btn-row .btn{width:100%}
   /* 日課表：手機改直式卡片，避免欄位擠壓（類型標籤被折成直排、課名破碎） */
   .card{overflow-x:visible}
   table.ctbl thead{display:none}
@@ -607,6 +618,15 @@ input[type=checkbox],input[type=radio]{width:18px;height:18px;flex:none;margin:0
   table.ctbl td:last-child{padding-top:10px}
   table.ctbl td:last-child form{display:block}
   table.ctbl td:last-child .btn{width:100%}
+  /* 名冊型表格（姓名為主）：手機改直式卡片 */
+  table.ntbl thead{display:none}
+  table.ntbl,table.ntbl tbody{display:block;width:100%}
+  table.ntbl tr{display:block;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff;box-shadow:var(--shadow-card)}
+  table.ntbl tr:hover td{background:transparent}
+  table.ntbl td{display:block;border:none;padding:2px 0;font-size:14px}
+  table.ntbl td:nth-child(1){font-size:15px;font-weight:700;color:var(--subheading)}
+  table.ntbl td:nth-child(2){color:var(--muted);font-size:12px}
+  table.ntbl td:last-child{padding-top:10px}
 }
 </style>`;
 
@@ -770,7 +790,7 @@ const CAL_CLIENT_JS = `<script>
     var start=(new Date(Y,M-1,1).getDay()+6)%7, days=new Date(Y,M,0).getDate();
     var map={};
     list.forEach(function(c){if(c.date.slice(0,7)!==cur)return;var b=bandOf(c.time);if(!b)return;map[c.date]=map[c.date]||{};map[c.date][b]=map[c.date][b]||{x:0,t:0};map[c.date][b].t++;if(c.x)map[c.date][b].x++;});
-    var rbtn=['全部'].concat(REGIONS,['其他']).map(function(r){var rv=r==='全部'?'':r;return "<button type='button' class='btn btn-sm "+((reg===rv)?'btn-primary':'btn-ghost')+"' data-reg='"+rv+"'>"+r+"</button>";}).join('');
+    var rbtn=['全部'].concat(REGIONS).map(function(r){var rv=r==='全部'?'':r;return "<button type='button' class='btn btn-sm "+((reg===rv)?'btn-primary':'btn-ghost')+"' data-reg='"+rv+"'>"+r+"</button>";}).join('');
     var h="<div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px'><span style='font-size:12px;color:var(--muted)'>地區</span>"+rbtn+"</div>";
     h+="<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px'><button type='button' class='btn btn-sm btn-ghost' id='cp'>← 上個月</button><strong>"+Y+" 年 "+M+" 月</strong><button type='button' class='btn btn-sm btn-ghost' id='cn'>下個月 →</button></div>";
     h+="<p style='font-size:11px;color:var(--light);margin-bottom:8px'>每格 x/y：x＝"+(D.role==='admin'?'開放跟課':'尚可報名')+"堂數，y＝總堂數。點日期看當天課程。</p>";
@@ -840,6 +860,25 @@ const CAL_CLIENT_JS = `<script>
     html+="</div>";
     box.innerHTML=html;
   }
+  // 工讀生：就地登記/取消跟課，不換頁（可連續點同一天下一堂）
+  app.addEventListener('submit',function(e){
+    var f=e.target; if(!f||f.tagName!=='FORM')return;
+    var act=f.getAttribute('action')||'';
+    var m=/\\/(avail|unavail)\\/([^\\/?]+)/.exec(act);
+    if(!m)return;
+    e.preventDefault();
+    var kind=m[1],cid=m[2];
+    var btn=f.querySelector('button'); if(btn)btn.disabled=true;
+    var body=new URLSearchParams(new FormData(f)).toString();
+    fetch(act,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'fetch'},body:body,credentials:'same-origin'})
+      .then(function(r){if(!r.ok)throw 0;})
+      .then(function(){
+        var co=all.filter(function(x){return x.id===cid;})[0]; if(co)co.avail=(kind==='avail');
+        if(kind==='avail')f.outerHTML="<form method='post' action='"+D.prefix+"/unavail/"+cid+"' style='display:inline'>"+D.csrf+"<button class='btn btn-sm btn-warn'>取消登記</button></form>";
+        else f.outerHTML="<form method='post' action='"+D.prefix+"/avail/"+cid+"' style='display:inline'>"+D.csrf+"<button class='btn btn-sm btn-success'>我可以跟課</button></form>";
+      })
+      .catch(function(){if(btn)btn.disabled=false;alert('操作失敗，請重試');});
+  });
   render();
 })();
 </script>`;
@@ -1238,12 +1277,19 @@ router.get("/home", async (req, res) => {
     time: `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M16 13H8"></path><path d="M16 17H8"></path><path d="M10 9H8"></path>`,
     key: `<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"></path><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"></circle>`,
     mail: `<rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>`,
+    user: `<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>`,
   };
 
   // 收到的公告則數（首頁卡片提示）
   let msgCount = 0;
   try { msgCount = (await getBroadcasts()).filter(b => Array.isArray(b.recipientIds) && b.recipientIds.includes(sess.id)).length; }
   catch (_) {}
+  // 是否已填領據資料（後台自主新增的工讀生通常沒有）
+  let hasInfo = true;
+  try { hasInfo = !!(await myRegRecord(sess.display_name)); } catch (_) {}
+  const infoBadge = hasInfo
+    ? ""
+    : `<div style='margin-top:10px'><span style='display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:#FDF3E3;color:var(--warn)'>● 尚未填寫，請補資料</span></div>`;
   const msgBadge = msgCount
     ? `<div style='margin-top:10px'><span style='display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:rgba(26,158,122,.12);color:var(--accent)'>${msgCount} 則公告</span></div>`
     : "";
@@ -1264,6 +1310,7 @@ router.get("/home", async (req, res) => {
     `${iconCard(`${PREFIX}/dashboard`, ICO.dash, "我的班表", "查看可跟課的課程、登記與已被指派的班")}` +
     `${iconCard(`${PREFIX}/timesheet`, ICO.time, "我的工時", "查看已完成的課程與累計工作時數")}` +
     `${iconCard(`${PREFIX}/messages`, ICO.mail, "系統公告", "查看管理員發送的通知與過往公告", msgBadge)}` +
+    `${iconCard(`${PREFIX}/my-info`, ICO.user, "我的資料", "填寫／更新領據資料（製作領據、申請單用）", infoBadge)}` +
     `${iconCard(`${PREFIX}/change-password`, ICO.key, "修改密碼", "更改自己的登入密碼")}` +
     `</div>` +
     `<div class='card' id='push-card'>` +
@@ -1302,6 +1349,7 @@ router.get("/messages", async (req, res) => {
       `<div class='card' style='margin-bottom:12px'>` +
       `<div style='font-size:12px;color:var(--muted);margin-bottom:6px'>🔔 ${esc(fmtDateTime(b.sentAt))}</div>` +
       `<div style='font-size:15px;line-height:1.7;white-space:pre-wrap'>${msgToHtml(b.message)}</div>` +
+      (b.askInfo ? `<div style='margin-top:12px'><a href='${PREFIX}/my-info' class='btn btn-sm btn-primary'>📝 填寫我的資料</a></div>` : "") +
       `</div>`
     ).join("");
   } else {
@@ -1317,6 +1365,99 @@ router.get("/messages", async (req, res) => {
 });
 
 // ══════════════════════════════════════════════
+//  工讀生：填寫／更新自己的領據（報名）資料
+//  （後台自主新增的工讀生沒有領據資料，可自行補填）
+// ══════════════════════════════════════════════
+async function myRegRecord(name) {
+  const all = await regUsersGet();
+  return all.find(u => u.name === name) || null;
+}
+router.get("/my-info", async (req, res) => {
+  const sess = getSess(req);
+  if (!sess || sess.role !== "worker") return res.redirect(`${PREFIX}/login`);
+  const rec = await myRegRecord(sess.display_name) || {};
+  const msg = req.query.msg || "";
+  const notice = msg ? alertHtml(msg, msg === "info_saved" ? "ok" : "err") : "";
+  const v = (k) => esc(rec[k] || "");
+  const bank = rec.bankInfo || {};
+  const feeSet = new Set(Array.isArray(rec.feeTypes) ? rec.feeTypes : []);
+  const feeBoxes = FEE_TYPES.map(f =>
+    `<label style='display:inline-flex;align-items:center;gap:4px;margin:0 12px 6px 0;font-size:13px'>` +
+    `<input type='checkbox' name='feeTypes' value='${esc(f)}'${feeSet.has(f) ? " checked" : ""} style='width:auto'>${esc(f)}</label>`
+  ).join("");
+  const isCash = (rec.payMethod || "現金") !== "匯款";
+  const body =
+    `<div style='margin-bottom:16px'><a href='${PREFIX}/home' class='btn btn-sm btn-ghost'>← 返回首頁</a></div>` +
+    `${notice}` +
+    `<div class='card' style='max-width:620px'>` +
+    `<div class='card-title'>我的領據資料</div>` +
+    `<p style='font-size:12px;color:var(--muted);margin-bottom:14px'>此資料用於製作領據／申請單等文件。請完整填寫，之後可隨時回來修改。</p>` +
+    `<form method='post' action='${PREFIX}/my-info'>${hiddenCsrf(sess)}` +
+    `<div class='form-row cols-2'>` +
+    `<div class='form-group'><label class='form-label'>姓名 *</label><input name='name' required value='${rec.name ? v("name") : esc(sess.display_name)}'></div>` +
+    `<div class='form-group'><label class='form-label'>身分證字號 *（10 碼）</label><input name='idNumber' maxlength='10' required placeholder='A123456789' value='${v("idNumber")}'></div>` +
+    `</div>` +
+    `<div class='form-row cols-2'>` +
+    `<div class='form-group'><label class='form-label'>電話</label><input name='phone' inputmode='numeric' value='${v("phone")}'></div>` +
+    `<div class='form-group'><label class='form-label'>事由名稱</label><input name='eventName' placeholder='例：處方兌換日跟課' value='${v("eventName")}'></div>` +
+    `</div>` +
+    `<div class='form-group' style='margin-bottom:12px'><label class='form-label'>工作內容</label><input name='workDescription' placeholder='例：場佈、報到、出席紀錄' value='${v("workDescription")}'></div>` +
+    `<div class='form-group' style='margin-bottom:12px'><label class='form-label'>費用別</label><div>${feeBoxes}</div></div>` +
+    `<div class='form-group' style='margin-bottom:12px'><label class='form-label'>領款方式</label>` +
+    `<div style='display:flex;gap:16px'>` +
+    `<label style='display:inline-flex;align-items:center;gap:4px'><input type='radio' name='payMethod' value='現金'${isCash ? " checked" : ""} style='width:auto'>現金</label>` +
+    `<label style='display:inline-flex;align-items:center;gap:4px'><input type='radio' name='payMethod' value='匯款'${isCash ? "" : " checked"} style='width:auto'>匯款</label>` +
+    `</div></div>` +
+    `<div id='bank-box' style='display:${isCash ? "none" : "block"};border:1px solid var(--border-l);border-radius:4px;padding:12px;margin-bottom:12px'>` +
+    `<div class='form-row cols-3'>` +
+    `<div class='form-group'><label class='form-label'>銀行/分行</label><input name='bankName' value='${esc(bank.bankName || "")}'></div>` +
+    `<div class='form-group'><label class='form-label'>戶名</label><input name='accountName' value='${esc(bank.accountName || "")}'></div>` +
+    `<div class='form-group'><label class='form-label'>帳號</label><input name='account' inputmode='numeric' value='${esc(bank.account || "")}'></div>` +
+    `</div></div>` +
+    `<div class='form-group' style='margin-bottom:12px'><label class='form-label'>戶籍地址</label><input name='address' id='mi-addr' value='${v("address")}'></div>` +
+    `<div class='form-group' style='margin-bottom:12px'><label class='form-label'>居住地址</label><input name='liveAddress' id='mi-live' value='${v("liveAddress")}'></div>` +
+    `<button class='btn btn-primary'>儲存資料</button>` +
+    `</form></div>` +
+    `<script>(function(){var r=document.querySelectorAll('input[name=payMethod]');var box=document.getElementById('bank-box');` +
+    `function upd(){box.style.display=(document.querySelector('input[name=payMethod]:checked').value==='匯款')?'block':'none';}` +
+    `r.forEach(function(x){x.addEventListener('change',upd);});upd();})();</script>`;
+  res.send(layout("我的領據資料", body, sess));
+});
+router.post("/my-info", async (req, res) => {
+  const sess = getSess(req);
+  if (!sess || sess.role !== "worker") return res.redirect(`${PREFIX}/login`);
+  if (!csrfOk(req, req.body.csrf_token)) return res.redirect(`${PREFIX}/my-info?msg=csrf_err`);
+  const b = req.body;
+  const name = (b.name || "").trim();
+  const idNumber = (b.idNumber || "").trim();
+  if (!name || idNumber.length !== 10) return res.redirect(`${PREFIX}/my-info?msg=reg_badid`);
+  const feeTypes = [].concat(b.feeTypes || []).filter(Boolean);
+  const bankInfo = b.payMethod === "匯款"
+    ? { bankName: (b.bankName || "").trim(), accountName: (b.accountName || "").trim(), account: (b.account || "").trim() }
+    : {};
+  const payload = {
+    name, idNumber,
+    phone: (b.phone || "").trim(),
+    eventName: (b.eventName || "").trim(),
+    workDescription: (b.workDescription || "").trim(),
+    feeTypes,
+    payMethod: b.payMethod || "",
+    bankInfo,
+    address: (b.address || "").trim(),
+    liveAddress: (b.liveAddress || "").trim(),
+  };
+  try {
+    const existing = await myRegRecord(sess.display_name);
+    if (existing) await regUsersPatch(existing.id, payload);
+    else await regUsersPost({ ...payload, registeredAt: new Date().toISOString() });
+    res.redirect(`${PREFIX}/my-info?msg=info_saved`);
+  } catch (e) {
+    console.error("[schedule] my-info:", e.message);
+    res.redirect(`${PREFIX}/my-info?msg=reg_fail`);
+  }
+});
+
+// ══════════════════════════════════════════════
 //  我的工時（讀簽到系統 attendance）
 // ══════════════════════════════════════════════
 router.get("/timesheet", async (req, res) => {
@@ -1326,36 +1467,72 @@ router.get("/timesheet", async (req, res) => {
   const recs = Object.values(att)
     .filter(r => r && r.name === sess.display_name && r.status === "checked-out")
     .sort((a, b) => new Date(b.checkinTime) - new Date(a.checkinTime));
-  const totalHours = Math.round(recs.reduce((s, r) => s + (Number(r.hours) || 0), 0) * 10) / 10;
+  // 手動時數調整（管理員在後台加減；計入我的工時）
+  const myAdj = (await getHoursAdjust()).filter(a => a.name === sess.display_name)
+    .sort((a, b) => (b.year - a.year) || (b.month - a.month));
+  const adjTotal = myAdj.reduce((s, a) => s + (Number(a.hours) || 0), 0);
+  const totalHours = Math.round((recs.reduce((s, r) => s + (Number(r.hours) || 0), 0) + adjTotal) * 10) / 10;
   const fmtTime = iso => {
     if (!iso) return "";
     try { return new Date(iso).toLocaleTimeString("zh-TW", { timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit", hour12: false }); }
     catch (_) { return ""; }
   };
 
-  let table;
-  if (recs.length) {
+  const monthKey = r => `${r.year}-${String(r.month).padStart(2, "0")}`;
+  const adjKey = a => `${a.year}-${String(a.month).padStart(2, "0")}`;
+  const monthLabel = k => { const [y, m] = k.split("-"); return `${y} 年 ${Number(m)} 月`; };
+  const months = [...new Set([...recs.map(monthKey), ...myAdj.map(adjKey)])].sort().reverse();
+  const defMonth = months[0] || "";
+
+  let table, monthSel = "";
+  if (recs.length || myAdj.length) {
     const rows = recs.map(r =>
-      `<tr>` +
+      `<tr data-m='${esc(monthKey(r))}' data-h='${Number(r.hours) || 0}'>` +
       `<td style='white-space:nowrap'>${esc(r.year)}/${esc(r.month)}/${esc(r.day)}</td>` +
       `<td>${esc(r.course)}</td>` +
       `<td style='white-space:nowrap;color:var(--muted)'>${esc(fmtTime(r.checkinTime))} - ${esc(fmtTime(r.checkoutTime))}</td>` +
       `<td style='white-space:nowrap'><span class='badge b-blue'>${esc(r.hours)} 時</span></td>` +
       `</tr>`
     ).join("");
-    table = `<table><thead><tr><th>日期</th><th>課程</th><th>時段</th><th>時數</th></tr></thead>` +
-      `<tbody>${rows}</tbody></table>`;
+    const adjRows = myAdj.map(a =>
+      `<tr data-m='${esc(adjKey(a))}' data-h='${Number(a.hours) || 0}' data-adj='1'>` +
+      `<td style='white-space:nowrap'>${esc(a.year)}/${esc(a.month)}</td>` +
+      `<td>時數調整${a.reason ? `（${esc(a.reason)}）` : ""}</td>` +
+      `<td style='white-space:nowrap;color:var(--muted)'>—</td>` +
+      `<td style='white-space:nowrap'><span class='badge ${Number(a.hours) < 0 ? "b-warn" : "b-green"}'>${Number(a.hours) > 0 ? "+" : ""}${esc(a.hours)} 時</span></td>` +
+      `</tr>`
+    ).join("");
+    table = `<table class='ctbl' id='ts-table'><thead><tr><th>日期</th><th>課程</th><th>時段</th><th>時數</th></tr></thead>` +
+      `<tbody>${rows}${adjRows}</tbody></table>`;
+    if (months.length > 1) {
+      monthSel =
+        `<div style='margin-bottom:14px;display:flex;align-items:center;gap:8px'>` +
+        `<label class='form-label' style='margin:0'>月份</label>` +
+        `<select id='ts-month' style='width:auto;min-width:140px'>` +
+        `<option value=''>全部</option>` +
+        months.map(k => `<option value='${esc(k)}'>${esc(monthLabel(k))}</option>`).join("") +
+        `</select></div>`;
+    }
   } else {
     table = "<p style='text-align:center;color:var(--light);padding:32px 0;font-size:13px'>目前尚無已完成的簽到退記錄</p>";
   }
 
+  const filterJs = (recs.length || myAdj.length) ? `<script>(function(){
+    var sel=document.getElementById('ts-month'); if(!sel)return;
+    var rows=[].slice.call(document.querySelectorAll('#ts-table tbody tr'));
+    var cEl=document.getElementById('ts-count'),hEl=document.getElementById('ts-hours');
+    function apply(){var m=sel.value,cnt=0,h=0;rows.forEach(function(tr){var show=(!m||tr.getAttribute('data-m')===m);tr.style.display=show?'':'none';if(show){h+=Number(tr.getAttribute('data-h'))||0;if(tr.getAttribute('data-adj')!=='1')cnt++;}});if(cEl)cEl.textContent=cnt;if(hEl)hEl.textContent=Math.round(h*10)/10;}
+    sel.value=${JSON.stringify(defMonth)};sel.addEventListener('change',apply);apply();
+  })();</script>` : "";
+
   const body =
     `<div style='margin-bottom:16px'><a href='${PREFIX}/home' class='btn btn-sm btn-ghost'>← 返回首頁</a></div>` +
     `<div class='stats'>` +
-    `<div class='stat'><strong>${recs.length}</strong>已完成堂數</div>` +
-    `<div class='stat'><strong>${totalHours}</strong>累計時數（時）</div>` +
+    `<div class='stat'><strong id='ts-count'>${recs.length}</strong>已完成堂數</div>` +
+    `<div class='stat'><strong id='ts-hours'>${totalHours}</strong>累計時數（時）</div>` +
     `</div>` +
-    `<div class='card'><div class='card-title'>我的出勤記錄</div>${table}</div>`;
+    `<div class='card'><div class='card-title'>我的出勤記錄</div>${monthSel}${table}</div>` +
+    filterJs;
   res.send(layout("我的工時", body, sess));
 });
 
@@ -1645,10 +1822,20 @@ function todayROC() {
 }
 // ── 稅務預警：某人某月（民國年）已簽退累計時數 ──
 const HOURS_WARN = 48;
-function sumMonthHours(records, name, rocYear, month) {
-  return (records || []).filter(r => r.name === name && r.status === "checked-out" && !r.attendanceDeleted
+// 時數調整（管理員手動加減；存 /hours_adjust，計入月總時數、稅務預警與工時）
+async function getHoursAdjust() {
+  const data = await rget("/hours_adjust") || {};
+  return Object.entries(data).map(([id, a]) => ({ id, ...a }));
+}
+function sumMonthAdjust(adjustments, name, rocYear, month) {
+  return (adjustments || []).filter(a => a.name === name && Number(a.year) === rocYear && Number(a.month) === month)
+    .reduce((s, a) => s + (Number(a.hours) || 0), 0);
+}
+function sumMonthHours(records, name, rocYear, month, adjustments) {
+  const base = (records || []).filter(r => r.name === name && r.status === "checked-out" && !r.attendanceDeleted
     && Number(r.year) === rocYear && Number(r.month) === month)
     .reduce((s, r) => s + (Number(r.hours) || 0), 0);
+  return Math.round((base + sumMonthAdjust(adjustments, name, rocYear, month)) * 10) / 10;
 }
 // 產生月時數對照與預警攔截腳本（表單加 class 'assign-form'；下拉用 name=worker_id，逐列用 data-wid）
 function assignWarnScript(hoursByWid) {
@@ -1736,6 +1923,17 @@ router.post("/checkin", async (req, res) => {
       record.schedEnd = last.end;
     }
     const result = await rpostAtt(record);
+    // 臨時人員（處方日）簽到 → 通知管理員
+    if (mode === "處方日") {
+      try {
+        const adminIds = await getUserIdsByRole("admin");
+        await sendPushToUsers(adminIds, {
+          title: "臨時人員簽到",
+          body: `${name} 已簽到　${record.region}處方日（${record.schedDate}）`,
+          url: `${PREFIX}/admin/presc/${record.schedDate}/${encodeURIComponent(record.region)}`,
+        });
+      } catch (e) { console.error("[schedule] 處方日簽到通知失敗:", e.message); }
+    }
     res.json({ ok: true, sessionId: result.name });
   } catch (e) { console.error("[schedule] checkin:", e.message); res.status(500).json({ error: e.message }); }
 });
@@ -1919,8 +2117,10 @@ router.post("/avail/:cid", async (req, res) => {
   if (!csrfOk(req, req.body.csrf_token)) return res.redirect(`${PREFIX}/dashboard?msg=csrf_err`);
   await rput(`/availability/${req.params.cid}/${sess.id}`, { signed_at: nowTaipei() });
   // 通知管理員：有人報名跟課
+  let date = "";
   try {
     const c = (await coursesMap())[req.params.cid];
+    date = c ? c.date : "";
     const adminIds = await getUserIdsByRole("admin");
     await sendPushToUsers(adminIds, {
       title: "工讀生報名跟課",
@@ -1928,7 +2128,8 @@ router.post("/avail/:cid", async (req, res) => {
       url: `${PREFIX}/admin/course/${req.params.cid}`,
     });
   } catch (e) { console.error("[schedule] 報名通知失敗:", e.message); }
-  res.redirect(`${PREFIX}/dashboard?msg=avail_on`);
+  if (req.get("X-Requested-With") === "fetch") return res.sendStatus(204);
+  res.redirect(`${PREFIX}/dashboard?msg=avail_on${date ? `&day=${date}` : ""}`);
 });
 
 router.post("/unavail/:cid", async (req, res) => {
@@ -1936,7 +2137,10 @@ router.post("/unavail/:cid", async (req, res) => {
   if (!sess || sess.role !== "worker") return res.redirect(`${PREFIX}/login`);
   if (!csrfOk(req, req.body.csrf_token)) return res.redirect(`${PREFIX}/dashboard?msg=csrf_err`);
   await rdel(`/availability/${req.params.cid}/${sess.id}`);
-  res.redirect(`${PREFIX}/dashboard?msg=avail_off`);
+  if (req.get("X-Requested-With") === "fetch") return res.sendStatus(204);
+  let date = "";
+  try { const c = (await coursesMap())[req.params.cid]; date = c ? c.date : ""; } catch (_) {}
+  res.redirect(`${PREFIX}/dashboard?msg=avail_off${date ? `&day=${date}` : ""}`);
 });
 
 // ── Web Push：工讀生訂閱通知 ──
@@ -2048,7 +2252,7 @@ router.get("/admin", async (req, res) => {
     `<button class='btn btn-success'>新增活動</button>` +
     `</form></details>`;
   const availTab =
-    `<div style='margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap'>` +
+    `<div class='btn-row' style='margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap'>` +
     `<a href='${PREFIX}/admin/follow-settings' class='btn btn-primary'>🔧 跟課設定（勾選要開放跟課的課程）</a>` +
     `<a href='${PREFIX}/admin/presc-setup' class='btn btn-ghost'>🗓 處方日設定（勾選課程組成處方日）</a>` +
     `</div>` +
@@ -2068,6 +2272,7 @@ router.get("/admin", async (req, res) => {
     `<td style='color:var(--muted)'>${esc(w.username)}</td>` +
     `<td><span class='badge b-blue'>${w.assign_count} 堂</span></td>` +
     `<td style='white-space:nowrap'>` +
+    `<a href='${PREFIX}/admin/workers/${w.id}/hours' class='btn btn-sm btn-primary'>時數調整</a> ` +
     `<a href='${PREFIX}/admin/workers/${w.id}/edit' class='btn btn-sm btn-ghost'>編輯</a> ` +
     `<form method='post' action='${PREFIX}/admin/workers/${w.id}/delete' style='display:inline'>` +
     `${csrf}` +
@@ -2116,7 +2321,7 @@ router.get("/admin", async (req, res) => {
   const body =
     `${notice}${tabJs}` +
     `${statsHtml}` +
-    `<div style='margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap'>` +
+    `<div class='btn-row' style='margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap'>` +
     `<a href='${PREFIX}/admin/attendance' class='btn btn-success'>🧾 出勤與工時（查看、下載時數 Excel）</a>` +
     `<a href='${PREFIX}/admin/users' class='btn btn-ghost'>👥 使用者報名資料</a>` +
     `<a href='${PREFIX}/admin/notify' class='btn btn-ghost'>🔔 發送通知</a>` +
@@ -2174,7 +2379,7 @@ router.get("/admin/follow-settings", async (req, res) => {
     `<form method='post' action='${PREFIX}/admin/follow-settings'>${hiddenCsrf(sess)}` +
     `<div id='fs-region' style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px'>` +
     `<span style='font-size:12px;color:var(--muted);margin-right:4px'>地區</span>` +
-    ["全部", ...REGIONS, "其他"].map((r, i) =>
+    ["全部", ...REGIONS].map((r, i) =>
       `<button type='button' class='btn btn-sm ${i === 0 ? "btn-primary" : "btn-ghost"}' data-reg='${r === "全部" ? "" : r}'>${r}</button>`).join("") +
     `</div>` +
     `<div style='display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap'>` +
@@ -2609,6 +2814,9 @@ router.get("/admin/notify", async (req, res) => {
   const msg = req.query.msg || "";
   const notice = msg ? alertHtml(msg, msg === "notify_need" ? "err" : "ok") : "";
   const csrf = hiddenCsrf(sess);
+  // 尚無領據資料的工讀生（依姓名比對報名資料）
+  const infoNames = new Set((await regUsersGet()).map(u => u.name).filter(Boolean));
+  const noInfoCount = workers.filter(w => !infoNames.has(w.display_name)).length;
 
   // 廣播紀錄
   const history = await getBroadcasts();
@@ -2628,9 +2836,11 @@ router.get("/admin/notify", async (req, res) => {
     `<p style='font-size:12px;color:var(--muted);margin-bottom:6px'>過去發送的通知內容都會保留在這裡，工讀生也可在「系統公告」頁看到收到的訊息。</p>` +
     (histRows || "<p style='text-align:center;color:var(--light);padding:24px 0;font-size:13px'>尚無發送紀錄</p>") +
     `</div>`;
-  const rows = workers.map(w =>
-    `<label class='nt-row fs-row' style='gap:10px;padding:8px'><input type='checkbox' name='ids' value='${esc(w.id)}' style='width:auto;flex:none'><span style='flex:1'>${esc(w.display_name)}</span></label>`
-  ).join("");
+  const rows = workers.map(w => {
+    const noInfo = !infoNames.has(w.display_name);
+    return `<label class='nt-row fs-row' data-noinfo='${noInfo ? 1 : 0}' style='gap:10px;padding:8px'><input type='checkbox' name='ids' value='${esc(w.id)}' style='width:auto;flex:none'><span style='flex:1'>${esc(w.display_name)}</span>` +
+      (noInfo ? `<span class='badge b-warn' style='font-size:11px'>尚無資料</span>` : "") + `</label>`;
+  }).join("");
   const body =
     `<div style='margin-bottom:16px'><a href='${PREFIX}/admin' class='btn btn-sm btn-ghost'>← 返回後台</a></div>` +
     `${notice}` +
@@ -2641,11 +2851,13 @@ router.get("/admin/notify", async (req, res) => {
     `<textarea name='message' rows='3' required placeholder='例：本週六處方日 09:00 於北投社大集合'></textarea></div>` +
     `<div style='display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap'>` +
     `<input type='text' id='nt-search' placeholder='🔍 搜尋姓名...' style='min-width:180px'>` +
-    `<a href='#' id='nt-all' class='btn btn-sm btn-ghost'>全選</a><a href='#' id='nt-none' class='btn btn-sm btn-ghost'>全不選</a></div>` +
+    `<a href='#' id='nt-all' class='btn btn-sm btn-ghost'>全選</a><a href='#' id='nt-none' class='btn btn-sm btn-ghost'>全不選</a>` +
+    (noInfoCount ? `<a href='#' id='nt-noinfo' class='btn btn-sm btn-warn'>勾選尚無資料者（${noInfoCount}）</a>` : "") + `</div>` +
     `<div style='border:1px solid var(--border);border-radius:4px;max-height:40vh;overflow:auto;margin-bottom:12px'>${rows || "<p style='padding:12px;color:var(--light)'>尚無工讀生</p>"}</div>` +
+    `<label style='display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:14px'><input type='checkbox' name='askInfo' value='1' style='width:auto'>附上「填寫資料」連結（請對方補領據資料）</label>` +
     `<button class='btn btn-primary'>🔔 發送通知</button></form></div>` +
     `${historyCard}` +
-    `<script>(function(){var s=document.getElementById('nt-search');if(!s)return;s.addEventListener('input',function(){var q=s.value.trim().toLowerCase();document.querySelectorAll('.nt-row').forEach(function(r){r.style.display=(!q||r.querySelector('span').textContent.toLowerCase().indexOf(q)>=0)?'':'none';});});document.getElementById('nt-all').addEventListener('click',function(e){e.preventDefault();document.querySelectorAll('.nt-row').forEach(function(r){if(r.style.display!=='none')r.querySelector('input').checked=true;});});document.getElementById('nt-none').addEventListener('click',function(e){e.preventDefault();document.querySelectorAll('.nt-row').forEach(function(r){if(r.style.display!=='none')r.querySelector('input').checked=false;});});})();</script>`;
+    `<script>(function(){var s=document.getElementById('nt-search');if(!s)return;s.addEventListener('input',function(){var q=s.value.trim().toLowerCase();document.querySelectorAll('.nt-row').forEach(function(r){r.style.display=(!q||r.querySelector('span').textContent.toLowerCase().indexOf(q)>=0)?'':'none';});});document.getElementById('nt-all').addEventListener('click',function(e){e.preventDefault();document.querySelectorAll('.nt-row').forEach(function(r){if(r.style.display!=='none')r.querySelector('input').checked=true;});});document.getElementById('nt-none').addEventListener('click',function(e){e.preventDefault();document.querySelectorAll('.nt-row').forEach(function(r){if(r.style.display!=='none')r.querySelector('input').checked=false;});});var ni=document.getElementById('nt-noinfo');if(ni)ni.addEventListener('click',function(e){e.preventDefault();document.querySelectorAll('.nt-row').forEach(function(r){r.querySelector('input').checked=(r.getAttribute('data-noinfo')==='1');});});})();</script>`;
   res.send(layout("發送通知", body, sess));
 });
 router.post("/admin/notify", async (req, res) => {
@@ -2654,6 +2866,7 @@ router.post("/admin/notify", async (req, res) => {
   if (!csrfOk(req, req.body.csrf_token)) return res.redirect(`${PREFIX}/admin/notify?msg=csrf_err`);
   const message = (req.body.message || "").trim();
   const ids = [].concat(req.body.ids || []);
+  const askInfo = req.body.askInfo === "1";
   if (!message || !ids.length) return res.redirect(`${PREFIX}/admin/notify?msg=notify_need`);
   // 先存檔（即使推播失敗，內容仍可在紀錄查到）
   try {
@@ -2664,10 +2877,11 @@ router.post("/admin/notify", async (req, res) => {
       recipientNames: ids.map(id => nameById[id]).filter(Boolean),
       sentBy: sess.display_name || "管理員",
       sentAt: new Date().toISOString(),
+      askInfo,
     });
   } catch (e) { console.error("[schedule] 廣播存檔失敗:", e.message); }
   try {
-    await sendPushToUsers(ids, { title: "系統通知", body: message, url: `${PREFIX}/messages` });
+    await sendPushToUsers(ids, { title: "系統通知", body: message, url: `${PREFIX}${askInfo ? "/my-info" : "/messages"}` });
   } catch (e) { console.error("[schedule] 廣播失敗:", e.message); }
   res.redirect(`${PREFIX}/admin/notify?msg=notify_sent`);
 });
@@ -2681,6 +2895,10 @@ router.get("/admin/users", async (req, res) => {
   const msg = req.query.msg || "";
   const notice = msg ? alertHtml(msg, "ok") : "";
   const csrf = hiddenCsrf(sess);
+  // 帳號狀態：報名資料中的人是否已有登入帳號（依姓名比對工讀生帳號）
+  const acctNames = new Set((await getUsers()).filter(u => u.role === "worker").map(u => u.display_name));
+  const hasAcct = u => !!u.name && acctNames.has(u.name);
+  const missingCount = users.filter(u => u.name && !hasAcct(u) && String(u.idNumber || "").length >= 4).length;
   const bankStr = u => {
     if (u.payMethod === "匯款" && u.bankInfo) {
       return [u.bankInfo.bankName, u.bankInfo.accountName, u.bankInfo.account].filter(Boolean).join(" / ");
@@ -2693,6 +2911,7 @@ router.get("/admin/users", async (req, res) => {
     return `<tr class='ureg' data-name='${esc(String(u.name || "").toLowerCase())}'>` +
       `<td>${i + 1}</td>` +
       `<td style='font-weight:500;white-space:nowrap'>${esc(u.name || "-")}</td>` +
+      `<td style='white-space:nowrap'>${hasAcct(u) ? "<span class='badge b-green'>已有帳號</span>" : "<span class='badge b-gray'>尚無帳號</span>"}</td>` +
       `<td style='white-space:nowrap'>${esc(u.idNumber || "-")}</td>` +
       `<td style='white-space:nowrap'>${esc(u.phone || "-")}</td>` +
       `<td style='max-width:160px'>${esc(u.eventName || "-")}</td>` +
@@ -2714,12 +2933,15 @@ router.get("/admin/users", async (req, res) => {
     `<div style='display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap'>` +
     `<input type='text' id='u-search' placeholder='🔍 搜尋姓名...' style='min-width:200px'>` +
     `<a href='${PREFIX}/admin/export-receipts' class='btn btn-sm btn-success'>📄 匯出全部領據 Word</a>` +
+    (missingCount
+      ? `<form method='post' action='${PREFIX}/admin/users/create-accounts' style='display:inline' onsubmit="return confirm('將為 ${missingCount} 位尚無帳號的報名者建立登入帳號（帳號＝姓名，密碼＝身分證後4碼）？')">${csrf}<button class='btn btn-sm btn-primary'>🔑 為尚無帳號者建立登入帳號（${missingCount}）</button></form>`
+      : `<span class='badge b-green'>所有報名者皆已有帳號</span>`) +
     `<span style='font-size:12px;color:var(--light)'>含身分證、匯款等個資，僅管理員可見</span>` +
     `</div>` +
     `<div style='overflow-x:auto'>` +
     `<table style='min-width:1100px'><thead><tr>` +
-    `<th>#</th><th>姓名</th><th>身分證</th><th>電話</th><th>事由名稱</th><th>工作內容</th><th>費用別</th><th>領款方式</th><th>匯款資訊</th><th>戶籍地址</th><th>居住地址</th><th>註冊時間</th><th></th>` +
-    `</tr></thead><tbody>${rows || "<tr><td colspan='13' style='text-align:center;color:var(--light);padding:24px'>尚無註冊使用者</td></tr>"}</tbody></table>` +
+    `<th>#</th><th>姓名</th><th>帳號</th><th>身分證</th><th>電話</th><th>事由名稱</th><th>工作內容</th><th>費用別</th><th>領款方式</th><th>匯款資訊</th><th>戶籍地址</th><th>居住地址</th><th>註冊時間</th><th></th>` +
+    `</tr></thead><tbody>${rows || "<tr><td colspan='14' style='text-align:center;color:var(--light);padding:24px'>尚無註冊使用者</td></tr>"}</tbody></table>` +
     `</div></div>` +
     `<script>(function(){var s=document.getElementById('u-search');s.addEventListener('input',function(){var q=s.value.trim().toLowerCase();document.querySelectorAll('.ureg').forEach(function(r){r.style.display=(!q||r.getAttribute('data-name').indexOf(q)>=0)?'':'none';});});})();</script>`;
   res.send(layout("使用者管理", body, sess));
@@ -2730,6 +2952,30 @@ router.post("/admin/users/:id/delete", async (req, res) => {
   if (!csrfOk(req, req.body.csrf_token)) return res.redirect(`${PREFIX}/admin/users?msg=csrf_err`);
   await regUsersDelete(req.params.id);
   res.redirect(`${PREFIX}/admin/users?msg=user_deleted`);
+});
+// ── 為報名資料中尚無登入帳號者批次建立帳號（帳號＝姓名，密碼＝身分證後4碼）──
+router.post("/admin/users/create-accounts", async (req, res) => {
+  const sess = getSess(req);
+  if (!sess || sess.role !== "admin") return res.redirect(`${PREFIX}/login`);
+  if (!csrfOk(req, req.body.csrf_token)) return res.redirect(`${PREFIX}/admin/users?msg=csrf_err`);
+  try {
+    const regUsers = await regUsersGet();
+    const acctNames = new Set((await getUsers()).filter(u => u.role === "worker").map(u => u.display_name));
+    let created = 0, skipped = 0;
+    for (const u of regUsers) {
+      const name = (u.name || "").trim();
+      const id4 = String(u.idNumber || "").slice(-4);
+      if (!name || acctNames.has(name)) continue;
+      if (id4.length < 4) { skipped++; continue; } // 無身分證無法設定預設密碼
+      await rpost("/users", { username: name, password_hash: hp(id4), display_name: name, role: "worker" });
+      acctNames.add(name); // 避免同批同名重複建立
+      created++;
+    }
+    res.redirect(`${PREFIX}/admin/users?msg=${encodeURIComponent(`已建立 ${created} 個帳號${skipped ? `，${skipped} 位因缺身分證跳過` : ""}`)}`);
+  } catch (e) {
+    console.error("[schedule] create-accounts:", e.message);
+    res.redirect(`${PREFIX}/admin/users?msg=帳號建立失敗`);
+  }
 });
 
 // ── 管理員：匯出領據 Word（用 users＋attendance）──
@@ -2984,11 +3230,12 @@ router.get("/admin/course/:cid", async (req, res) => {
   const users     = await getUsers();
   const userById  = Object.fromEntries(users.map(u => [u.id, u]));
 
-  // 稅務預警：計算每位工讀生在本課程當月的累計時數
+  // 稅務預警：計算每位工讀生在本課程當月的累計時數（含手動時數調整）
   const attRecords = Object.values(await rgetAtt() || {});
+  const adjustAll = await getHoursAdjust();
   const cRoc = rocFromDate(course.date) || todayROC();
   const hoursByWid = {};
-  users.forEach(u => { if (u.role === "worker") hoursByWid[u.id] = sumMonthHours(attRecords, u.display_name, cRoc.year, cRoc.month); });
+  users.forEach(u => { if (u.role === "worker") hoursByWid[u.id] = sumMonthHours(attRecords, u.display_name, cRoc.year, cRoc.month, adjustAll); });
   const hLabel = wid => { const h = hoursByWid[wid] || 0; return h >= HOURS_WARN ? `（本月 ${h} 時 ⚠）` : `（本月 ${h} 時）`; };
 
   const avail = Object.entries(availMap)
@@ -3223,11 +3470,12 @@ router.get("/admin/presc/:date/:region", async (req, res) => {
   const notice = req.query.msg ? alertHtml(MSG_MAP[req.query.msg] || req.query.msg, "ok") : "";
   const needed = items.reduce((s, it) => s + (Number(it.count) || 0), 0);
   const assignedIds = Object.keys(assignObj);
-  // 稅務預警：本月累計時數
+  // 稅務預警：本月累計時數（含手動時數調整）
   const attRecords = Object.values(await rgetAtt() || {});
+  const adjustAll = await getHoursAdjust();
   const pRoc = rocFromDate(date) || todayROC();
   const hoursByWid = {};
-  users.forEach(u => { if (u.role === "worker") hoursByWid[u.id] = sumMonthHours(attRecords, u.display_name, pRoc.year, pRoc.month); });
+  users.forEach(u => { if (u.role === "worker") hoursByWid[u.id] = sumMonthHours(attRecords, u.display_name, pRoc.year, pRoc.month, adjustAll); });
   const hLabel = wid => { const h = hoursByWid[wid] || 0; return h >= HOURS_WARN ? `（本月 ${h} 時 ⚠）` : `（本月 ${h} 時）`; };
 
   const itemRows = (items.length ? items : [{ desc: "", count: 1 }]).map(it =>
@@ -3235,11 +3483,30 @@ router.get("/admin/presc/:date/:region", async (req, res) => {
     `<input name='desc' value='${esc(it.desc || "")}' placeholder='工作敘述（例：路線引導）' style='flex:1'>` +
     `<input name='count' type='number' min='0' value='${Number(it.count) || 0}' style='width:90px' list='cnt-opts'>` +
     `<button type='button' class='btn btn-sm btn-ghost pi-del'>移除</button></div>`).join("");
+  // 簽到狀況：比對本處方日（日期＋分區）的簽到記錄，依姓名對應
+  const fmtT = iso => { if (!iso) return ""; try { return new Date(iso).toLocaleTimeString("zh-TW", { timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit", hour12: false }); } catch (_) { return ""; } };
+  const statusByName = {};
+  attRecords.forEach(r => {
+    if (!r || r.attendanceDeleted) return;
+    if (r.checkinMode !== "處方日" || r.schedDate !== date || r.region !== region) return;
+    const prev = statusByName[r.name];
+    if (!prev || new Date(r.checkinTime) > new Date(prev.checkinTime)) statusByName[r.name] = r;
+  });
+  const statusCell = name => {
+    const r = statusByName[name];
+    if (!r) return "<span class='badge b-gray'>未簽到</span>";
+    if (r.status === "checked-in")
+      return `<span class='badge b-open'>● 簽到中</span> <span style='font-size:12px;color:var(--muted)'>${esc(fmtT(r.checkinTime))} 起</span>`;
+    return `<span class='badge b-blue'>✓ 已簽退</span> <span style='font-size:12px;color:var(--muted)'>${esc(fmtT(r.checkinTime))}–${esc(fmtT(r.checkoutTime))}（${esc(r.hours || 0)} 時）</span>`;
+  };
+  const signedCount = assignedIds.filter(wid => statusByName[(userById[wid] || {}).display_name]).length;
   const assignedRows = assignedIds.map(wid => {
     const u = userById[wid] || {};
     return `<tr><td>${esc(u.display_name || wid)}</td><td style='color:var(--muted)'>${esc(u.username || "")}</td>` +
+      `<td>${statusCell(u.display_name)}</td>` +
       `<td><form method='post' action='${PRESC_URL(date, region)}/unassign/${wid}' style='display:inline'>${csrf}<button class='btn btn-sm btn-danger'>移除</button></form></td></tr>`;
   }).join("");
+
   const assignable = users.filter(u => u.role === "worker" && !assignObj[u.id]).sort((a, b) => String(a.display_name).localeCompare(String(b.display_name), "zh-Hant"));
   const assignForm = assignable.length
     ? `<form method='post' action='${PRESC_URL(date, region)}/assign' class='assign-form' style='display:flex;gap:10px;align-items:flex-end'>${csrf}<div class='form-group' style='flex:1'><label class='form-label'>加入工讀生（可直接排任何人）</label><select name='worker_id'>${assignable.map(w => `<option value='${esc(w.id)}'>${esc(w.display_name)}（${esc(w.username)}）${hLabel(w.id)}</option>`).join("")}</select></div><button class='btn btn-success'>加入</button></form>`
@@ -3256,8 +3523,8 @@ router.get("/admin/presc/:date/:region", async (req, res) => {
     `<div id='pi-list'>${itemRows}</div>` +
     `<button type='button' class='btn btn-sm btn-ghost' id='pi-add' style='margin:6px 0 12px'>＋ 新增工作項目</button><br>` +
     `<button class='btn btn-primary'>儲存工作項目</button></form></div>` +
-    `<div class='card'><div class='card-title'>已排工讀生（${assignedIds.length} / ${needed}）</div>` +
-    (assignedRows ? `<table><thead><tr><th>姓名</th><th>帳號</th><th></th></tr></thead><tbody>${assignedRows}</tbody></table>` : "<p style='color:var(--light);font-size:13px'>尚未排入任何人。</p>") +
+    `<div class='card'><div class='card-title'>已排工讀生（${assignedIds.length} / ${needed}）　·　已簽到 ${signedCount} 人</div>` +
+    (assignedRows ? `<table class='ntbl'><thead><tr><th>姓名</th><th>帳號</th><th>簽到狀況</th><th></th></tr></thead><tbody>${assignedRows}</tbody></table>` : "<p style='color:var(--light);font-size:13px'>尚未排入任何人。</p>") +
     `<hr class='divider'>${assignForm}</div>` +
     `<script>(function(){function bind(){document.querySelectorAll('.pi-del').forEach(function(b){b.onclick=function(){b.closest('.pi-row').remove();};});}var a=document.getElementById('pi-add');if(a)a.onclick=function(){var d=document.createElement('div');d.className='pi-row';d.style.cssText='display:flex;gap:8px;margin-bottom:6px';d.innerHTML="<input name='desc' placeholder='工作敘述（例：路線引導）' style='flex:1'><input name='count' type='number' min='0' value='1' style='width:90px' list='cnt-opts'><button type='button' class='btn btn-sm btn-ghost pi-del'>移除</button>";document.getElementById('pi-list').appendChild(d);bind();};bind();})();</script>` +
     assignWarnScript(hoursByWid);
@@ -3449,6 +3716,72 @@ router.post("/admin/workers/:wid/edit", async (req, res) => {
   if (id4) patch.password_hash = hp(id4);
   await rpatch(`/users/${wid}`, patch);
   res.redirect(`${PREFIX}/admin?msg=worker_updated&tab=workers`);
+});
+
+// ── 工讀生時數調整（手動加減；計入月總時數、稅務預警與工時）──
+router.get("/admin/workers/:wid/hours", async (req, res) => {
+  const sess = getSess(req);
+  if (!sess || sess.role !== "admin") return res.redirect(`${PREFIX}/login`);
+  const w = await getUser(req.params.wid);
+  if (!w || w.role !== "worker") return res.redirect(`${PREFIX}/admin?tab=workers`);
+  const msg = req.query.msg || "";
+  const notice = msg ? alertHtml(msg, msg === "adj_need" ? "err" : "ok") : "";
+  const now = todayROC();
+  const mine = (await getHoursAdjust()).filter(a => a.wid === w.id)
+    .sort((a, b) => (b.year - a.year) || (b.month - a.month) || String(b.at || "").localeCompare(String(a.at || "")));
+  // 參考：本月（自動）時數與調整合計
+  const attRecords = Object.values(await rgetAtt() || {});
+  const autoNow = sumMonthHours(attRecords, w.display_name, now.year, now.month);
+  const adjNow = sumMonthAdjust(mine, w.display_name, now.year, now.month);
+  const monthOpts = Array.from({ length: 12 }, (_, i) => `<option value='${i + 1}'${i + 1 === now.month ? " selected" : ""}>${i + 1} 月</option>`).join("");
+  const adjRows = mine.map(a =>
+    `<tr><td style='white-space:nowrap'>${esc(a.year)}/${esc(a.month)}</td>` +
+    `<td style='white-space:nowrap;font-weight:600;color:${Number(a.hours) < 0 ? "#c0392b" : "var(--ok)"}'>${Number(a.hours) > 0 ? "+" : ""}${esc(a.hours)} 時</td>` +
+    `<td>${esc(a.reason || "-")}</td>` +
+    `<td style='color:var(--muted);font-size:12px;white-space:nowrap'>${esc(a.by || "")}</td>` +
+    `<td><form method='post' action='${PREFIX}/admin/workers/${w.id}/hours/${a.id}/delete' style='display:inline'>${hiddenCsrf(sess)}<button class='btn btn-sm btn-danger' onclick="return confirm('刪除此筆調整？')">刪除</button></form></td></tr>`
+  ).join("");
+  const body =
+    `<div style='margin-bottom:16px'><a href='${PREFIX}/admin?tab=workers' class='btn btn-sm btn-ghost'>← 返回工讀生管理</a></div>` +
+    `${notice}` +
+    `<div class='card'><h3 style='font-size:16px;font-weight:600;margin-bottom:4px'>時數調整　${esc(w.display_name)}</h3>` +
+    `<p style='font-size:13px;color:var(--muted);margin:0'>本月（${now.year}/${now.month}）自動 ${autoNow} 時　·　調整 ${adjNow > 0 ? "+" : ""}${adjNow} 時　·　合計 <strong>${Math.round((autoNow + adjNow) * 10) / 10}</strong> 時</p></div>` +
+    `<div class='card'><div class='card-title'>新增時數調整</div>` +
+    `<p style='font-size:12px;color:var(--muted);margin-bottom:12px'>正數＝加時（例：忘記簽到補時），負數＝扣時（例：超時上限）。年為民國年，會計入該月總時數、稅務預警與此工讀生的「我的工時」。</p>` +
+    `<form method='post' action='${PREFIX}/admin/workers/${w.id}/hours' style='display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap'>${hiddenCsrf(sess)}` +
+    `<div class='form-group'><label class='form-label'>年（民國）</label><input name='year' type='number' value='${now.year}' style='width:100px' required></div>` +
+    `<div class='form-group'><label class='form-label'>月</label><select name='month' style='width:90px'>${monthOpts}</select></div>` +
+    `<div class='form-group'><label class='form-label'>時數（可負）</label><input name='hours' type='number' step='0.5' placeholder='例：3 或 -2' style='width:130px' required></div>` +
+    `<div class='form-group' style='flex:1;min-width:180px'><label class='form-label'>原因</label><input name='reason' placeholder='例：忘記簽到補 3 小時'></div>` +
+    `<button class='btn btn-primary' style='align-self:flex-end'>新增調整</button></form></div>` +
+    `<div class='card'><div class='card-title'>調整紀錄（${mine.length}）</div>` +
+    (adjRows ? `<table class='ntbl'><thead><tr><th>年/月</th><th>時數</th><th>原因</th><th>操作人</th><th></th></tr></thead><tbody>${adjRows}</tbody></table>` : "<p style='color:var(--light);font-size:13px'>尚無調整紀錄。</p>") +
+    `</div>`;
+  res.send(layout("時數調整", body, sess));
+});
+router.post("/admin/workers/:wid/hours", async (req, res) => {
+  const sess = getSess(req);
+  if (!sess || sess.role !== "admin") return res.redirect(`${PREFIX}/login`);
+  const wid = req.params.wid;
+  if (!csrfOk(req, req.body.csrf_token)) return res.redirect(`${PREFIX}/admin/workers/${wid}/hours?msg=csrf_err`);
+  const w = await getUser(wid);
+  if (!w || w.role !== "worker") return res.redirect(`${PREFIX}/admin?tab=workers`);
+  const year = parseInt(req.body.year, 10);
+  const month = parseInt(req.body.month, 10);
+  const hours = Number(req.body.hours);
+  const reason = (req.body.reason || "").trim();
+  if (!year || !month || month < 1 || month > 12 || !hours || isNaN(hours))
+    return res.redirect(`${PREFIX}/admin/workers/${wid}/hours?msg=adj_need`);
+  await rpost("/hours_adjust", { wid: w.id, name: w.display_name, year, month, hours, reason, by: sess.display_name || "管理員", at: new Date().toISOString() });
+  res.redirect(`${PREFIX}/admin/workers/${wid}/hours?msg=adj_saved`);
+});
+router.post("/admin/workers/:wid/hours/:aid/delete", async (req, res) => {
+  const sess = getSess(req);
+  if (!sess || sess.role !== "admin") return res.redirect(`${PREFIX}/login`);
+  const wid = req.params.wid;
+  if (!csrfOk(req, req.body.csrf_token)) return res.redirect(`${PREFIX}/admin/workers/${wid}/hours?msg=csrf_err`);
+  await rdel(`/hours_adjust/${req.params.aid}`);
+  res.redirect(`${PREFIX}/admin/workers/${wid}/hours?msg=adj_deleted`);
 });
 
 router.post("/admin/change-password", async (req, res) => {
