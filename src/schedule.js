@@ -3006,6 +3006,12 @@ router.get("/admin/course/:cid", async (req, res) => {
     `${esc(course.date)} 週${wd} &nbsp;·&nbsp; ${esc(course.time_slot)} &nbsp;·&nbsp; ` +
     `${prescTag(course.prescription_type)} &nbsp;·&nbsp; ${canOpenBadge(course.enrolled)}</p>` +
     `<p style='font-size:12px;color:var(--light);margin-bottom:0'>${esc(course.location)}</p>` +
+    (course.custom
+      ? `<div style='margin-top:14px;padding-top:12px;border-top:1px solid var(--border-l)'>` +
+        `<span class='badge b-gray' style='margin-right:10px'>臨時活動</span>` +
+        `<form method='post' action='${PREFIX}/admin/courses/${cid}/delete' style='display:inline' onsubmit="return confirm('確定刪除此臨時活動？相關報名／指派也會一併移除。')">${csrf}` +
+        `<button class='btn btn-sm btn-danger'>🗑 刪除此臨時活動</button></form></div>`
+      : "") +
     `</div>` +
     `${timeCard}` +
     `${followCard}` +
