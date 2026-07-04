@@ -265,6 +265,24 @@ async function getUserIdsByRole(role) {
   return us.filter(u => u.role === role).map(u => u.id);
 }
 
+// ── 廣播紀錄（存 Firebase /broadcasts，供管理員與工讀生日後查閱）──
+async function getBroadcasts() {
+  const data = await rget("/broadcasts") || {};
+  return Object.entries(data)
+    .map(([id, b]) => ({ id, ...b }))
+    .sort((a, b) => new Date(b.sentAt || 0) - new Date(a.sentAt || 0));
+}
+function fmtDateTime(iso) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleString("zh-TW", {
+      timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    });
+  } catch (_) { return ""; }
+}
+function msgToHtml(s) { return esc(String(s || "")).replace(/\n/g, "<br>"); }
+
 // ── 使用者報名資料（沿用現有 users 資料庫；含個資，僅管理員後台顯示）──
 const USERS_REG_FB = process.env.USERS_FB ||
   "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/users";
@@ -1200,7 +1218,16 @@ router.get("/home", async (req, res) => {
     dash: `<path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path>`,
     time: `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M16 13H8"></path><path d="M16 17H8"></path><path d="M10 9H8"></path>`,
     key: `<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"></path><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"></circle>`,
+    mail: `<rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>`,
   };
+
+  // 收到的公告則數（首頁卡片提示）
+  let msgCount = 0;
+  try { msgCount = (await getBroadcasts()).filter(b => Array.isArray(b.recipientIds) && b.recipientIds.includes(sess.id)).length; }
+  catch (_) {}
+  const msgBadge = msgCount
+    ? `<div style='margin-top:10px'><span style='display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:rgba(26,158,122,.12);color:var(--accent)'>${msgCount} 則公告</span></div>`
+    : "";
   const iconCard = (href, ico, title, desc, extra = "") =>
     `<a href='${href}' style='background:#fff;border:1px solid var(--border);border-radius:8px;padding:22px;box-shadow:var(--shadow-card);display:block;text-decoration:none;color:inherit;transition:box-shadow .2s' onmouseover="this.style.boxShadow='var(--shadow-raised)'" onmouseout="this.style.boxShadow='var(--shadow-card)'">` +
     `<div style='width:44px;height:44px;border-radius:10px;background:rgba(26,158,122,.12);color:var(--accent);display:flex;align-items:center;justify-content:center;margin-bottom:12px'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ico}</svg></div>` +
@@ -1217,6 +1244,7 @@ router.get("/home", async (req, res) => {
     `${iconCard(`${PREFIX}/checkin`, ICO.checkin, "簽到 / 簽退", "上課現場簽到、下課回報時數與內容", activeHint)}` +
     `${iconCard(`${PREFIX}/dashboard`, ICO.dash, "我的班表", "查看可跟課的課程、登記與已被指派的班")}` +
     `${iconCard(`${PREFIX}/timesheet`, ICO.time, "我的工時", "查看已完成的課程與累計工作時數")}` +
+    `${iconCard(`${PREFIX}/messages`, ICO.mail, "系統公告", "查看管理員發送的通知與過往公告", msgBadge)}` +
     `${iconCard(`${PREFIX}/change-password`, ICO.key, "修改密碼", "更改自己的登入密碼")}` +
     `</div>` +
     `<div class='card' id='push-card'>` +
@@ -1239,6 +1267,34 @@ router.get("/home", async (req, res) => {
     `<script>window.__VAPID=${JSON.stringify(VAPID_PUBLIC)}</script>` +
     PUSH_CLIENT_JS;
   res.send(layout("工讀生首頁", body, sess));
+});
+
+// ══════════════════════════════════════════════
+//  工讀生：系統公告（收到的廣播內容）
+// ══════════════════════════════════════════════
+router.get("/messages", async (req, res) => {
+  const sess = getSess(req);
+  if (!sess || sess.role !== "worker") return res.redirect(`${PREFIX}/login`);
+  const mine = (await getBroadcasts())
+    .filter(b => Array.isArray(b.recipientIds) && b.recipientIds.includes(sess.id));
+  let list;
+  if (mine.length) {
+    list = mine.map(b =>
+      `<div class='card' style='margin-bottom:12px'>` +
+      `<div style='font-size:12px;color:var(--muted);margin-bottom:6px'>🔔 ${esc(fmtDateTime(b.sentAt))}</div>` +
+      `<div style='font-size:15px;line-height:1.7;white-space:pre-wrap'>${msgToHtml(b.message)}</div>` +
+      `</div>`
+    ).join("");
+  } else {
+    list = "<div class='card'><p style='text-align:center;color:var(--light);padding:32px 0;font-size:13px'>目前尚無公告</p></div>";
+  }
+  const body =
+    `<div style='margin-bottom:16px'><a href='${PREFIX}/home' class='btn btn-sm btn-ghost'>← 返回首頁</a></div>` +
+    `<div style='margin-bottom:16px'>` +
+    `<h2 style='margin:0;font-size:22px;font-weight:700;color:var(--subheading)'>系統公告</h2>` +
+    `<p style='margin:4px 0 0;font-size:14px;color:var(--muted)'>管理員發送給你的通知都會保留在這裡</p></div>` +
+    list;
+  res.send(layout("系統公告", body, sess));
 });
 
 // ══════════════════════════════════════════════
@@ -2534,6 +2590,25 @@ router.get("/admin/notify", async (req, res) => {
   const msg = req.query.msg || "";
   const notice = msg ? alertHtml(msg, msg === "notify_need" ? "err" : "ok") : "";
   const csrf = hiddenCsrf(sess);
+
+  // 廣播紀錄
+  const history = await getBroadcasts();
+  const histRows = history.map(b => {
+    const names = Array.isArray(b.recipientNames) ? b.recipientNames.filter(Boolean) : [];
+    const cnt = names.length || (Array.isArray(b.recipientIds) ? b.recipientIds.length : 0);
+    const who = names.length > 6
+      ? `${esc(names.slice(0, 6).join("、"))} 等 ${cnt} 人`
+      : (names.length ? esc(names.join("、")) : `${cnt} 人`);
+    return `<div style='padding:12px 0;border-bottom:1px solid var(--border)'>` +
+      `<div style='font-size:12px;color:var(--muted);margin-bottom:4px'>${esc(fmtDateTime(b.sentAt))}　·　收件：${who}</div>` +
+      `<div style='font-size:14px;line-height:1.6;white-space:pre-wrap'>${msgToHtml(b.message)}</div>` +
+      `</div>`;
+  }).join("");
+  const historyCard =
+    `<div class='card'><div class='card-title'>📜 廣播紀錄</div>` +
+    `<p style='font-size:12px;color:var(--muted);margin-bottom:6px'>過去發送的通知內容都會保留在這裡，工讀生也可在「系統公告」頁看到收到的訊息。</p>` +
+    (histRows || "<p style='text-align:center;color:var(--light);padding:24px 0;font-size:13px'>尚無發送紀錄</p>") +
+    `</div>`;
   const rows = workers.map(w =>
     `<label class='nt-row fs-row' style='gap:10px;padding:8px'><input type='checkbox' name='ids' value='${esc(w.id)}' style='width:auto;flex:none'><span style='flex:1'>${esc(w.display_name)}</span></label>`
   ).join("");
@@ -2550,6 +2625,7 @@ router.get("/admin/notify", async (req, res) => {
     `<a href='#' id='nt-all' class='btn btn-sm btn-ghost'>全選</a><a href='#' id='nt-none' class='btn btn-sm btn-ghost'>全不選</a></div>` +
     `<div style='border:1px solid var(--border);border-radius:4px;max-height:40vh;overflow:auto;margin-bottom:12px'>${rows || "<p style='padding:12px;color:var(--light)'>尚無工讀生</p>"}</div>` +
     `<button class='btn btn-primary'>🔔 發送通知</button></form></div>` +
+    `${historyCard}` +
     `<script>(function(){var s=document.getElementById('nt-search');if(!s)return;s.addEventListener('input',function(){var q=s.value.trim().toLowerCase();document.querySelectorAll('.nt-row').forEach(function(r){r.style.display=(!q||r.querySelector('span').textContent.toLowerCase().indexOf(q)>=0)?'':'none';});});document.getElementById('nt-all').addEventListener('click',function(e){e.preventDefault();document.querySelectorAll('.nt-row').forEach(function(r){if(r.style.display!=='none')r.querySelector('input').checked=true;});});document.getElementById('nt-none').addEventListener('click',function(e){e.preventDefault();document.querySelectorAll('.nt-row').forEach(function(r){if(r.style.display!=='none')r.querySelector('input').checked=false;});});})();</script>`;
   res.send(layout("發送通知", body, sess));
 });
@@ -2560,8 +2636,19 @@ router.post("/admin/notify", async (req, res) => {
   const message = (req.body.message || "").trim();
   const ids = [].concat(req.body.ids || []);
   if (!message || !ids.length) return res.redirect(`${PREFIX}/admin/notify?msg=notify_need`);
+  // 先存檔（即使推播失敗，內容仍可在紀錄查到）
   try {
-    await sendPushToUsers(ids, { title: "系統通知", body: message, url: `${PREFIX}/home` });
+    const nameById = Object.fromEntries((await getUsers()).map(u => [u.id, u.display_name]));
+    await rpost("/broadcasts", {
+      message,
+      recipientIds: ids,
+      recipientNames: ids.map(id => nameById[id]).filter(Boolean),
+      sentBy: sess.display_name || "管理員",
+      sentAt: new Date().toISOString(),
+    });
+  } catch (e) { console.error("[schedule] 廣播存檔失敗:", e.message); }
+  try {
+    await sendPushToUsers(ids, { title: "系統通知", body: message, url: `${PREFIX}/messages` });
   } catch (e) { console.error("[schedule] 廣播失敗:", e.message); }
   res.redirect(`${PREFIX}/admin/notify?msg=notify_sent`);
 });
