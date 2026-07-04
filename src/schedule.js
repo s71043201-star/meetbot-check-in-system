@@ -507,13 +507,13 @@ tbody tr:hover td{background:var(--accent-l)}
 .btn-ghost:hover{background:#F4F4F4}
 .btn-sm{padding:8px 16px;height:38px;font-size:14px}
 .btn:disabled,.btn[disabled]{opacity:.45;cursor:not-allowed}
-.badge{display:inline-flex;align-items:center;padding:5px 12px;border-radius:999px;font-size:13px;font-weight:700;line-height:1}
+.badge{display:inline-flex;align-items:center;padding:5px 12px;border-radius:999px;font-size:13px;font-weight:700;line-height:1;white-space:nowrap}
 .b-open{background:#E2F1EA;color:#1F8A5B}
 .b-warn{background:#FDF3E3;color:#C7740C}
 .b-gray{background:#EFEFEF;color:#5A5A5A}
 .b-blue{background:#E3F5EF;color:#1A9E7A}
 .b-green{background:#E2F1EA;color:#1F8A5B}
-.tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:500}
+.tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:500;white-space:nowrap}
 .t-sport{background:#E7F4EF;color:#1F8A5B}
 .t-emotion{background:#FDF3E3;color:#C7740C}
 .t-social{background:#EAEFF7;color:#1E3A6E}
@@ -588,6 +588,19 @@ input[type=checkbox],input[type=radio]{width:18px;height:18px;flex:none;margin:0
   .cal{min-width:600px}
   .btn{padding:10px 16px}
   h2{font-size:20px}
+  /* 日課表：手機改直式卡片，避免欄位擠壓（類型標籤被折成直排、課名破碎） */
+  .card{overflow-x:visible}
+  table.ctbl thead{display:none}
+  table.ctbl,table.ctbl tbody{display:block;width:100%}
+  table.ctbl tr{display:block;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff;box-shadow:var(--shadow-card)}
+  table.ctbl tr:hover td{background:transparent}
+  table.ctbl td{display:block;border:none;padding:2px 0;font-size:14px}
+  table.ctbl td:nth-child(1){color:var(--muted);font-size:12px}
+  table.ctbl td:nth-child(2){font-size:15px;font-weight:700;color:var(--subheading);padding-bottom:4px}
+  table.ctbl td:nth-child(n+3):not(:last-child){display:inline-block;margin-right:6px}
+  table.ctbl td:last-child{padding-top:10px}
+  table.ctbl td:last-child form{display:block}
+  table.ctbl td:last-child .btn{width:100%}
 }
 </style>`;
 
@@ -816,7 +829,7 @@ const CAL_CLIENT_JS = `<script>
         return "<tr><td style='white-space:nowrap;color:var(--muted)'>"+tcell+"</td><td>"+esc(c.name)+extra+"</td><td>"+regTag(c.region)+"</td><td>"+pTag(c.type)+"</td>"+fol+"<td>"+right+"</td></tr>";
       }).join('');
       var head="<th>時段</th><th>課程</th><th>地區</th><th>類型</th>"+(D.role==='admin'?"<th>跟課</th>":"")+"<th></th>";
-      html+="<table><thead><tr>"+head+"</tr></thead><tbody>"+rows+"</tbody></table>";
+      html+="<table class='ctbl'><thead><tr>"+head+"</tr></thead><tbody>"+rows+"</tbody></table>";
     }
     html+="</div>";
     box.innerHTML=html;
