@@ -718,10 +718,9 @@ const CAL_CLIENT_JS = `<script>
   var REGIONS=['北投','士林','中山'];
   var BANDS=['早','午','晚'];
   function bandOf(t){var m=/^(\\d{1,2}):/.exec(t||'');if(!m)return null;var h=+m[1];return h<12?'早':h<18?'午':'晚';}
-  var months=Array.from(new Set(all.map(function(c){return c.date.slice(0,7);}))).sort();
-  var cur=months.length?months[0]:'';
+  var _now=new Date();var cur=_now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0');
   var sel=null, reg='';
-  try{var _qd=new URLSearchParams(location.search).get('day');if(_qd){cur=_qd.slice(0,7);sel=_qd;}}catch(e){}
+  try{var _q=new URLSearchParams(location.search);var _qm=_q.get('month');if(_qm)cur=_qm;var _qd=_q.get('day');if(_qd){cur=_qd.slice(0,7);sel=_qd;}}catch(e){}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function shift(m,d){var p=m.split('-').map(Number);var y=p[0],mo=p[1]+d;if(mo<1){mo=12;y--;}if(mo>12){mo=1;y++;}return y+'-'+String(mo).padStart(2,'0');}
   function cs(){return reg?all.filter(function(c){return c.region===reg;}):all;}
