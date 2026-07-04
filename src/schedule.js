@@ -585,7 +585,13 @@ input[type=checkbox],input[type=radio]{width:18px;height:18px;flex:none;margin:0
   .tab-btn{padding:9px 18px;font-size:15px;white-space:nowrap}
   .stats{gap:10px}
   .stat{flex:1;min-width:0;padding:12px 10px}
-  .cal{min-width:600px}
+  /* 月曆：手機自適應塞進 7 欄，不再橫向捲動 */
+  .cal{min-width:0}
+  .cal th{padding:5px 0;font-size:10px}
+  .cal td{height:auto;min-height:58px}
+  .cal a.dcell{padding:3px 2px}
+  .dnum{font-size:11px}
+  .cband{font-size:9px;padding:1px 3px;margin-top:2px}
   .btn{padding:10px 16px}
   h2{font-size:20px}
   /* 日課表：手機改直式卡片，避免欄位擠壓（類型標籤被折成直排、課名破碎） */
