@@ -1449,13 +1449,10 @@ const CHECKIN_CLIENT_JS = `<script>
     };
   }
 
-  // ── 行政庶務簽到 ──
+  // ── 行政庶務簽到（只需填工作內容；日期自動取今天）──
   function showAdmin(){
-    var today=new Date().toLocaleString('sv-SE',{timeZone:'Asia/Taipei'}).slice(0,10);
     h(backBar()+
       "<div class='card'><div class='card-title'>行政庶務簽到</div>"+
-      "<div class='form-group' style='margin-bottom:12px'><label class='form-label'>姓名</label><input value='"+esc(ME.name)+"' disabled></div>"+
-      "<div class='form-group' style='margin-bottom:12px'><label class='form-label'>日期</label><input type='date' id='ad-date' value='"+today+"'></div>"+
       "<div class='form-group' style='margin-bottom:16px'><label class='form-label'>工作內容</label><textarea id='ad-work' rows='3' placeholder='例：文件整理、核銷、場地準備'></textarea></div>"+
       "<button class='btn btn-success' id='ad-submit'>簽到</button>"+
       "<div id='ck-msg' style='margin-top:12px'></div></div>"
@@ -1465,7 +1462,7 @@ const CHECKIN_CLIENT_JS = `<script>
       var work=val('ad-work'); var msg=document.getElementById('ck-msg');
       if(!work.trim()){ msg.innerHTML="<div class='alert alert-err'>請填寫工作內容。</div>"; return; }
       msg.textContent='簽到中...';
-      api('/schedule/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'行政庶務',name:ME.name,date:val('ad-date'),workContent:work})})
+      api('/schedule/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'行政庶務',name:ME.name,workContent:work})})
         .then(function(res){ if(res.ok){ load(); } else { msg.innerHTML="<div class='alert alert-err'>簽到失敗："+esc(res.error||'')+"</div>"; } });
     };
   }
