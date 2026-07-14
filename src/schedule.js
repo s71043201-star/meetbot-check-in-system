@@ -2736,9 +2736,28 @@ router.get("/admin/attendance", async (req, res) => {
   if (!sess || sess.role !== "admin") return res.redirect(`${PREFIX}/login`);
   const monthOpts = "<option value=''>全部</option>" +
     Array.from({ length: 12 }, (_, i) => `<option value='${i + 1}'>${i + 1}月</option>`).join("");
+
+  // 單人時數表（列印用）：選一位工讀生 + 年月，下載他當月的出勤時數表
+  const roc = todayROC() || { year: new Date().getFullYear() - 1911, month: 1 };
+  const workers = (await getUsers()).filter(u => u.role === "worker" && u.display_name)
+    .sort((a, b) => String(a.display_name).localeCompare(String(b.display_name), "zh-Hant"));
+  const workerOpts = workers.map(w => `<option value='${esc(w.display_name)}'>${esc(w.display_name)}</option>`).join("");
+  const monthSel = Array.from({ length: 12 }, (_, i) => `<option value='${i + 1}'${i + 1 === roc.month ? " selected" : ""}>${i + 1}月</option>`).join("");
+  const singleCard = workers.length
+    ? `<div class='card'>` +
+      `<div class='card-title'>🧾 單人時數表（列印／存檔用）</div>` +
+      `<p style='font-size:13px;color:var(--muted);margin-bottom:12px'>選一位工讀生與年月，下載他當月的出勤時數表（Excel，版面同「臨時人員出勤記錄」範例，含金額／簽名列）。</p>` +
+      `<form method='get' action='${PREFIX}/export' style='display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap'>` +
+      `<div class='form-group' style='flex:1;min-width:160px'><label class='form-label'>工讀生</label><select name='name' required>${workerOpts}</select></div>` +
+      `<div class='form-group'><label class='form-label'>年份（民國）</label><input name='year' type='number' value='${roc.year}' required style='width:100px'></div>` +
+      `<div class='form-group'><label class='form-label'>月份</label><select name='month' required>${monthSel}</select></div>` +
+      `<button class='btn btn-success'>📥 下載時數表</button></form></div>`
+    : `<div class='card'><div class='card-title'>🧾 單人時數表</div><p style='color:var(--light);font-size:13px'>目前沒有工讀生帳號。</p></div>`;
+
   const body =
     `<div style='margin-bottom:16px'><a href='${PREFIX}/admin' class='btn btn-sm btn-ghost'>← 返回後台</a></div>` +
     `<div id='att-app'>` +
+    singleCard +
     `<div class='card'>` +
     `<div class='card-title'>出勤與工時</div>` +
     `<div class='form-row cols-4' style='align-items:end'>` +
