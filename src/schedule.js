@@ -60,6 +60,7 @@ const MSG_MAP = {
   nofollow_name:   "✓ 已將所有同名課程設為不跟課",
   follow_name:     "✓ 已將所有同名課程恢復開放跟課",
   follow_saved:    "✓ 已儲存跟課設定",
+  fixed_saved:     "✓ 已儲存固定跟課人員，並自動指派未來場次",
   worker_updated:  "✓ 已更新工讀生資料",
   user_deleted:    "✓ 已刪除使用者報名資料",
   notify_sent:     "✓ 已發送通知",
@@ -334,6 +335,39 @@ function groupByName(courses, nf) {
     if (isFollow(c, nf)) g[c.course_name].open++;
   }
   return g;
+}
+
+// ── 固定跟課人員（依課名設定；自動指派到該課所有未來場次）──
+// 結構：/fixed_followers/{nameKey(課名)} = { workerId: true, ... }
+// 對照 /assignments，補齊缺少的指派（標記 fixed:true），並回收「已從規則移除」的自動指派。
+async function applyFixedFollowers() {
+  const fixed = await rget("/fixed_followers") || {};
+  const today = todayTaipei();
+  const courses = (await allCourses()).filter(c => c.date >= today);
+  const assignAll = await rget("/assignments") || {};
+  const patch = {};
+  const added = [];   // {cid, wid} 供推播
+  let removed = 0;
+  for (const c of courses) {
+    const rule = fixed[nameKey(c.course_name)] || {};
+    const cur = assignAll[c.id] || {};
+    // 補上規則內、但尚未指派者
+    for (const wid of Object.keys(rule)) {
+      if (!rule[wid]) continue;
+      if (cur[wid]) continue;
+      patch[`${c.id}/${wid}`] = { assigned_at: nowTaipei(), fixed: true };
+      added.push({ cid: c.id, wid });
+    }
+    // 回收：自動加入(fixed:true)但已不在規則內者
+    for (const wid of Object.keys(cur)) {
+      if (cur[wid] && cur[wid].fixed && !rule[wid]) {
+        patch[`${c.id}/${wid}`] = null;
+        removed++;
+      }
+    }
+  }
+  if (added.length || removed) await rpatch("/assignments", patch);
+  return { added, removed };
 }
 
 // ── 一般工具 ──────────────────────────────────
@@ -844,17 +878,25 @@ const CAL_CLIENT_JS = `<script>
         if(c.over) extra+=" <span style='font-size:10px;background:#f59e0b;color:#fff;padding:1px 5px;border-radius:4px'>改時</span>";
         if(D.role==='admin'){
           var names=(c.assigned&&c.assigned.length)?c.assigned.map(esc).join('、'):"<span style='color:var(--light)'>未指派</span>";
-          right="<div style='font-size:12px;margin-bottom:4px'>"+names+"</div><a href='"+D.prefix+"/admin/course/"+c.id+"' class='btn btn-sm btn-primary'>指派／編輯</a>";
+          var ac=c.avail_count||0;
+          var reg=c.follow?("<div style='font-size:11px;margin-bottom:4px'>"+(ac?"<span class='badge b-blue'>報名 "+ac+" 人可跟課</span>":"<span style='color:var(--light)'>尚無人報名</span>")+"</div>"):"";
+          right="<div style='font-size:12px;margin-bottom:4px'>"+names+"</div>"+reg+"<a href='"+D.prefix+"/admin/course/"+c.id+"' class='btn btn-sm btn-primary'>指派／編輯</a>";
         } else {
           if(c.assigned)right="<span class='badge b-green'>✓ 已指派</span>";
           else if(c.avail)right="<form method='post' action='"+D.prefix+"/unavail/"+c.id+"' style='display:inline'>"+D.csrf+"<button class='btn btn-sm btn-warn'>取消登記</button></form>";
           else right="<form method='post' action='"+D.prefix+"/avail/"+c.id+"' style='display:inline'>"+D.csrf+"<button class='btn btn-sm btn-success'>我可以跟課</button></form>";
         }
         var fol=D.role==='admin'?"<td>"+(c.follow?"<span class='badge b-green'>開放</span>":"<span class='badge b-gray'>不跟課</span>")+"</td>":'';
+        var enr='';
+        if(D.role==='admin'){
+          var en=c.enrolled||0, cap=c.capacity||0;
+          var openBadge=en>=4?"<span class='badge b-open'>✅ 可開課</span>":(en>0?"<span class='badge b-warn'>未達 4 人</span>":"<span class='badge b-gray'>—</span>");
+          enr="<td style='white-space:nowrap'><div style='font-size:12px;margin-bottom:3px'>民眾 <strong>"+en+"</strong>"+(cap?" / 上限 "+cap:"")+" 人</div>"+openBadge+"</td>";
+        }
         var tcell=c.time?esc(c.time):"<span style='color:var(--light)'>未排定</span>";
-        return "<tr><td style='white-space:nowrap;color:var(--muted)'>"+tcell+"</td><td>"+esc(c.name)+extra+"</td><td>"+regTag(c.region)+"</td><td>"+pTag(c.type)+"</td>"+fol+"<td>"+right+"</td></tr>";
+        return "<tr><td style='white-space:nowrap;color:var(--muted)'>"+tcell+"</td><td>"+esc(c.name)+extra+"</td><td>"+regTag(c.region)+"</td><td>"+pTag(c.type)+"</td>"+enr+fol+"<td>"+right+"</td></tr>";
       }).join('');
-      var head="<th>時段</th><th>課程</th><th>地區</th><th>類型</th>"+(D.role==='admin'?"<th>跟課</th>":"")+"<th></th>";
+      var head="<th>時段</th><th>課程</th><th>地區</th><th>類型</th>"+(D.role==='admin'?"<th>民眾報名／開課</th><th>跟課</th>":"")+"<th></th>";
       html+="<table class='ctbl'><thead><tr>"+head+"</tr></thead><tbody>"+rows+"</tbody></table>";
     }
     html+="</div>";
@@ -2231,6 +2273,8 @@ router.get("/admin", async (req, res) => {
     id: c.id, name: c.course_name, date: c.date, time: c.time_slot,
     region: c.region, type: c.prescription_type, follow: c.follow, x: c.follow,
     custom: !!c.custom, over: !!c.time_overridden,
+    avail_count: c.avail_count,
+    enrolled: Number(c.enrolled) || 0, capacity: Number(c.capacity) || 0,
     assigned: Object.keys(assignAll[c.id] || {}).map(wid => (userById[wid] || {}).display_name).filter(Boolean),
   }));
   const timeOpts = (() => { let o = "<option value=''>--:--</option>"; for (let hh = 6; hh <= 22; hh++) for (let mm = 0; mm < 60; mm += 30) { const t = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`; o += `<option value='${t}'>${t}</option>`; } return o; })();
@@ -2254,6 +2298,7 @@ router.get("/admin", async (req, res) => {
   const availTab =
     `<div class='btn-row' style='margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap'>` +
     `<a href='${PREFIX}/admin/follow-settings' class='btn btn-primary'>🔧 跟課設定（勾選要開放跟課的課程）</a>` +
+    `<a href='${PREFIX}/admin/fixed-followers' class='btn btn-ghost'>🔒 固定跟課人員</a>` +
     `<a href='${PREFIX}/admin/presc-setup' class='btn btn-ghost'>🗓 處方日設定（勾選課程組成處方日）</a>` +
     `</div>` +
     addEventForm +
@@ -2266,6 +2311,41 @@ router.get("/admin", async (req, res) => {
     CAL_CLIENT_JS;
 
   // Tab 3：工讀生
+  // 每位工讀生「已指派課程」明細（含各堂時長）
+  const slotHours = ts => {
+    const p = String(ts || "").split("-").map(x => x.trim());
+    const sm = hhmmToMin(p[0]), em = hhmmToMin(p[1]);
+    return (sm != null && em != null && em > sm) ? Math.round((em - sm) / 60 * 10) / 10 : null;
+  };
+  const assignedByWid = {};
+  for (const c of courses) {
+    const m = assignAll[c.id] || {};
+    for (const wid of Object.keys(m)) {
+      if (!m[wid]) continue;
+      (assignedByWid[wid] = assignedByWid[wid] || []).push(c);
+    }
+  }
+  Object.values(assignedByWid).forEach(l => l.sort((a, b) => (a.date + a.time_slot).localeCompare(b.date + b.time_slot)));
+  const detailFor = wid => {
+    const list = assignedByWid[wid] || [];
+    if (!list.length) return "";
+    const totalH = Math.round(list.reduce((s, c) => s + (slotHours(c.time_slot) || 0), 0) * 10) / 10;
+    const items = list.map(c => {
+      const h = slotHours(c.time_slot);
+      return `<tr>` +
+        `<td style='white-space:nowrap;color:var(--muted)'>${esc(c.date)}</td>` +
+        `<td style='white-space:nowrap;color:var(--muted)'>${c.time_slot ? esc(c.time_slot) : "未排定"}</td>` +
+        `<td>${esc(c.course_name)}${c.custom ? " <span class='badge b-gray' style='font-size:10px'>臨時</span>" : ""}</td>` +
+        `<td>${regionTag(c.region)}</td>` +
+        `<td style='white-space:nowrap'>${h != null ? `<span class='badge b-blue'>${h} 時</span>` : "—"}</td></tr>`;
+    }).join("");
+    return `<tr class='detail-row'><td colspan='4' style='padding:0;background:#F7FAF9'>` +
+      `<details style='padding:8px 14px'>` +
+      `<summary style='cursor:pointer;font-size:13px;color:var(--muted)'>📋 已跟課程明細（${list.length} 堂・約 ${totalH} 時）</summary>` +
+      `<table style='margin-top:8px'><thead><tr><th>日期</th><th>時段</th><th>課程</th><th>地區</th><th>時長</th></tr></thead>` +
+      `<tbody>${items}</tbody></table>` +
+      `</details></td></tr>`;
+  };
   let workerRows = workers.map(w =>
     `<tr>` +
     `<td><span style='font-weight:500'>${esc(w.display_name)}</span></td>` +
@@ -2277,7 +2357,8 @@ router.get("/admin", async (req, res) => {
     `<form method='post' action='${PREFIX}/admin/workers/${w.id}/delete' style='display:inline'>` +
     `${csrf}` +
     `<button class='btn btn-sm btn-danger' onclick="return confirm('確定刪除帳號？')">刪除</button></form>` +
-    `</td></tr>`
+    `</td></tr>` +
+    detailFor(w.id)
   ).join("");
   if (!workerRows) workerRows = "<tr><td colspan='4' style='text-align:center;color:var(--light);padding:24px'>尚無工讀生帳號</td></tr>";
 
@@ -2428,10 +2509,112 @@ router.post("/admin/follow-settings", async (req, res) => {
   res.redirect(`${PREFIX}/admin/follow-settings?msg=follow_saved`);
 });
 
+// ── 管理員：固定跟課人員（依課名設定，儲存後自動指派未來場次）──
+router.get("/admin/fixed-followers", async (req, res) => {
+  const sess = getSess(req);
+  if (!sess || sess.role !== "admin") return res.redirect(`${PREFIX}/login`);
+  // 進頁時自動補齊：把已同步進來的新未來場次也套上固定人員
+  try { await applyFixedFollowers(); } catch (e) { console.error("[schedule] applyFixedFollowers:", e.message); }
+
+  const courses = await allCourses();
+  const groups = Object.values(groupByName(courses, { slots: {} }))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), "zh-Hant"));
+  const fixed = await rget("/fixed_followers") || {};
+  const workers = (await getUsers()).filter(u => u.role === "worker")
+    .sort((a, b) => String(a.display_name).localeCompare(String(b.display_name), "zh-Hant"));
+
+  const msg = req.query.msg || "";
+  const notice = msg ? alertHtml(msg, "ok") : "";
+
+  let rows;
+  if (!groups.length) {
+    rows = "<p style='padding:20px;text-align:center;color:var(--light)'>目前無課程</p>";
+  } else if (!workers.length) {
+    rows = "<p style='padding:20px;text-align:center;color:var(--light)'>尚無工讀生帳號，請先建立帳號。</p>";
+  } else {
+    rows = groups.map(g => {
+      const key = nameKey(g.name);
+      const cur = fixed[key] || {};
+      const curNames = workers.filter(w => cur[w.id]).map(w => esc(w.display_name)).join("、") || "—";
+      const boxes = workers.map(w =>
+        `<label style='display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid var(--border);border-radius:16px;font-size:13px;cursor:pointer'>` +
+        `<input type='checkbox' name='fx_${key}' value='${esc(w.id)}' ${cur[w.id] ? "checked" : ""} style='width:auto'>${esc(w.display_name)}</label>`
+      ).join(" ");
+      return `<details class='ff-row' data-name="${esc(String(g.name).toLowerCase())}" data-region="${esc(g.region)}" style='border-bottom:1px solid var(--border-l);padding:10px 8px'>` +
+        `<summary style='cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px'>` +
+        `<span style='flex:1'>${regionTag(g.region)} ${esc(g.name)} ${prescTag(g.type)}</span>` +
+        `<span style='font-size:12px;color:var(--muted);white-space:nowrap'>固定：${curNames}</span></summary>` +
+        `<div style='display:flex;flex-wrap:wrap;gap:8px;margin-top:10px'>${boxes}</div></details>`;
+    }).join("");
+  }
+
+  const body =
+    `<div style='margin-bottom:16px'><a href='${PREFIX}/admin/follow-settings' class='btn btn-sm btn-ghost'>← 返回跟課設定</a></div>` +
+    `${notice}` +
+    `<div class='card'>` +
+    `<div class='card-title'>固定跟課人員</div>` +
+    `<p style='font-size:13px;color:var(--muted);margin-bottom:14px'>為固定由特定人員跟課的課程設定人員。以「課程名稱」為單位，儲存後會<b>自動指派給該課所有未來場次</b>（工讀生免報名、直接顯示「已指派」）；日後新同步進來的同名場次也會自動補上。取消勾選則會回收之前自動指派的未來場次。</p>` +
+    `<form method='post' action='${PREFIX}/admin/fixed-followers'>${hiddenCsrf(sess)}` +
+    `<div id='ff-region' style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px'>` +
+    `<span style='font-size:12px;color:var(--muted);margin-right:4px'>地區</span>` +
+    ["全部", ...REGIONS].map((rg, i) =>
+      `<button type='button' class='btn btn-sm ${i === 0 ? "btn-primary" : "btn-ghost"}' data-reg='${rg === "全部" ? "" : rg}'>${rg}</button>`).join("") +
+    `</div>` +
+    `<input type='text' id='ff-search' placeholder='🔍 搜尋課名...' style='width:100%;margin-bottom:12px'>` +
+    `<div style='border:1px solid var(--border);border-radius:4px;max-height:60vh;overflow:auto'>${rows}</div>` +
+    `<div style='margin-top:16px'><button class='btn btn-primary'>💾 儲存並自動指派</button>` +
+    `<span style='font-size:12px;color:var(--light);margin-left:10px'>共 ${groups.length} 種課程</span></div>` +
+    `</form></div>` +
+    `<script>(function(){` +
+    `var s=document.getElementById('ff-search');var rbar=document.getElementById('ff-region');var reg='';` +
+    `function apply(){var q=s.value.trim().toLowerCase();document.querySelectorAll('.ff-row').forEach(function(r){` +
+    `var okName=(!q||r.getAttribute('data-name').indexOf(q)>=0);var okReg=(!reg||r.getAttribute('data-region')===reg);` +
+    `r.style.display=(okName&&okReg)?'':'none';});}` +
+    `s.addEventListener('input',apply);` +
+    `rbar.querySelectorAll('button').forEach(function(b){b.addEventListener('click',function(){` +
+    `rbar.querySelectorAll('button').forEach(function(x){x.className='btn btn-sm btn-ghost';});b.className='btn btn-sm btn-primary';` +
+    `reg=b.getAttribute('data-reg');apply();});});` +
+    `})();</script>`;
+  res.send(layout("固定跟課人員", body, sess));
+});
+
+router.post("/admin/fixed-followers", async (req, res) => {
+  const sess = getSess(req);
+  if (!sess || sess.role !== "admin") return res.redirect(`${PREFIX}/login`);
+  if (!csrfOk(req, req.body.csrf_token)) return res.redirect(`${PREFIX}/admin/fixed-followers?msg=csrf_err`);
+  const courses = await allCourses();
+  const groups = Object.values(groupByName(courses, { slots: {} }));
+  const next = {};
+  for (const g of groups) {
+    const key = nameKey(g.name);
+    let sel = req.body[`fx_${key}`];
+    if (sel === undefined) continue;
+    sel = [].concat(sel).filter(Boolean);
+    if (sel.length) { const o = {}; sel.forEach(w => { o[w] = true; }); next[key] = o; }
+  }
+  await rput("/fixed_followers", next);
+  let result = { added: [], removed: 0 };
+  try { result = await applyFixedFollowers(); } catch (e) { console.error("[schedule] applyFixedFollowers:", e.message); }
+  // 對新指派的人員推播（失敗不影響）
+  try {
+    const cmap = await coursesMap();
+    for (const a of result.added) {
+      const c = cmap[a.cid];
+      await sendPushToWorker(a.wid, {
+        title: "固定跟課指派",
+        body: c ? `${c.course_name}（${c.date} ${c.time_slot}）已固定排入你` : "你有新的固定跟課指派",
+        url: `${PREFIX}/home`,
+      });
+    }
+  } catch (e) { console.error("[schedule] fixed push:", e.message); }
+  res.redirect(`${PREFIX}/admin/fixed-followers?msg=fixed_saved`);
+});
+
 // ── 管理員：課程月曆 ──
 router.get("/admin/calendar", async (req, res) => {
   const sess = getSess(req);
   if (!sess || sess.role !== "admin") return res.redirect(`${PREFIX}/login`);
+  try { await applyFixedFollowers(); } catch (e) { console.error("[schedule] applyFixedFollowers:", e.message); }
   const month = req.query.month || todayTaipei().slice(0, 7);
   const day = req.query.day || "";
   const nf = await nofollowSets();
@@ -2531,7 +2714,7 @@ router.get("/admin/attendance", async (req, res) => {
     `<div class='form-group'><label class='form-label'>姓名</label><input id='f-name' placeholder='搜尋姓名'></div>` +
     `<div class='form-group' style='flex-direction:row;gap:8px'>` +
     `<button class='btn btn-primary' id='btn-search'>搜尋</button>` +
-    `<button class='btn btn-success' id='btn-export'>📥 匯出出勤 Excel</button></div>` +
+    `<button class='btn btn-success' id='btn-export'>📥 下載時數表 Excel</button></div>` +
     `</div>` +
     `<div class='stats' style='margin-top:14px'>` +
     `<div class='stat'><strong id='st-count'>-</strong>出勤總筆數</div>` +
@@ -2575,12 +2758,39 @@ router.post("/admin/attendance/:id/edit", async (req, res) => {
   }
 });
 
-// ── 時數表 Excel（版面完全沿用舊版簽到系統 excel-builder.js）──
+// ── 時數表 Excel（版面 100% 比照範例「臨時人員出勤記錄」，含下半部金額/勞健保/簽名）──
 // 台北時間 HH:MM
 function fmtTimeTP(iso) {
   try {
     return new Date(iso).toLocaleTimeString("zh-TW", { timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit" });
   } catch (e) { return ""; }
+}
+// 台北時間 24 小時制 "HH:MM"
+function clock24TP(iso) {
+  try {
+    return new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit" });
+  } catch (e) { return ""; }
+}
+// "HH:MM"（24 時制）或已是 12 時制 → 範例的「上午/下午HH:MM」格式
+function to12CN(t) {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(t || "").trim());
+  if (!m) return String(t || "");
+  let h = +m[1];
+  const ap = h < 12 ? "上午" : "下午";
+  let h12 = h % 12; if (h12 === 0) h12 = 12;
+  return ap + String(h12).padStart(2, "0") + ":" + m[2];
+}
+// 時數表下半部金額列：A 留白、B..G 合併放標籤、H 放金額（可為公式或留空）
+function moneyRow(ws, r, label, valueOrNull, tk, bdr, CUR) {
+  const mid = { horizontal: "center", vertical: "middle" };
+  for (let c = 1; c <= 8; c++) ws.getCell(r, c).style = { font: tk, alignment: mid, border: bdr };
+  ws.mergeCells(r, 2, r, 7);
+  const lab = ws.getCell(r, 2);
+  lab.value = label;
+  lab.style = { font: tk, alignment: { horizontal: "left", vertical: "middle" }, border: bdr };
+  const val = ws.getCell(r, 8);
+  if (valueOrNull !== null && valueOrNull !== undefined) val.value = valueOrNull;
+  val.style = { font: tk, alignment: { horizontal: "right", vertical: "middle" }, border: bdr, numFmt: CUR };
 }
 function safeSheetName(wb, name) {
   // 移除 Excel 不允許的字元，限制 31 字
@@ -2591,7 +2801,7 @@ function safeSheetName(wb, name) {
   while (exists()) base = orig.slice(0, 29) + "_" + (i++);
   return base;
 }
-// 建立單一人員工作表（欄位、標題、字型、框線與舊版一致）
+// 建立單一人員工作表（版面 100% 比照範例「臨時人員出勤記錄」，欄位 A~H）
 function buildPersonSheet(wb, personName, records, workDescByName) {
   const ws = wb.addWorksheet(safeSheetName(wb, personName));
 
@@ -2599,56 +2809,52 @@ function buildPersonSheet(wb, personName, records, workDescByName) {
   const mid  = { horizontal:"center", vertical:"middle" };
   const lmid = { horizontal:"left",   vertical:"middle", wrapText:true };
   const tk   = { name:"DFKai-SB", size:12, charset:136 };
+  const CUR  = '_-"$"* #,##0_-;\\-"$"* #,##0_-;_-"$"* "-"??_-;_-@_-';
 
-  // 欄寬：A(1) B(2)編號 C(3)年 D(4)月 E(5)日 F(6)工作項目 G(7)時分 H(8)至時分 I(9)共計
-  [5, 8, 8, 12, 12, 32, 13, 13, 13].forEach((w, i) => { ws.getColumn(i+1).width = w; });
+  // 欄寬 A..H（比照範例：A編號 B年 C月 D日 E工作項目 F時分 G至時分 H共計）
+  [6.125, 8, 6, 6.375, 32, 11.875, 12, 12.375].forEach((w, i) => { ws.getColumn(i+1).width = w; });
 
-  // Row 1 大標題
-  ws.mergeCells("B1:I1");
-  ws.getRow(1).height = 42;
-  ws.getCell("B1").value = "健康台灣深耕計畫專職人員出勤記錄表";
-  ws.getCell("B1").style = { font:{...tk, size:14, bold:true}, alignment:mid };
+  // Row 1 大標題 A1:H1
+  ws.mergeCells("A1:H1");
+  ws.getRow(1).height = 17.4;
+  ws.getCell("A1").value = "健康台灣深耕計畫專職人員出勤記錄表";
+  ws.getCell("A1").style = { font:{...tk, size:14, bold:true}, alignment:mid };
 
-  // Row 2 副標題
-  ws.mergeCells("B2:I2");
-  ws.getRow(2).height = 36;
-  ws.getCell("B2").value = "臨時人員出勤記錄與工作內容說明";
-  ws.getCell("B2").style = { font:{...tk, size:13, bold:true}, alignment:mid };
+  // Row 2 副標題 A2:H2
+  ws.mergeCells("A2:H2");
+  ws.getRow(2).height = 16.8;
+  ws.getCell("A2").value = "臨時人員出勤記錄與工作內容說明";
+  ws.getCell("A2").style = { font:{...tk, size:13, bold:true}, alignment:mid };
 
   // Row 3 姓名 + 工作內容 — 先設所有格子邊框再合併
-  ws.getRow(3).height = 90;
-  for (let c = 2; c <= 9; c++) {
-    ws.getCell(3, c).style = { font:tk, alignment:mid, border:bdr };
-  }
-  ws.mergeCells("C3:D3");
-  ws.mergeCells("F3:I3");
-  ws.getCell("B3").value = "姓名";
-  ws.getCell("C3").value = personName;
+  ws.getRow(3).height = 40.2;
+  for (let c = 1; c <= 8; c++) ws.getCell(3, c).style = { font:tk, alignment:mid, border:bdr };
+  ws.mergeCells("B3:D3");
+  ws.mergeCells("F3:H3");
+  ws.getCell("A3").value = "姓名";
+  ws.getCell("B3").value = personName;
   ws.getCell("E3").value = "工作內容";
   // 工作內容：優先取出勤記錄上的 workDescription，否則取報名資料上的工作內容
   const workDesc = records.find(r => r.workDescription)?.workDescription
     || (workDescByName && workDescByName[personName]) || "";
   ws.getCell("F3").value = workDesc;
-  ws.getCell("F3").style = { font:tk, alignment:lmid, border:bdr };
+  ws.getCell("F3").style = { font:{...tk, size:8}, alignment:lmid, border:bdr };
 
   // Row 4 欄位標題
-  ws.getRow(4).height = 30;
-  ["", "編號", "年", "月", "日", "工作項目", "時　分", "至時分", "共計（時）"].forEach((h, i) => {
-    if (i === 0) return;
+  ws.getRow(4).height = 17.4;
+  ["編號", "年", "月", "日", "工作項目", "時　分", "至時 分", "共計(時)"].forEach((h, i) => {
     const cell = ws.getCell(4, i+1);
     cell.value = h;
     cell.style = { font:tk, alignment:mid, border:bdr };
   });
 
-  // 資料列
-  let totalHours = 0;
+  // 資料列（列高不設，讓 Excel 依工作項目自動撐開）
   const dataStart = 5;
   records.forEach((r, idx) => {
     const rn  = dataStart + idx;
-    ws.getRow(rn).height = 30;
-    // 時分／至時分：有課表起訖時間（一般／處方日）優先顯示課表時間，否則用實際簽到退時鐘
-    const ci  = r.schedStart || fmtTimeTP(r.checkinTime);
-    const co  = r.schedEnd   || fmtTimeTP(r.checkoutTime);
+    // 時分／至時分：有課表起訖時間（一般／處方日）優先，否則用實際簽到退時鐘；一律轉「上午/下午HH:MM」
+    const ci  = to12CN(r.schedStart || clock24TP(r.checkinTime));
+    const co  = to12CN(r.schedEnd   || clock24TP(r.checkoutTime));
     // 工作項目：多堂課以「；」合併，每堂顯示「課名（工作內容）」；單堂則取課名，行政庶務取工作內容
     let workItem;
     if (Array.isArray(r.courses) && r.courses.length > 0) {
@@ -2660,31 +2866,55 @@ function buildPersonSheet(wb, personName, records, workDescByName) {
     } else {
       workItem = r.course || r.workContent || "";
     }
-    const row = ["", idx+1, r.year, r.month, r.day, workItem, ci, co, r.hours];
+    const row = [idx+1, r.year, r.month, r.day, workItem, ci, co, r.hours];
     row.forEach((v, i) => {
-      if (i === 0) return;
       const cell = ws.getCell(rn, i+1);
       cell.value = v;
-      cell.style = { font:tk, alignment: i === 5 ? lmid : mid, border:bdr };
+      cell.style = { font:tk, alignment: i === 4 ? lmid : mid, border:bdr };
     });
-    totalHours += r.hours || 0;
   });
 
-  // 合計列
-  const tr = dataStart + records.length;
-  ws.getRow(tr).height = 30;
-  for (let c = 2; c <= 9; c++) {
-    const cell = ws.getCell(tr, c);
-    if (c === 2) {
-      cell.value = "累計";
-      cell.style = { font:{...tk, bold:true}, alignment:mid, border:bdr };
-    } else if (c === 9) {
-      cell.value = Math.round(totalHours * 10) / 10;
-      cell.style = { font:{...tk, bold:true}, alignment:mid, border:bdr };
-    } else {
-      cell.style = { border:bdr };
-    }
-  }
+  const n = records.length;
+  const lastData = dataStart + n - 1;
+
+  // 累計列：A..G 合併「累計」，H = SUM
+  let r = dataStart + n;
+  ws.getRow(r).height = 17.4;
+  for (let c = 1; c <= 8; c++) ws.getCell(r, c).style = { font:{...tk, bold:true}, alignment:mid, border:bdr };
+  ws.mergeCells(r, 1, r, 7);
+  ws.getCell(r, 1).value = "累計";
+  const totCell = ws.getCell(r, 8);
+  totCell.value = n > 0 ? { formula: `SUM(H${dataStart}:H${lastData})` } : 0;
+  totCell.style = { font:{...tk, bold:true}, alignment:mid, border:bdr };
+  const totRow = r;
+
+  // 金額（工作時數*300）
+  r++; ws.getRow(r).height = 16.2;
+  moneyRow(ws, r, "金額(工作時數*300)元", { formula: `300*H${totRow}` }, tk, bdr, CUR);
+  const amtRow = r;
+  // 自付勞保+職災費用（留空由承辦人填）
+  r++; ws.getRow(r).height = 16.2;
+  moneyRow(ws, r, "自付勞保+職災費用", null, tk, bdr, CUR);
+  const laborRow = r;
+  // 自付健保費用（留空）
+  r++; ws.getRow(r).height = 16.2;
+  moneyRow(ws, r, "自付健保費用", null, tk, bdr, CUR);
+  const healthRow = r;
+  // 非富邦銀行匯費（留空）
+  r++; ws.getRow(r).height = 16.2;
+  moneyRow(ws, r, "非富邦銀行匯費", null, tk, bdr, CUR);
+  const feeRow = r;
+  // 臨時工資支領薪餉 = 金額 - 勞保 - 健保 - 匯費（空白視為 0）
+  r++; ws.getRow(r).height = 16.2;
+  moneyRow(ws, r, "臨時工資支領薪餉", { formula: `H${amtRow}-H${laborRow}-H${healthRow}-H${feeRow}` }, tk, bdr, CUR);
+
+  // 簽名列：A:B「簽名」，C:H 留白供簽名
+  r++; ws.getRow(r).height = 19.8;
+  for (let c = 1; c <= 8; c++) ws.getCell(r, c).style = { font:tk, alignment:mid, border:bdr };
+  ws.mergeCells(r, 1, r, 2);
+  ws.getCell(r, 1).value = "簽名";
+  ws.getCell(r, 1).style = { font:{...tk, size:14, bold:true}, alignment:mid, border:bdr };
+  ws.mergeCells(r, 3, r, 8);
 }
 
 // ── 管理員：下載時數 Excel（GET /schedule/export?year=&month=&name=）──
@@ -3344,6 +3574,29 @@ router.get("/admin/course/:cid", async (req, res) => {
       `</div>`;
   }
 
+  // 目前已指派名單（含「直接指派」而未登記報名者）；可逐一移除以便改派，移除時 unassign 路由會自動推播取消通知
+  const assignedList = Object.keys(assignMap)
+    .map(wid => ({ id: wid, ...(userById[wid] || {}), meta: assignMap[wid] || {} }))
+    .sort((a, b) => String(a.display_name || "").localeCompare(String(b.display_name || ""), "zh-Hant"));
+  let assignedCard = `<div class='card'><div class='card-title'>目前已指派（${assignedList.length} 人）</div>`;
+  if (assignedList.length) {
+    assignedCard +=
+      `<p style='font-size:12px;color:var(--muted);margin-bottom:10px'>要改派其他人時，先在這裡移除原本指派的工讀生（系統會自動推播「跟課指派已取消」通知給他），再於下方重新指派。</p>`;
+    const rows = assignedList.map(w => {
+      const nm = w.display_name ? esc(w.display_name) : `<span style='color:var(--light)'>(未知帳號 ${esc(w.id)})</span>`;
+      const fixedTag = w.meta && w.meta.fixed ? ` <span class='badge b-gray'>固定跟課</span>` : "";
+      return `<tr><td><span style='font-weight:500'>${nm}</span>${fixedTag}</td>` +
+        `<td style='color:var(--muted)'>${esc(w.username || "")}</td>` +
+        `<td><form method='post' action='${PREFIX}/admin/unassign/${cid}/${w.id}' style='display:inline' ` +
+        `onsubmit="return confirm('確定移除此工讀生的指派？系統會發送取消通知給他。')">` +
+        `${csrf}<button class='btn btn-sm btn-danger'>移除並通知</button></form></td></tr>`;
+    }).join("");
+    assignedCard += `<table><thead><tr><th>姓名</th><th>帳號</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  } else {
+    assignedCard += `<p style='color:var(--light);font-size:13px'>此課程目前尚未指派任何工讀生。</p>`;
+  }
+  assignedCard += `</div>`;
+
   const body =
     `<div style='margin-bottom:16px'>` +
     `<a href='${PREFIX}/admin?tab=avail' class='btn btn-sm btn-ghost'>← 返回報名狀況</a>` +
@@ -3364,6 +3617,7 @@ router.get("/admin/course/:cid", async (req, res) => {
     `</div>` +
     `${timeCard}` +
     `${followCard}` +
+    `${assignedCard}` +
     `<div class='card'>` +
     `<div class='card-title'>已報名工讀生（${avail.length} 人）</div>` +
     `${availTable}${manual}</div>` +
