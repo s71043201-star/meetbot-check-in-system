@@ -614,6 +614,8 @@ input[type=checkbox],input[type=radio]{width:18px;height:18px;flex:none;margin:0
 .cband{display:block;border-radius:4px;padding:1px 4px;margin-top:2px;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cband.has{background:var(--ok-bg);color:var(--ok)}
 .cband.full{background:var(--warn-bg);color:var(--warn)}
+.cband.todo{background:#FDECEA;color:#c0392b;font-weight:700}
+.cband.done{background:var(--ok-bg);color:var(--ok);font-weight:600}
 /* ── 手機 RWD ── */
 @media(max-width:640px){
   .wrap{padding:0 12px;margin:18px auto}
@@ -759,7 +761,9 @@ function ymShift(month, delta) {
   return `${y}-${String(m).padStart(2, "0")}`;
 }
 // courses 需含 _x（是否計入 x，例如可預約）；x/y = _x數/總數
-function calendarGrid(courses, month, linkBase, selectedDay) {
+// opts.assign=true：改為「待排工讀生」模式—需含 _need（該課需排工讀生＝開放跟課）與 _done（已排＝已指派）
+function calendarGrid(courses, month, linkBase, selectedDay, opts) {
+  const assignMode = !!(opts && opts.assign);
   const [Y, M] = String(month).split("-").map(Number);
   const startWeekday = (new Date(Y, M - 1, 1).getDay() + 6) % 7; // 週一起
   const days = new Date(Y, M, 0).getDate();
@@ -770,9 +774,9 @@ function calendarGrid(courses, month, linkBase, selectedDay) {
     const b = bandOf(c.time_slot);
     if (!b) continue;
     (map[c.date] = map[c.date] || {});
-    (map[c.date][b] = map[c.date][b] || { x: 0, t: 0 });
-    map[c.date][b].t++;
-    if (c._x) map[c.date][b].x++;
+    const e = (map[c.date][b] = map[c.date][b] || { x: 0, t: 0 });
+    if (assignMode) { if (c._need) { e.t++; if (c._done) e.x++; } }
+    else { e.t++; if (c._x) e.x++; }
   }
   let cells = "<tr>";
   for (let i = 0; i < startWeekday; i++) cells += "<td></td>";
@@ -780,10 +784,18 @@ function calendarGrid(courses, month, linkBase, selectedDay) {
     const date = `${month}-${String(d).padStart(2, "0")}`;
     const dm = map[date] || {};
     let bands = "";
+    let dNeed = 0, dTodo = 0;
     for (const [key] of BANDS) {
       const info = dm[key];
-      if (info) bands += `<span class='cband ${info.x > 0 ? "has" : "full"}'>${key} ${info.x}/${info.t}</span>`;
+      if (!info) continue;
+      if (assignMode) {
+        const todo = info.t - info.x; dNeed += info.t; dTodo += todo;
+        if (todo > 0) bands += `<span class='cband todo'>${key} 待排 ${todo}</span>`;
+      } else {
+        bands += `<span class='cband ${info.x > 0 ? "has" : "full"}'>${key} ${info.x}/${info.t}</span>`;
+      }
     }
+    if (assignMode && dNeed > 0 && dTodo === 0) bands = `<span class='cband done'>✓ 已排滿</span>`;
     const cls = [date === today ? "today" : "", date === selectedDay ? "sel" : ""].filter(Boolean).join(" ");
     cells += `<td class='${cls}'><a class='dcell' href='${linkBase}?month=${month}&day=${date}'><span class='dnum'>${d}</span>${bands}</a></td>`;
     if ((startWeekday + d) % 7 === 0) cells += "</tr><tr>";
@@ -794,8 +806,11 @@ function calendarGrid(courses, month, linkBase, selectedDay) {
     `<a class='btn btn-sm btn-ghost' href='${linkBase}?month=${ymShift(month, -1)}'>← 上個月</a>` +
     `<strong>${Y} 年 ${M} 月</strong>` +
     `<a class='btn btn-sm btn-ghost' href='${linkBase}?month=${ymShift(month, 1)}'>下個月 →</a></div>`;
+  const legend = assignMode
+    ? `每格顯示<b style='color:#c0392b'>還沒排工讀生</b>的堂數（依早／午／晚）；該日都排好顯示綠色「✓ 已排滿」。點日期看當天課程。`
+    : `每格 x/y：x＝可預約（開放跟課）堂數，y＝總堂數。點日期看當天課程。`;
   return nav +
-    `<p style='font-size:11px;color:var(--light);margin-bottom:8px'>每格 x/y：x＝可預約（開放跟課）堂數，y＝總堂數。點日期看當天課程。</p>` +
+    `<p style='font-size:11px;color:var(--light);margin-bottom:8px'>${legend}</p>` +
     `<table class='cal'><thead><tr>${head}</tr></thead><tbody>${cells}</tbody></table>`;
 }
 
@@ -822,15 +837,20 @@ const CAL_CLIENT_JS = `<script>
     var list=cs();
     var Y=+cur.split('-')[0],M=+cur.split('-')[1];
     var start=(new Date(Y,M-1,1).getDay()+6)%7, days=new Date(Y,M,0).getDate();
-    var map={};
-    list.forEach(function(c){if(c.date.slice(0,7)!==cur)return;var b=bandOf(c.time);if(!b)return;map[c.date]=map[c.date]||{};map[c.date][b]=map[c.date][b]||{x:0,t:0};map[c.date][b].t++;if(c.x)map[c.date][b].x++;});
+    var map={};var ADM=(D.role==='admin');
+    list.forEach(function(c){if(c.date.slice(0,7)!==cur)return;var b=bandOf(c.time);if(!b)return;map[c.date]=map[c.date]||{};var e=map[c.date][b]=map[c.date][b]||{x:0,t:0};
+      if(ADM){if(c.follow){e.t++;if(c.assigned&&c.assigned.length)e.x++;}}
+      else{e.t++;if(c.x)e.x++;}});
     var rbtn=['全部'].concat(REGIONS).map(function(r){var rv=r==='全部'?'':r;return "<button type='button' class='btn btn-sm "+((reg===rv)?'btn-primary':'btn-ghost')+"' data-reg='"+rv+"'>"+r+"</button>";}).join('');
     var h="<div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px'><span style='font-size:12px;color:var(--muted)'>地區</span>"+rbtn+"</div>";
     h+="<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px'><button type='button' class='btn btn-sm btn-ghost' id='cp'>← 上個月</button><strong>"+Y+" 年 "+M+" 月</strong><button type='button' class='btn btn-sm btn-ghost' id='cn'>下個月 →</button></div>";
-    h+="<p style='font-size:11px;color:var(--light);margin-bottom:8px'>每格 x/y：x＝"+(D.role==='admin'?'開放跟課':'尚可報名')+"堂數，y＝總堂數。點日期看當天課程。</p>";
+    h+="<p style='font-size:11px;color:var(--light);margin-bottom:8px'>"+(ADM?"每格顯示<b style='color:#c0392b'>還沒排工讀生</b>的堂數（依早／午／晚）；該時段都排好顯示綠色。":"每格 x/y：x＝尚可報名堂數，y＝總堂數。")+"點日期看當天課程。</p>";
     h+="<table class='cal'><thead><tr>"+WD.map(function(w){return "<th>"+w+"</th>";}).join('')+"</tr></thead><tbody><tr>";
     for(var i=0;i<start;i++)h+="<td></td>";
-    for(var d=1;d<=days;d++){var date=cur+'-'+String(d).padStart(2,'0');var dm=map[date]||{};var bands='';BANDS.forEach(function(k){var info=dm[k];if(info)bands+="<span class='cband "+(info.x>0?'has':'full')+"'>"+k+' '+info.x+'/'+info.t+"</span>";});
+    for(var d=1;d<=days;d++){var date=cur+'-'+String(d).padStart(2,'0');var dm=map[date]||{};var bands='';var dNeed=0,dTodo=0;BANDS.forEach(function(k){var info=dm[k];if(!info)return;
+        if(ADM){var todo=info.t-info.x;dNeed+=info.t;dTodo+=todo;if(todo>0)bands+="<span class='cband todo'>"+k+' 待排 '+todo+"</span>";}
+        else{bands+="<span class='cband "+(info.x>0?'has':'full')+"'>"+k+' '+info.x+'/'+info.t+"</span>";}});
+      if(ADM&&dNeed>0&&dTodo===0)bands="<span class='cband done'>✓ 已排滿</span>";
       var pb='';var pd=D.prescByDate&&D.prescByDate[date];if(pd){var na=0,nn=0;Object.keys(pd).forEach(function(rg){if(reg&&rg!==reg)return;na+=pd[rg].assigned||0;nn+=pd[rg].needed||0;});if(nn>0||na>0)pb="<span class='cband' style='background:#7c3aed;color:#fff'>處 "+na+'/'+nn+"</span>";}
       h+="<td class='"+(date===sel?'sel':'')+"'><a class='dcell' href='#' data-date='"+date+"'><span class='dnum'>"+d+"</span>"+bands+pb+"</a></td>";if((start+d)%7===0)h+="</tr><tr>";}
     h+="</tr></tbody></table><div id='cal-day'></div>";
@@ -2622,9 +2642,10 @@ router.get("/admin/calendar", async (req, res) => {
   const assignAll = await rget("/assignments") || {};
   const courses = (await allCourses()).map(c => {
     const f = isFollow(c, nf);
-    return { ...c, follow: f, _x: f, avail_count: Object.keys(availAll[c.id] || {}).length, assign_count: Object.keys(assignAll[c.id] || {}).length };
+    const ac = Object.keys(assignAll[c.id] || {}).length;
+    return { ...c, follow: f, _need: f, _done: ac > 0, avail_count: Object.keys(availAll[c.id] || {}).length, assign_count: ac };
   });
-  const grid = calendarGrid(courses, month, `${PREFIX}/admin/calendar`, day);
+  const grid = calendarGrid(courses, month, `${PREFIX}/admin/calendar`, day, { assign: true });
   let dayHtml = "";
   if (day) {
     const list = courses.filter(c => c.date === day).sort((a, b) => a.time_slot.localeCompare(b.time_slot));
