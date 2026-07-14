@@ -2864,22 +2864,22 @@ function buildPersonSheet(wb, personName, records, workDescByName) {
   const CUR  = '_-"$"* #,##0_-;\\-"$"* #,##0_-;_-"$"* "-"??_-;_-@_-';
 
   // 欄寬 A..H（比照範例：A編號 B年 C月 D日 E工作項目 F時分 G至時分 H共計）
-  [6.125, 8, 6, 6.375, 32, 11.875, 12, 12.375].forEach((w, i) => { ws.getColumn(i+1).width = w; });
+  [6.141, 8, 6, 6.355, 32, 11.855, 12, 12.355].forEach((w, i) => { ws.getColumn(i+1).width = w; });
 
   // Row 1 大標題 A1:H1
   ws.mergeCells("A1:H1");
-  ws.getRow(1).height = 25;
+  ws.getRow(1).height = 20.65;
   ws.getCell("A1").value = "健康台灣深耕計畫專職人員出勤記錄表";
   ws.getCell("A1").style = { font:{...tk, size:14, bold:true}, alignment:mid };
 
   // Row 2 副標題 A2:H2
   ws.mergeCells("A2:H2");
-  ws.getRow(2).height = 22;
+  ws.getRow(2).height = 24;
   ws.getCell("A2").value = "臨時人員出勤記錄與工作內容說明";
   ws.getCell("A2").style = { font:{...tk, size:13, bold:true}, alignment:mid };
 
   // Row 3 姓名 + 工作內容 — 先設所有格子邊框再合併
-  ws.getRow(3).height = 40.2;
+  ws.getRow(3).height = 20.1;
   for (let c = 1; c <= 8; c++) ws.getCell(3, c).style = { font:tk, alignment:mid, border:bdr };
   ws.mergeCells("B3:D3");
   ws.mergeCells("F3:H3");
@@ -2890,10 +2890,10 @@ function buildPersonSheet(wb, personName, records, workDescByName) {
   const workDesc = records.find(r => r.workDescription)?.workDescription
     || (workDescByName && workDescByName[personName]) || "";
   ws.getCell("F3").value = workDesc;
-  ws.getCell("F3").style = { font:{...tk, size:8}, alignment:lmid, border:bdr };
+  ws.getCell("F3").style = { font:tk, alignment:lmid, border:bdr };
 
   // Row 4 欄位標題
-  ws.getRow(4).height = 22;
+  ws.getRow(4).height = 15;
   ["編號", "年", "月", "日", "工作項目", "時　分", "至時 分", "共計(時)"].forEach((h, i) => {
     const cell = ws.getCell(4, i+1);
     cell.value = h;
@@ -2924,6 +2924,10 @@ function buildPersonSheet(wb, personName, records, workDescByName) {
       cell.value = v;
       cell.style = { font:tk, alignment: i === 4 ? lmid : mid, border:bdr };
     });
+    // 依工作項目長度估算換行數設列高（比照範例：單行 16.15，每行約 16.125；E 欄寬 32 每行約 28 顯示寬）
+    const dispW = [...String(workItem)].reduce((s, ch) => s + (ch.charCodeAt(0) > 255 ? 2 : 1), 0);
+    const wrapLines = Math.max(1, Math.ceil(dispW / 28));
+    ws.getRow(rn).height = wrapLines <= 1 ? 16.15 : wrapLines * 16.125;
   });
 
   const n = records.length;
@@ -2931,7 +2935,7 @@ function buildPersonSheet(wb, personName, records, workDescByName) {
 
   // 累計列：A..G 合併「累計」，H = SUM
   let r = dataStart + n;
-  ws.getRow(r).height = 22;
+  ws.getRow(r).height = 15;
   for (let c = 1; c <= 8; c++) ws.getCell(r, c).style = { font:{...tk, bold:true}, alignment:mid, border:bdr };
   ws.mergeCells(r, 1, r, 7);
   ws.getCell(r, 1).value = "累計";
@@ -2941,27 +2945,27 @@ function buildPersonSheet(wb, personName, records, workDescByName) {
   const totRow = r;
 
   // 金額（工作時數*300）
-  r++; ws.getRow(r).height = 22;
+  r++; ws.getRow(r).height = 15;
   moneyRow(ws, r, "金額(工作時數*300)元", { formula: `300*H${totRow}` }, tk, bdr, CUR);
   const amtRow = r;
   // 自付勞保+職災費用（留空由承辦人填）
-  r++; ws.getRow(r).height = 22;
+  r++; ws.getRow(r).height = 15;
   moneyRow(ws, r, "自付勞保+職災費用", null, tk, bdr, CUR);
   const laborRow = r;
   // 自付健保費用（留空）
-  r++; ws.getRow(r).height = 22;
+  r++; ws.getRow(r).height = 15;
   moneyRow(ws, r, "自付健保費用", null, tk, bdr, CUR);
   const healthRow = r;
   // 非富邦銀行匯費（留空）
-  r++; ws.getRow(r).height = 22;
+  r++; ws.getRow(r).height = 15;
   moneyRow(ws, r, "非富邦銀行匯費", null, tk, bdr, CUR);
   const feeRow = r;
   // 臨時工資支領薪餉 = 金額 - 勞保 - 健保 - 匯費（空白視為 0）
-  r++; ws.getRow(r).height = 22;
+  r++; ws.getRow(r).height = 15;
   moneyRow(ws, r, "臨時工資支領薪餉", { formula: `H${amtRow}-H${laborRow}-H${healthRow}-H${feeRow}` }, tk, bdr, CUR);
 
   // 簽名列：A:B「簽名」，C:H 留白供簽名
-  r++; ws.getRow(r).height = 32;
+  r++; ws.getRow(r).height = 16.05;
   for (let c = 1; c <= 8; c++) ws.getCell(r, c).style = { font:tk, alignment:mid, border:bdr };
   ws.mergeCells(r, 1, r, 2);
   ws.getCell(r, 1).value = "簽名";
