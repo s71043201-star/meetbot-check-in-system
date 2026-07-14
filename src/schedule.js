@@ -872,6 +872,9 @@ const CAL_CLIENT_JS = `<script>
     var collapsed={};
     Object.keys(pd).forEach(function(rg){(pd[rg].courseIds||[]).forEach(function(id){collapsed[id]=rg;});});
     list=list.filter(function(c){return !collapsed[c.id];});
+    // admin：不跟課的課程直接隱藏（不需排工讀生）；worker 端本來就只給開放跟課的課
+    var hiddenNF=0;
+    if(D.role==='admin'){var _b=list.length;list=list.filter(function(c){return c.follow;});hiddenNF=_b-list.length;}
 
     // 處方日面板
     if(D.role==='admin'){
@@ -890,8 +893,11 @@ const CAL_CLIENT_JS = `<script>
 
     // 課程表
     if(!list.length){
-      html+="<p style='color:var(--light);text-align:center;padding:16px'>當天無課程</p>";
+      html+=(D.role==='admin'&&hiddenNF>0)
+        ?"<p style='color:var(--light);text-align:center;padding:16px'>當天課程皆設為「不跟課」（"+hiddenNF+" 堂），已隱藏。<a href='"+D.prefix+"/admin/follow-settings'>跟課設定</a></p>"
+        :"<p style='color:var(--light);text-align:center;padding:16px'>當天無課程</p>";
     } else {
+      if(D.role==='admin'&&hiddenNF>0)html+="<p style='font-size:11px;color:var(--light);margin:0 0 6px'>已隱藏 "+hiddenNF+" 堂「不跟課」的課程。需要的話可到 <a href='"+D.prefix+"/admin/follow-settings'>跟課設定</a> 開放。</p>";
       var rows=list.map(function(c){
         var right, extra='';
         if(c.custom) extra+=" <span class='badge b-gray' style='font-size:10px'>臨時</span>";
@@ -2648,22 +2654,28 @@ router.get("/admin/calendar", async (req, res) => {
   const grid = calendarGrid(courses, month, `${PREFIX}/admin/calendar`, day, { assign: true });
   let dayHtml = "";
   if (day) {
-    const list = courses.filter(c => c.date === day).sort((a, b) => a.time_slot.localeCompare(b.time_slot));
+    const dayAll = courses.filter(c => c.date === day).sort((a, b) => a.time_slot.localeCompare(b.time_slot));
+    // 不跟課的課程直接隱藏（不需排工讀生）
+    const list = dayAll.filter(c => c.follow);
+    const hiddenNF = dayAll.length - list.length;
+    const nfHint = hiddenNF > 0
+      ? `<p style='font-size:11px;color:var(--light);margin:0 0 8px'>已隱藏 ${hiddenNF} 堂「不跟課」的課程。需要的話可到 <a href='${PREFIX}/admin/follow-settings'>跟課設定</a> 開放。</p>`
+      : "";
     if (list.length) {
       const rows = list.map(c =>
-        `<tr${c.follow ? "" : " style='opacity:.55'"}>` +
+        `<tr>` +
         `<td style='white-space:nowrap;color:var(--muted)'>${esc(c.time_slot)}</td>` +
         `<td>${esc(c.course_name)}</td>` +
         `<td>${regionTag(c.region)}</td>` +
         `<td>${prescTag(c.prescription_type)}</td>` +
-        `<td>${c.follow ? "<span class='badge b-green'>開放</span>" : "<span class='badge b-gray'>不跟課</span>"}</td>` +
         `<td>${c.avail_count ? `<span class='badge b-blue'>${c.avail_count}</span>` : "—"} ${c.assign_count ? `<span class='badge b-green'>✓ ${c.assign_count}</span>` : ""}</td>` +
         `<td><a href='${PREFIX}/admin/course/${c.id}' class='btn btn-sm btn-ghost'>查看</a></td></tr>`
       ).join("");
       dayHtml = `<div class='card'><div class='card-title'>${esc(day)}（週${weekdayStr(day)}）課程</div>` +
-        `<table><thead><tr><th>時段</th><th>課程</th><th>地區</th><th>類型</th><th>跟課</th><th>報名/指派</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+        nfHint +
+        `<table><thead><tr><th>時段</th><th>課程</th><th>地區</th><th>類型</th><th>報名/指派</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
     } else {
-      dayHtml = `<div class='card'><p style='color:var(--light);text-align:center;padding:20px'>${esc(day)} 無課程</p></div>`;
+      dayHtml = `<div class='card'>${nfHint}<p style='color:var(--light);text-align:center;padding:20px'>${hiddenNF > 0 ? `${esc(day)} 課程皆設為「不跟課」，已隱藏` : `${esc(day)} 無課程`}</p></div>`;
     }
   }
   const body =
