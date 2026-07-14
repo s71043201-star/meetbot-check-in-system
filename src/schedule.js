@@ -872,9 +872,9 @@ const CAL_CLIENT_JS = `<script>
     var collapsed={};
     Object.keys(pd).forEach(function(rg){(pd[rg].courseIds||[]).forEach(function(id){collapsed[id]=rg;});});
     list=list.filter(function(c){return !collapsed[c.id];});
-    // admin：不跟課的課程直接隱藏（不需排工讀生）；worker 端本來就只給開放跟課的課
+    // admin：不跟課的課程隱藏（不需排工讀生），但「已有指派」的課即使不跟課也保留（才能管理／移除該指派）
     var hiddenNF=0;
-    if(D.role==='admin'){var _b=list.length;list=list.filter(function(c){return c.follow;});hiddenNF=_b-list.length;}
+    if(D.role==='admin'){var _b=list.length;list=list.filter(function(c){return c.follow||(c.assigned&&c.assigned.length);});hiddenNF=_b-list.length;}
 
     // 處方日面板
     if(D.role==='admin'){
@@ -2655,8 +2655,8 @@ router.get("/admin/calendar", async (req, res) => {
   let dayHtml = "";
   if (day) {
     const dayAll = courses.filter(c => c.date === day).sort((a, b) => a.time_slot.localeCompare(b.time_slot));
-    // 不跟課的課程直接隱藏（不需排工讀生）
-    const list = dayAll.filter(c => c.follow);
+    // 不跟課的課程隱藏（不需排工讀生），但「已有指派」的課即使不跟課也保留（才能管理該指派）
+    const list = dayAll.filter(c => c.follow || c.assign_count > 0);
     const hiddenNF = dayAll.length - list.length;
     const nfHint = hiddenNF > 0
       ? `<p style='font-size:11px;color:var(--light);margin:0 0 8px'>已隱藏 ${hiddenNF} 堂「不跟課」的課程。需要的話可到 <a href='${PREFIX}/admin/follow-settings'>跟課設定</a> 開放。</p>`
@@ -2665,7 +2665,7 @@ router.get("/admin/calendar", async (req, res) => {
       const rows = list.map(c =>
         `<tr>` +
         `<td style='white-space:nowrap;color:var(--muted)'>${esc(c.time_slot)}</td>` +
-        `<td>${esc(c.course_name)}</td>` +
+        `<td>${esc(c.course_name)}${c.follow ? "" : " <span class='badge b-gray' style='font-size:10px'>不跟課</span>"}</td>` +
         `<td>${regionTag(c.region)}</td>` +
         `<td>${prescTag(c.prescription_type)}</td>` +
         `<td>${c.avail_count ? `<span class='badge b-blue'>${c.avail_count}</span>` : "—"} ${c.assign_count ? `<span class='badge b-green'>✓ ${c.assign_count}</span>` : ""}</td>` +
