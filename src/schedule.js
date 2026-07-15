@@ -60,6 +60,7 @@ const MSG_MAP = {
   nofollow_name:   "✓ 已將所有同名課程設為不跟課",
   follow_name:     "✓ 已將所有同名課程恢復開放跟課",
   follow_saved:    "✓ 已儲存跟課設定",
+  open_min_saved:  "✓ 已儲存開課人數門檻",
   fixed_saved:     "✓ 已儲存固定跟課人員，並自動指派未來場次",
   worker_updated:  "✓ 已更新工讀生資料",
   user_deleted:    "✓ 已刪除使用者報名資料",
@@ -395,10 +396,16 @@ function weekdayStr(d) {
   if (isNaN(dt)) return "";
   return WEEKDAY_ZH[(dt.getDay() + 6) % 7]; // JS: 0=Sun → 週一起算
 }
-function canOpenBadge(enrolled) {
+// 開課人數門檻：民眾報名達此人數才「可開課並安排工讀生跟課」。存 /settings/open_min，預設 4。
+const OPEN_MIN_DEFAULT = 4;
+async function getOpenMin() {
+  const v = Number(await rget("/settings/open_min"));
+  return Number.isInteger(v) && v > 0 ? v : OPEN_MIN_DEFAULT;
+}
+function canOpenBadge(enrolled, min = OPEN_MIN_DEFAULT) {
   const n = Number(enrolled) || 0;
-  if (n >= 4) return "<span class='badge b-open'>✅ 可開課</span>";
-  if (n > 0)  return `<span class='badge b-warn'>${esc(n)} 人</span>`;
+  if (n >= min) return "<span class='badge b-open'>✅ 可開課</span>";
+  if (n > 0)  return `<span class='badge b-warn'>未達 ${esc(min)} 人（${esc(n)}）</span>`;
   return "<span class='badge b-gray'>—</span>";
 }
 function prescTag(pt) {
@@ -843,7 +850,7 @@ const CAL_CLIENT_JS = `<script>
     var start=(new Date(Y,M-1,1).getDay()+6)%7, days=new Date(Y,M,0).getDate();
     var map={};var ADM=(D.role==='admin');
     list.forEach(function(c){if(c.date.slice(0,7)!==cur)return;var b=bandOf(c.time);if(!b)return;map[c.date]=map[c.date]||{};var e=map[c.date][b]=map[c.date][b]||{x:0,t:0};
-      if(ADM){if(c.follow&&(c.custom||(c.enrolled||0)>0)){e.t++;if(c.assigned&&c.assigned.length)e.x++;}}
+      if(ADM){if(c.follow&&(c.custom||(c.enrolled||0)>=(D.openMin||4))){e.t++;if(c.assigned&&c.assigned.length)e.x++;}}
       else{e.t++;if(c.x)e.x++;}});
     var rbtn=['全部'].concat(REGIONS).map(function(r){var rv=r==='全部'?'':r;return "<button type='button' class='btn btn-sm "+((reg===rv)?'btn-primary':'btn-ghost')+"' data-reg='"+rv+"'>"+r+"</button>";}).join('');
     var h="<div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px'><span style='font-size:12px;color:var(--muted)'>地區</span>"+rbtn+"</div>";
@@ -919,8 +926,8 @@ const CAL_CLIENT_JS = `<script>
         var fol=D.role==='admin'?"<td>"+(c.follow?"<span class='badge b-green'>開放</span>":"<span class='badge b-gray'>不跟課</span>")+"</td>":'';
         var enr='';
         if(D.role==='admin'){
-          var en=c.enrolled||0, cap=c.capacity||0;
-          var openBadge=en>=4?"<span class='badge b-open'>✅ 可開課</span>":(en>0?"<span class='badge b-warn'>未達 4 人</span>":"<span class='badge b-gray'>—</span>");
+          var en=c.enrolled||0, cap=c.capacity||0, omin=D.openMin||4;
+          var openBadge=en>=omin?"<span class='badge b-open'>✅ 可開課</span>":(en>0?"<span class='badge b-warn'>未達 "+omin+" 人</span>":"<span class='badge b-gray'>—</span>");
           enr="<td style='white-space:nowrap'><div style='font-size:12px;margin-bottom:3px'>民眾 <strong>"+en+"</strong>"+(cap?" / 上限 "+cap:"")+" 人</div>"+openBadge+"</td>";
         }
         var tcell=c.time?esc(c.time):"<span style='color:var(--light)'>未排定</span>";
@@ -2119,6 +2126,7 @@ router.get("/dashboard", async (req, res) => {
   const wid = sess.id;
 
   const nf         = await nofollowSets();
+  const openMin    = await getOpenMin();
   const courses    = (await allCourses()).filter(c => isFollow(c, nf) && c.date >= todayTaipei()); // 只顯示開放跟課
   const availAll   = await rget("/availability") || {};
   const assignAll  = await rget("/assignments") || {};
@@ -2174,7 +2182,7 @@ router.get("/dashboard", async (req, res) => {
         `<td>${esc(c.time_slot)}</td>` +
         `<td>${esc(c.course_name)}</td>` +
         `<td>${prescTag(c.prescription_type)}</td>` +
-        `<td>${canOpenBadge(c.enrolled)}</td>` +
+        `<td>${canOpenBadge(c.enrolled, openMin)}</td>` +
         `<td style='color:var(--muted);font-size:12px'>${esc(c.location)}</td>` +
         `</tr>`;
     }).join("");
@@ -2208,7 +2216,7 @@ router.get("/dashboard", async (req, res) => {
     `<div id='panel-all' class='tab-panel'>` +
     `<div class='card'><div class='card-title'>所有課程</div>` +
     `<p style='font-size:12px;color:var(--light);margin-bottom:14px'>` +
-    `綠色列 = 已確認指派｜✅ 可開課 = 報名達 4 人</p>` +
+    `綠色列 = 已確認指派｜✅ 可開課 = 報名達 ${esc(openMin)} 人</p>` +
     `${coursesHtml}</div></div>`;
   res.send(layout("工讀生班表", body, sess));
 });
@@ -2285,6 +2293,7 @@ router.get("/admin", async (req, res) => {
   const assignAll  = await rget("/assignments") || {};
   const users      = await getUsers();
   const nf         = await nofollowSets();
+  const openMin    = await getOpenMin();
   const userById   = Object.fromEntries(users.map(u => [u.id, u]));
   // 處方日設定與排班（以 日期＋分區 為單位）
   const prescDays   = await rget("/presc_days") || {};        // {date:{region:{items:[{desc,count}]}}}
@@ -2317,7 +2326,7 @@ router.get("/admin", async (req, res) => {
   const notice = msg ? alertHtml(msg, "ok") : "";
   const tabJs = tab ? `<script>window.addEventListener('DOMContentLoaded',function(){showTab('${esc(tab)}');});</script>` : "";
 
-  const canOpen = courses.filter(c => (Number(c.enrolled) || 0) >= 4).length;
+  const canOpen = courses.filter(c => (Number(c.enrolled) || 0) >= openMin).length;
 
   const statsHtml = `<div class='stats'>` +
     `<div class='stat'><strong>${courses.length}</strong>堂課程</div>` +
@@ -2381,7 +2390,7 @@ router.get("/admin", async (req, res) => {
     `<p style='font-size:12px;color:var(--muted);margin-bottom:8px'>點日期可看當天課程、指派工讀生、設定處方日。</p>` +
     `<div id='cal-app'><p style='color:var(--light)'>載入中…</p></div>` +
     `</div>` +
-    `<script>window.__CAL=${calData({ role: "admin", prefix: PREFIX, courses: calCoursesAdmin, prescByDate: prescCal, regions: REGIONS })}</script>` +
+    `<script>window.__CAL=${calData({ role: "admin", prefix: PREFIX, courses: calCoursesAdmin, prescByDate: prescCal, regions: REGIONS, openMin })}</script>` +
     CAL_CLIENT_JS;
 
   // Tab 3：工讀生
@@ -2507,6 +2516,7 @@ router.get("/admin/follow-settings", async (req, res) => {
   if (!sess || sess.role !== "admin") return res.redirect(`${PREFIX}/login`);
   const courses = await allCourses();
   const nf = await nofollowSets();
+  const openMin = await getOpenMin();
   const groups = Object.values(groupByName(courses, nf))
     .sort((a, b) => String(a.name).localeCompare(String(b.name), "zh-Hant"));
 
@@ -2528,6 +2538,13 @@ router.get("/admin/follow-settings", async (req, res) => {
   const body =
     `<div style='margin-bottom:16px'><a href='${PREFIX}/admin?tab=avail' class='btn btn-sm btn-ghost'>← 返回報名狀況</a></div>` +
     `${notice}` +
+    `<div class='card' style='margin-bottom:14px'>` +
+    `<div class='card-title'>開課人數門檻</div>` +
+    `<p style='font-size:13px;color:var(--muted);margin-bottom:10px'>民眾報名<b>達幾人</b>才算「可開課」並需要安排工讀生跟課（月曆「待排」只計達門檻的課）。預設 4 人。</p>` +
+    `<form method='post' action='${PREFIX}/admin/follow-settings/open-min' style='display:flex;gap:10px;align-items:flex-end'>${hiddenCsrf(sess)}` +
+    `<div class='form-group'><label class='form-label'>達幾人可開課</label>` +
+    `<input type='number' name='open_min' min='1' max='999' value='${esc(openMin)}' style='width:120px'></div>` +
+    `<button class='btn btn-primary'>儲存門檻</button></form></div>` +
     `<div class='card'>` +
     `<div class='card-title'>跟課設定</div>` +
     `<p style='font-size:13px;color:var(--muted);margin-bottom:14px'>勾選＝開放跟課（工讀生看得到、可報名）；取消勾選＝不跟課。以「課程名稱」為單位，同名的所有時段會一起套用。</p>` +
@@ -2581,6 +2598,17 @@ router.post("/admin/follow-settings", async (req, res) => {
   }
   if (Object.keys(patch).length) await rpatch(`/nofollow_slots`, patch);
   res.redirect(`${PREFIX}/admin/follow-settings?msg=follow_saved`);
+});
+
+// 儲存開課人數門檻
+router.post("/admin/follow-settings/open-min", async (req, res) => {
+  const sess = getSess(req);
+  if (!sess || sess.role !== "admin") return res.redirect(`${PREFIX}/login`);
+  if (!csrfOk(req, req.body.csrf_token)) return res.redirect(`${PREFIX}/admin/follow-settings?msg=csrf_err`);
+  const n = parseInt(req.body.open_min, 10);
+  if (!Number.isInteger(n) || n < 1 || n > 999) return res.redirect(`${PREFIX}/admin/follow-settings?msg=bad_input`);
+  await rput("/settings/open_min", n);
+  res.redirect(`${PREFIX}/admin/follow-settings?msg=open_min_saved`);
 });
 
 // ── 管理員：固定跟課人員（依課名設定，儲存後自動指派未來場次）──
@@ -2692,13 +2720,14 @@ router.get("/admin/calendar", async (req, res) => {
   const month = req.query.month || todayTaipei().slice(0, 7);
   const day = req.query.day || "";
   const nf = await nofollowSets();
+  const openMin = await getOpenMin();
   const availAll = await rget("/availability") || {};
   const assignAll = await rget("/assignments") || {};
   const courses = (await allCourses()).map(c => {
     const f = isFollow(c, nf);
     const ac = Object.keys(assignAll[c.id] || {}).length;
-    // 需排工讀生＝開放跟課且有民眾報名（沒人報名不用排）；臨時活動一律計入
-    const need = f && (c.custom || (Number(c.enrolled) || 0) > 0);
+    // 需排工讀生＝開放跟課且民眾報名達門檻（未達不用排）；臨時活動一律計入
+    const need = f && (c.custom || (Number(c.enrolled) || 0) >= openMin);
     return { ...c, follow: f, _need: need, _done: ac > 0, avail_count: Object.keys(availAll[c.id] || {}).length, assign_count: ac };
   });
   const grid = calendarGrid(courses, month, `${PREFIX}/admin/calendar`, day, { assign: true });
@@ -3577,6 +3606,7 @@ router.get("/admin/course/:cid", async (req, res) => {
     .sort((a, b) => String(a.signed_at).localeCompare(String(b.signed_at)));
 
   const nf = await nofollowSets();
+  const openMin = await getOpenMin();
   const follows = isFollow(course, nf);
 
   const csrf = hiddenCsrf(sess);
@@ -3709,7 +3739,7 @@ router.get("/admin/course/:cid", async (req, res) => {
     `<h3 style='font-size:16px;font-weight:600;margin-bottom:6px'>${esc(course.course_name)}</h3>` +
     `<p style='font-size:13px;color:var(--muted);margin-bottom:4px'>` +
     `${esc(course.date)} 週${wd} &nbsp;·&nbsp; ${esc(course.time_slot)} &nbsp;·&nbsp; ` +
-    `${prescTag(course.prescription_type)} &nbsp;·&nbsp; ${canOpenBadge(course.enrolled)}</p>` +
+    `${prescTag(course.prescription_type)} &nbsp;·&nbsp; ${canOpenBadge(course.enrolled, openMin)}</p>` +
     `<p style='font-size:12px;color:var(--light);margin-bottom:0'>${esc(course.location)}</p>` +
     (course.custom
       ? `<div style='margin-top:14px;padding-top:12px;border-top:1px solid var(--border-l)'>` +
