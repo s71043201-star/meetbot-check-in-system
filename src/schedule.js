@@ -61,6 +61,7 @@ const MSG_MAP = {
   follow_name:     "✓ 已將所有同名課程恢復開放跟課",
   follow_saved:    "✓ 已儲存跟課設定",
   open_min_saved:  "✓ 已儲存開課人數門檻",
+  save_err:        "儲存失敗，請稍後再試一次",
   fixed_saved:     "✓ 已儲存固定跟課人員，並自動指派未來場次",
   worker_updated:  "✓ 已更新工讀生資料",
   user_deleted:    "✓ 已刪除使用者報名資料",
@@ -2551,7 +2552,7 @@ router.get("/admin/follow-settings", async (req, res) => {
       `<input type='checkbox' name='open' value='${key}' ${fullyOpen ? "checked" : ""} style='width:auto;flex:none'>` +
       `<span style='flex:1'>${regionTag(g.region)} ${esc(g.name)} ${prescTag(g.type)}</span></label>` +
       `<span style='font-size:12px;color:var(--muted);white-space:nowrap'>${stateTxt}</span>` +
-      `<label style='font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:4px;margin:0'>達<input type='number' name='min_${key}' value='${esc(cmin)}' min='1' max='999' style='width:56px' title='達幾人可開課／需排工讀生'>人</label>` +
+      `<label style='font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:4px;margin:0'>達<input type='number' class='fs-min' data-key='${key}' value='${esc(cmin)}' min='1' max='999' style='width:56px' title='達幾人可開課／需排工讀生'>人</label>` +
       `</div>`;
   }).join("");
 
@@ -2568,7 +2569,8 @@ router.get("/admin/follow-settings", async (req, res) => {
     `<div class='card'>` +
     `<div class='card-title'>跟課設定</div>` +
     `<p style='font-size:13px;color:var(--muted);margin-bottom:14px'>勾選＝開放跟課（工讀生看得到、可報名）；取消勾選＝不跟課。右側「達 N 人」為<b>該課的開課門檻</b>（每堂課可不同，未改則沿用預設）。以「課程名稱」為單位，同名的所有時段一起套用。按下方「儲存跟課設定」會一併存門檻。</p>` +
-    `<form method='post' action='${PREFIX}/admin/follow-settings'>${hiddenCsrf(sess)}` +
+    `<form method='post' action='${PREFIX}/admin/follow-settings' id='fs-form'>${hiddenCsrf(sess)}` +
+    `<input type='hidden' name='min_json' id='fs-min-json'>` +
     `<div id='fs-region' style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px'>` +
     `<span style='font-size:12px;color:var(--muted);margin-right:4px'>地區</span>` +
     ["全部", ...REGIONS].map((r, i) =>
@@ -2600,6 +2602,7 @@ router.get("/admin/follow-settings", async (req, res) => {
     `reg=b.getAttribute('data-reg');apply();});});` +
     `document.getElementById('fs-all').addEventListener('click',function(e){e.preventDefault();document.querySelectorAll('.fs-row').forEach(function(r){if(vis(r))r.querySelector('input').checked=true;});});` +
     `document.getElementById('fs-none').addEventListener('click',function(e){e.preventDefault();document.querySelectorAll('.fs-row').forEach(function(r){if(vis(r))r.querySelector('input').checked=false;});});` +
+    `document.getElementById('fs-form').addEventListener('submit',function(){var o={};document.querySelectorAll('.fs-min').forEach(function(inp){var k=inp.getAttribute('data-key');var v=parseInt(inp.value,10);if(k&&v>0)o[k]=v;});document.getElementById('fs-min-json').value=JSON.stringify(o);});` +
     `})();</script>`;
   res.send(layout("跟課設定", body, sess));
 });
@@ -2608,25 +2611,36 @@ router.post("/admin/follow-settings", async (req, res) => {
   const sess = getSess(req);
   if (!sess || sess.role !== "admin") return res.redirect(`${PREFIX}/login`);
   if (!csrfOk(req, req.body.csrf_token)) return res.redirect(`${PREFIX}/admin/follow-settings?msg=csrf_err`);
-  const openSet = new Set([].concat(req.body.open || []));
-  const courses = await allCourses();
-  const groups = groupByName(courses, { slots: {} });
-  const patch = {};
-  for (const g of Object.values(groups)) {
-    const open = openSet.has(nameKey(g.name));
-    for (const slotId of g.slots) patch[slotId] = open ? null : true;
+  try {
+    // open 可能是陣列、單值或（qs 陣列上限時的）物件，統一成字串陣列
+    const openRaw = req.body.open;
+    const openArr = Array.isArray(openRaw) ? openRaw
+      : (openRaw && typeof openRaw === "object" ? Object.values(openRaw)
+      : (openRaw != null ? [openRaw] : []));
+    const openSet = new Set(openArr);
+    const courses = await allCourses();
+    const groups = groupByName(courses, { slots: {} });
+    const patch = {};
+    for (const g of Object.values(groups)) {
+      const open = openSet.has(nameKey(g.name));
+      for (const slotId of g.slots) patch[slotId] = open ? null : true;
+    }
+    if (Object.keys(patch).length) await rpatch(`/nofollow_slots`, patch);
+    // 逐課開課門檻（單一 min_json 欄位，避免大量表單參數）：只存與預設不同者
+    const globalMin = await getOpenMin();
+    const byName = {};
+    let raw = {};
+    try { raw = JSON.parse(req.body.min_json || "{}") || {}; } catch (e) { raw = {}; }
+    for (const [k, v] of Object.entries(raw)) {
+      const n = parseInt(v, 10);
+      if (/^[a-f0-9]{40}$/.test(k) && Number.isInteger(n) && n > 0 && n !== globalMin) byName[k] = n;
+    }
+    await rput("/open_min_by_name", byName);
+    res.redirect(`${PREFIX}/admin/follow-settings?msg=follow_saved`);
+  } catch (e) {
+    console.error("[schedule] follow-settings 儲存失敗:", e.message);
+    res.redirect(`${PREFIX}/admin/follow-settings?msg=save_err`);
   }
-  if (Object.keys(patch).length) await rpatch(`/nofollow_slots`, patch);
-  // 逐課開課門檻：只存與預設不同的覆寫值（等於預設則不存，之後跟著預設走）
-  const globalMin = await getOpenMin();
-  const byName = {};
-  for (const k of Object.keys(req.body)) {
-    if (!k.startsWith("min_")) continue;
-    const n = parseInt(req.body[k], 10);
-    if (Number.isInteger(n) && n > 0 && n !== globalMin) byName[k.slice(4)] = n;
-  }
-  await rput("/open_min_by_name", byName);
-  res.redirect(`${PREFIX}/admin/follow-settings?msg=follow_saved`);
 });
 
 // 儲存開課人數門檻
