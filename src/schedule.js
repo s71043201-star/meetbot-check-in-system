@@ -1712,15 +1712,16 @@ const CHECKIN_CLIENT_JS = `<script>
   // ── 一般簽到（選一堂指派課，偵測相連課程） ──
   function showRegular(){
     if(!ME.courses.length){
-      h(backBar()+"<div class='card'><div class='alert alert-err'>你目前沒有被指派的課程，無法一般簽到。請先在「我的班表」由專案人員指派。</div></div>");
+      h(backBar()+"<div class='card'><div class='alert alert-err'>今天沒有可簽到的課程（你沒有被指派的課，也沒有尚未指派的開放課程）。</div></div>");
       bindBack(); return;
     }
-    var opts = ME.courses.map(function(c,i){ return "<option value='"+i+"'>"+esc(c.name)+"（"+esc(c.date)+" "+esc(c.time)+(c.region?" ／ "+esc(c.region):"")+"）</option>"; }).join('');
+    var opts = ME.courses.map(function(c,i){ return "<option value='"+i+"'>"+esc(c.name)+"（"+esc(c.time)+(c.region?" ／ "+esc(c.region):"")+"）"+(c.mine?"":"〔未指派〕")+"</option>"; }).join('');
     h(backBar()+
       "<div class='card'><div class='card-title'>一般簽到</div>"+
       "<div class='form-group' style='margin-bottom:14px'><label class='form-label'>姓名</label><input value='"+esc(ME.name)+"' disabled></div>"+
-      "<div class='form-group' style='margin-bottom:16px'><label class='form-label'>課程（僅能選被指派的課）</label>"+
+      "<div class='form-group' style='margin-bottom:16px'><label class='form-label'>課程（今天：已被指派＋尚未指派的課）</label>"+
       "<select id='ck-course'>"+opts+"</select></div>"+
+      "<p style='font-size:12px;color:var(--muted);margin:-8px 0 14px'>標示〔未指派〕的課簽到後會自動登記為你的指派。</p>"+
       "<button class='btn btn-success' id='ck-next'>下一步</button>"+
       "<div id='ck-msg' style='margin-top:12px'></div></div>"
     );
@@ -1851,17 +1852,22 @@ router.get("/checkin", async (req, res) => {
   const sess = getSess(req);
   if (!sess || sess.role !== "worker") return res.redirect(`${PREFIX}/login`);
 
-  // 我被指派、且仍在（未來）課程清單中的課
+  // 當天可簽到的課：我被指派的 ＋ 尚未指派任何人的開放跟課課程
+  // （管理端有時忘記指派，工讀生到場仍可直接選課簽到；簽到時後端會自動補登指派）
+  const today = todayTaipei();
   const assignAll = await rget("/assignments") || {};
-  const cmap = await coursesMap();
+  const nf = await nofollowSets();
   const myCourses = [];
-  for (const [slotId, workers] of Object.entries(assignAll)) {
-    if (workers && workers[sess.id] && cmap[slotId]) myCourses.push(cmap[slotId]);
+  for (const c of (await allCourses()).filter(c => c.date === today)) {
+    const am = assignAll[c.id] || {};
+    const mine = !!am[sess.id];
+    const anyAssigned = Object.values(am).some(Boolean);
+    if (mine) myCourses.push({ ...c, mine: true });
+    else if (!anyAssigned && isFollow(c, nf)) myCourses.push({ ...c, mine: false });
   }
   myCourses.sort((a, b) => (a.date + a.time_slot).localeCompare(b.date + b.time_slot));
 
   // 我被指派的處方日（日期＋分區）；只顯示今天（含）之後
-  const today = todayTaipei();
   const prescDays   = await rget("/presc_days") || {};
   const prescAssign = await rget("/presc_assignments") || {};
   const myPresc = [];
@@ -1884,7 +1890,7 @@ router.get("/checkin", async (req, res) => {
     name: sess.display_name,
     courses: myCourses.map(c => {
       const { start, end } = splitTS(c.time_slot);
-      return { id: c.id, name: c.course_name, date: c.date, time: c.time_slot, start, end, type: c.prescription_type, region: c.region, loc: c.location };
+      return { id: c.id, name: c.course_name, date: c.date, time: c.time_slot, start, end, type: c.prescription_type, region: c.region, loc: c.location, mine: !!c.mine };
     }),
     presc: myPresc,
   });
@@ -1997,6 +2003,16 @@ router.post("/checkin", async (req, res) => {
         return { course: c.course_name, region: c.region, date: c.date, start: parts[0] || "", end: parts[1] || "", workContent: "" };
       });
       if (!courses.length) return res.status(400).json({ error: "缺少課程資料" });
+      // 未被指派也可簽到（管理端忘記指派時）：簽到當下自動補登指派，讓月曆/簽到單一致
+      try {
+        const assignAll = await rget("/assignments") || {};
+        const patch = {};
+        for (const id of (req.body.courseIds || [])) {
+          if (cmap[id] && !((assignAll[id] || {})[sess.id]))
+            patch[`${id}/${sess.id}`] = { assigned_at: nowTaipei(), self_checkin: true };
+        }
+        if (Object.keys(patch).length) await rpatch("/assignments", patch);
+      } catch (e) { console.error("[schedule] 簽到自動補指派失敗:", e.message); }
       courses.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
       const first = courses[0], last = courses[courses.length - 1];
       Object.assign(record, rocFromDate(first.date) || todayROC());
