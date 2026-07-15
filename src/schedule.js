@@ -2900,13 +2900,13 @@ function buildPersonSheet(wb, personName, records, workDescByName) {
 
   // Row 1 大標題 A1:H1
   ws.mergeCells("A1:H1");
-  ws.getRow(1).height = 22;
+  ws.getRow(1).height = 30;
   ws.getCell("A1").value = "健康台灣深耕計畫專職人員出勤記錄表";
   ws.getCell("A1").style = { font:{...tk, size:14, bold:true}, alignment:mid };
 
   // Row 2 副標題 A2:H2
   ws.mergeCells("A2:H2");
-  ws.getRow(2).height = 24;
+  ws.getRow(2).height = 28;
   ws.getCell("A2").value = "臨時人員出勤記錄與工作內容說明";
   ws.getCell("A2").style = { font:{...tk, size:13, bold:true}, alignment:mid };
 
