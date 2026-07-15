@@ -402,6 +402,17 @@ async function getOpenMin() {
   const v = Number(await rget("/settings/open_min"));
   return Number.isInteger(v) && v > 0 ? v : OPEN_MIN_DEFAULT;
 }
+// 讀取門檻設定：全域預設 + 逐課（依課名）覆寫
+async function getOpenMinConf() {
+  const globalMin = await getOpenMin();
+  const byName = (await rget("/open_min_by_name")) || {};
+  return { globalMin, byName };
+}
+// 某課實際門檻：該課名有覆寫用覆寫，否則用全域預設
+function courseOpenMin(courseName, conf) {
+  const v = Number((conf.byName || {})[nameKey(courseName)]);
+  return Number.isInteger(v) && v > 0 ? v : conf.globalMin;
+}
 function canOpenBadge(enrolled, min = OPEN_MIN_DEFAULT) {
   const n = Number(enrolled) || 0;
   if (n >= min) return "<span class='badge b-open'>✅ 可開課</span>";
@@ -849,8 +860,11 @@ const CAL_CLIENT_JS = `<script>
     var Y=+cur.split('-')[0],M=+cur.split('-')[1];
     var start=(new Date(Y,M-1,1).getDay()+6)%7, days=new Date(Y,M,0).getDate();
     var map={};var ADM=(D.role==='admin');
-    list.forEach(function(c){if(c.date.slice(0,7)!==cur)return;var b=bandOf(c.time);if(!b)return;map[c.date]=map[c.date]||{};var e=map[c.date][b]=map[c.date][b]||{x:0,t:0};
-      if(ADM){if(c.follow&&(c.custom||(c.enrolled||0)>=(D.openMin||4))){e.t++;if(c.assigned&&c.assigned.length)e.x++;}}
+    // 處方日的課由處方日面板整批排人，不計入月曆「待排」
+    var prescIds={};
+    if(D.prescByDate){Object.keys(D.prescByDate).forEach(function(dt){var rr=D.prescByDate[dt]||{};Object.keys(rr).forEach(function(rg){(rr[rg].courseIds||[]).forEach(function(id){prescIds[id]=true;});});});}
+    list.forEach(function(c){if(c.date.slice(0,7)!==cur)return;if(prescIds[c.id])return;var b=bandOf(c.time);if(!b)return;map[c.date]=map[c.date]||{};var e=map[c.date][b]=map[c.date][b]||{x:0,t:0};
+      if(ADM){if(c.follow&&(c.custom||(c.enrolled||0)>=(c.open_min||D.openMin||4))){e.t++;if(c.assigned&&c.assigned.length)e.x++;}}
       else{e.t++;if(c.x)e.x++;}});
     var rbtn=['全部'].concat(REGIONS).map(function(r){var rv=r==='全部'?'':r;return "<button type='button' class='btn btn-sm "+((reg===rv)?'btn-primary':'btn-ghost')+"' data-reg='"+rv+"'>"+r+"</button>";}).join('');
     var h="<div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px'><span style='font-size:12px;color:var(--muted)'>地區</span>"+rbtn+"</div>";
@@ -926,7 +940,7 @@ const CAL_CLIENT_JS = `<script>
         var fol=D.role==='admin'?"<td>"+(c.follow?"<span class='badge b-green'>開放</span>":"<span class='badge b-gray'>不跟課</span>")+"</td>":'';
         var enr='';
         if(D.role==='admin'){
-          var en=c.enrolled||0, cap=c.capacity||0, omin=D.openMin||4;
+          var en=c.enrolled||0, cap=c.capacity||0, omin=c.open_min||D.openMin||4;
           var openBadge=en>=omin?"<span class='badge b-open'>✅ 可開課</span>":(en>0?"<span class='badge b-warn'>未達 "+omin+" 人</span>":"<span class='badge b-gray'>—</span>");
           enr="<td style='white-space:nowrap'><div style='font-size:12px;margin-bottom:3px'>民眾 <strong>"+en+"</strong>"+(cap?" / 上限 "+cap:"")+" 人</div>"+openBadge+"</td>";
         }
@@ -2126,7 +2140,7 @@ router.get("/dashboard", async (req, res) => {
   const wid = sess.id;
 
   const nf         = await nofollowSets();
-  const openMin    = await getOpenMin();
+  const conf       = await getOpenMinConf();
   const courses    = (await allCourses()).filter(c => isFollow(c, nf) && c.date >= todayTaipei()); // 只顯示開放跟課
   const availAll   = await rget("/availability") || {};
   const assignAll  = await rget("/assignments") || {};
@@ -2182,7 +2196,7 @@ router.get("/dashboard", async (req, res) => {
         `<td>${esc(c.time_slot)}</td>` +
         `<td>${esc(c.course_name)}</td>` +
         `<td>${prescTag(c.prescription_type)}</td>` +
-        `<td>${canOpenBadge(c.enrolled, openMin)}</td>` +
+        `<td>${canOpenBadge(c.enrolled, courseOpenMin(c.course_name, conf))}</td>` +
         `<td style='color:var(--muted);font-size:12px'>${esc(c.location)}</td>` +
         `</tr>`;
     }).join("");
@@ -2216,7 +2230,7 @@ router.get("/dashboard", async (req, res) => {
     `<div id='panel-all' class='tab-panel'>` +
     `<div class='card'><div class='card-title'>所有課程</div>` +
     `<p style='font-size:12px;color:var(--light);margin-bottom:14px'>` +
-    `綠色列 = 已確認指派｜✅ 可開課 = 報名達 ${esc(openMin)} 人</p>` +
+    `綠色列 = 已確認指派｜✅ 可開課 = 報名達該課開課門檻</p>` +
     `${coursesHtml}</div></div>`;
   res.send(layout("工讀生班表", body, sess));
 });
@@ -2293,7 +2307,7 @@ router.get("/admin", async (req, res) => {
   const assignAll  = await rget("/assignments") || {};
   const users      = await getUsers();
   const nf         = await nofollowSets();
-  const openMin    = await getOpenMin();
+  const conf       = await getOpenMinConf();
   const userById   = Object.fromEntries(users.map(u => [u.id, u]));
   // 處方日設定與排班（以 日期＋分區 為單位）
   const prescDays   = await rget("/presc_days") || {};        // {date:{region:{items:[{desc,count}]}}}
@@ -2326,7 +2340,7 @@ router.get("/admin", async (req, res) => {
   const notice = msg ? alertHtml(msg, "ok") : "";
   const tabJs = tab ? `<script>window.addEventListener('DOMContentLoaded',function(){showTab('${esc(tab)}');});</script>` : "";
 
-  const canOpen = courses.filter(c => (Number(c.enrolled) || 0) >= openMin).length;
+  const canOpen = courses.filter(c => (Number(c.enrolled) || 0) >= courseOpenMin(c.course_name, conf)).length;
 
   const statsHtml = `<div class='stats'>` +
     `<div class='stat'><strong>${courses.length}</strong>堂課程</div>` +
@@ -2358,6 +2372,7 @@ router.get("/admin", async (req, res) => {
     custom: !!c.custom, over: !!c.time_overridden,
     avail_count: c.avail_count,
     enrolled: Number(c.enrolled) || 0, capacity: Number(c.capacity) || 0,
+    open_min: courseOpenMin(c.course_name, conf),
     assigned: Object.keys(assignAll[c.id] || {}).map(wid => (userById[wid] || {}).display_name).filter(Boolean),
   }));
   const timeOpts = (() => { let o = "<option value=''>--:--</option>"; for (let hh = 6; hh <= 22; hh++) for (let mm = 0; mm < 60; mm += 30) { const t = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`; o += `<option value='${t}'>${t}</option>`; } return o; })();
@@ -2390,7 +2405,7 @@ router.get("/admin", async (req, res) => {
     `<p style='font-size:12px;color:var(--muted);margin-bottom:8px'>點日期可看當天課程、指派工讀生、設定處方日。</p>` +
     `<div id='cal-app'><p style='color:var(--light)'>載入中…</p></div>` +
     `</div>` +
-    `<script>window.__CAL=${calData({ role: "admin", prefix: PREFIX, courses: calCoursesAdmin, prescByDate: prescCal, regions: REGIONS, openMin })}</script>` +
+    `<script>window.__CAL=${calData({ role: "admin", prefix: PREFIX, courses: calCoursesAdmin, prescByDate: prescCal, regions: REGIONS, openMin: conf.globalMin })}</script>` +
     CAL_CLIENT_JS;
 
   // Tab 3：工讀生
@@ -2516,7 +2531,8 @@ router.get("/admin/follow-settings", async (req, res) => {
   if (!sess || sess.role !== "admin") return res.redirect(`${PREFIX}/login`);
   const courses = await allCourses();
   const nf = await nofollowSets();
-  const openMin = await getOpenMin();
+  const conf = await getOpenMinConf();
+  const openMin = conf.globalMin;
   const groups = Object.values(groupByName(courses, nf))
     .sort((a, b) => String(a.name).localeCompare(String(b.name), "zh-Hant"));
 
@@ -2527,27 +2543,31 @@ router.get("/admin/follow-settings", async (req, res) => {
     const fullyOpen = g.open === g.total;
     const partial = g.open > 0 && g.open < g.total;
     const stateTxt = fullyOpen ? `${g.total} 堂` : (partial ? `${g.open}/${g.total} 開放` : `全部不跟課`);
-    return `<label class='fs-row' data-name="${esc(String(g.name).toLowerCase())}" data-region="${esc(g.region)}" data-dates="${esc([...g.dates].join(" "))}" ` +
-      `style='display:flex;align-items:center;gap:12px;padding:10px 8px;border-bottom:1px solid var(--border-l);cursor:pointer'>` +
-      `<input type='checkbox' name='open' value='${nameKey(g.name)}' ${fullyOpen ? "checked" : ""} style='width:auto;flex:none'>` +
-      `<span style='flex:1'>${regionTag(g.region)} ${esc(g.name)} ${prescTag(g.type)}</span>` +
+    const key = nameKey(g.name);
+    const cmin = courseOpenMin(g.name, conf);
+    return `<div class='fs-row' data-name="${esc(String(g.name).toLowerCase())}" data-region="${esc(g.region)}" data-dates="${esc([...g.dates].join(" "))}" ` +
+      `style='display:flex;align-items:center;gap:12px;padding:10px 8px;border-bottom:1px solid var(--border-l)'>` +
+      `<label style='display:flex;align-items:center;gap:12px;flex:1;cursor:pointer;margin:0'>` +
+      `<input type='checkbox' name='open' value='${key}' ${fullyOpen ? "checked" : ""} style='width:auto;flex:none'>` +
+      `<span style='flex:1'>${regionTag(g.region)} ${esc(g.name)} ${prescTag(g.type)}</span></label>` +
       `<span style='font-size:12px;color:var(--muted);white-space:nowrap'>${stateTxt}</span>` +
-      `</label>`;
+      `<label style='font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:4px;margin:0'>達<input type='number' name='min_${key}' value='${esc(cmin)}' min='1' max='999' style='width:56px' title='達幾人可開課／需排工讀生'>人</label>` +
+      `</div>`;
   }).join("");
 
   const body =
     `<div style='margin-bottom:16px'><a href='${PREFIX}/admin?tab=avail' class='btn btn-sm btn-ghost'>← 返回報名狀況</a></div>` +
     `${notice}` +
     `<div class='card' style='margin-bottom:14px'>` +
-    `<div class='card-title'>開課人數門檻</div>` +
-    `<p style='font-size:13px;color:var(--muted);margin-bottom:10px'>民眾報名<b>達幾人</b>才算「可開課」並需要安排工讀生跟課（月曆「待排」只計達門檻的課）。預設 4 人。</p>` +
+    `<div class='card-title'>開課人數門檻（預設值）</div>` +
+    `<p style='font-size:13px;color:var(--muted);margin-bottom:10px'>民眾報名<b>達幾人</b>才算「可開課」並需要安排工讀生跟課（月曆「待排」只計達門檻的課）。這是<b>預設值</b>，下方每堂課可各自調整。</p>` +
     `<form method='post' action='${PREFIX}/admin/follow-settings/open-min' style='display:flex;gap:10px;align-items:flex-end'>${hiddenCsrf(sess)}` +
-    `<div class='form-group'><label class='form-label'>達幾人可開課</label>` +
+    `<div class='form-group'><label class='form-label'>預設達幾人可開課</label>` +
     `<input type='number' name='open_min' min='1' max='999' value='${esc(openMin)}' style='width:120px'></div>` +
-    `<button class='btn btn-primary'>儲存門檻</button></form></div>` +
+    `<button class='btn btn-primary'>儲存預設門檻</button></form></div>` +
     `<div class='card'>` +
     `<div class='card-title'>跟課設定</div>` +
-    `<p style='font-size:13px;color:var(--muted);margin-bottom:14px'>勾選＝開放跟課（工讀生看得到、可報名）；取消勾選＝不跟課。以「課程名稱」為單位，同名的所有時段會一起套用。</p>` +
+    `<p style='font-size:13px;color:var(--muted);margin-bottom:14px'>勾選＝開放跟課（工讀生看得到、可報名）；取消勾選＝不跟課。右側「達 N 人」為<b>該課的開課門檻</b>（每堂課可不同，未改則沿用預設）。以「課程名稱」為單位，同名的所有時段一起套用。按下方「儲存跟課設定」會一併存門檻。</p>` +
     `<form method='post' action='${PREFIX}/admin/follow-settings'>${hiddenCsrf(sess)}` +
     `<div id='fs-region' style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px'>` +
     `<span style='font-size:12px;color:var(--muted);margin-right:4px'>地區</span>` +
@@ -2597,6 +2617,15 @@ router.post("/admin/follow-settings", async (req, res) => {
     for (const slotId of g.slots) patch[slotId] = open ? null : true;
   }
   if (Object.keys(patch).length) await rpatch(`/nofollow_slots`, patch);
+  // 逐課開課門檻：只存與預設不同的覆寫值（等於預設則不存，之後跟著預設走）
+  const globalMin = await getOpenMin();
+  const byName = {};
+  for (const k of Object.keys(req.body)) {
+    if (!k.startsWith("min_")) continue;
+    const n = parseInt(req.body[k], 10);
+    if (Number.isInteger(n) && n > 0 && n !== globalMin) byName[k.slice(4)] = n;
+  }
+  await rput("/open_min_by_name", byName);
   res.redirect(`${PREFIX}/admin/follow-settings?msg=follow_saved`);
 });
 
@@ -2720,14 +2749,20 @@ router.get("/admin/calendar", async (req, res) => {
   const month = req.query.month || todayTaipei().slice(0, 7);
   const day = req.query.day || "";
   const nf = await nofollowSets();
-  const openMin = await getOpenMin();
+  const conf = await getOpenMinConf();
   const availAll = await rget("/availability") || {};
   const assignAll = await rget("/assignments") || {};
+  // 處方日的課由處方日面板整批排人，不計入月曆「待排」
+  const prescDaysCal = await rget("/presc_days") || {};
+  const prescIds = new Set();
+  for (const regs of Object.values(prescDaysCal))
+    for (const cfg of Object.values(regs || {}))
+      for (const id of (cfg && cfg.courseIds) || []) prescIds.add(id);
   const courses = (await allCourses()).map(c => {
     const f = isFollow(c, nf);
     const ac = Object.keys(assignAll[c.id] || {}).length;
-    // 需排工讀生＝開放跟課且民眾報名達門檻（未達不用排）；臨時活動一律計入
-    const need = f && (c.custom || (Number(c.enrolled) || 0) >= openMin);
+    // 需排工讀生＝開放跟課且民眾報名達該課門檻（未達不用排）；臨時活動一律計入；處方日的課不計
+    const need = f && !prescIds.has(c.id) && (c.custom || (Number(c.enrolled) || 0) >= courseOpenMin(c.course_name, conf));
     return { ...c, follow: f, _need: need, _done: ac > 0, avail_count: Object.keys(availAll[c.id] || {}).length, assign_count: ac };
   });
   const grid = calendarGrid(courses, month, `${PREFIX}/admin/calendar`, day, { assign: true });
@@ -3606,7 +3641,7 @@ router.get("/admin/course/:cid", async (req, res) => {
     .sort((a, b) => String(a.signed_at).localeCompare(String(b.signed_at)));
 
   const nf = await nofollowSets();
-  const openMin = await getOpenMin();
+  const conf = await getOpenMinConf();
   const follows = isFollow(course, nf);
 
   const csrf = hiddenCsrf(sess);
@@ -3739,7 +3774,7 @@ router.get("/admin/course/:cid", async (req, res) => {
     `<h3 style='font-size:16px;font-weight:600;margin-bottom:6px'>${esc(course.course_name)}</h3>` +
     `<p style='font-size:13px;color:var(--muted);margin-bottom:4px'>` +
     `${esc(course.date)} 週${wd} &nbsp;·&nbsp; ${esc(course.time_slot)} &nbsp;·&nbsp; ` +
-    `${prescTag(course.prescription_type)} &nbsp;·&nbsp; ${canOpenBadge(course.enrolled, openMin)}</p>` +
+    `${prescTag(course.prescription_type)} &nbsp;·&nbsp; ${canOpenBadge(course.enrolled, courseOpenMin(course.course_name, conf))}</p>` +
     `<p style='font-size:12px;color:var(--light);margin-bottom:0'>${esc(course.location)}</p>` +
     (course.custom
       ? `<div style='margin-top:14px;padding-top:12px;border-top:1px solid var(--border-l)'>` +
