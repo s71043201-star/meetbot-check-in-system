@@ -251,6 +251,10 @@ async function savePushSub(wid, sub) {
   const key = crypto.createHash("sha1").update(String(sub.endpoint)).digest("hex");
   await rput(`/push_subs/${wid}/${key}`, sub);
 }
+async function deletePushSub(wid, sub) {
+  const key = crypto.createHash("sha1").update(String(sub.endpoint)).digest("hex");
+  await rdel(`/push_subs/${wid}/${key}`);
+}
 async function sendPushToWorker(wid, payload) {
   const subs = await rget(`/push_subs/${wid}`) || {};
   for (const [key, sub] of Object.entries(subs)) {
@@ -1298,6 +1302,7 @@ const PUSH_CLIENT_JS = `<script>
 (function(){
   var card=document.getElementById('push-card'); if(!card) return;
   var btn=document.getElementById('push-btn'), st=document.getElementById('push-status');
+  var offBtn=document.createElement('button');offBtn.type='button';offBtn.className='btn btn-ghost';offBtn.textContent='關閉通知';offBtn.style.marginLeft='8px';offBtn.style.display='none';btn.insertAdjacentElement('afterend',offBtn);
   function setStatus(t,ok){st.innerHTML="<span class='badge "+(ok?'b-green':'b-warn')+"'>"+t+"</span>";}
   var isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
   var standalone=(window.navigator.standalone===true)||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
@@ -1307,7 +1312,20 @@ const PUSH_CLIENT_JS = `<script>
     btn.style.display='none';return;
   }
   function urlB64(b){var pad='='.repeat((4-b.length%4)%4);var base=(b+pad).replace(/-/g,'+').replace(/_/g,'/');var raw=atob(base);var arr=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);return arr;}
-  async function refresh(){try{var reg=await navigator.serviceWorker.getRegistration();var sub=reg?await reg.pushManager.getSubscription():null;if(sub&&Notification.permission==='granted'){setStatus('通知已開啟',true);btn.textContent='重新開啟通知';}else setStatus('通知未開啟',false);}catch(e){setStatus('通知未開啟',false);}}
+  async function refresh(){try{var reg=await navigator.serviceWorker.getRegistration();var sub=reg?await reg.pushManager.getSubscription():null;if(sub&&Notification.permission==='granted'){setStatus('通知已開啟',true);btn.textContent='重新開啟通知';offBtn.style.display='';}else{setStatus('通知未開啟',false);offBtn.style.display='none';}}catch(e){setStatus('通知未開啟',false);offBtn.style.display='none';}}
+  offBtn.onclick=async function(){
+    offBtn.disabled=true;var ot=offBtn.textContent;offBtn.textContent='關閉中…';
+    try{
+      var reg=await navigator.serviceWorker.getRegistration();
+      var sub=reg?await reg.pushManager.getSubscription():null;
+      if(sub){
+        try{await fetch('/schedule/push/unsubscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sub)});}catch(e){}
+        await sub.unsubscribe();
+      }
+      setStatus('通知已關閉',false);btn.textContent='開啟通知';offBtn.style.display='none';
+    }catch(e){setStatus('關閉失敗：'+e.message,false);}
+    offBtn.disabled=false;offBtn.textContent=ot;
+  };
   btn.onclick=async function(){
     btn.disabled=true;var ot=btn.textContent;btn.textContent='設定中…';
     try{
@@ -1316,7 +1334,7 @@ const PUSH_CLIENT_JS = `<script>
       if(perm!=='granted'){setStatus('尚未允許通知（請到瀏覽器/系統設定開啟）',false);btn.disabled=false;btn.textContent=ot;return;}
       var sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(window.__VAPID)});
       var r=await fetch('/schedule/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sub)});
-      if(r.ok){setStatus('通知已開啟',true);btn.textContent='重新開啟通知';}else{setStatus('訂閱失敗，請重試',false);btn.textContent=ot;}
+      if(r.ok){setStatus('通知已開啟',true);btn.textContent='重新開啟通知';offBtn.style.display='';}else{setStatus('訂閱失敗，請重試',false);btn.textContent=ot;}
     }catch(e){setStatus('開啟失敗：'+e.message,false);btn.textContent=ot;}
     btn.disabled=false;
   };
@@ -2225,6 +2243,20 @@ router.post("/push/subscribe", express.json(), async (req, res) => {
   }
 });
 
+// ── Web Push：工讀生／管理員取消訂閱（關閉通知）──
+router.post("/push/unsubscribe", express.json(), async (req, res) => {
+  const sess = getSess(req);
+  if (!sess) return res.status(403).json({ error: "unauthorized" });
+  const sub = req.body;
+  if (!sub || !sub.endpoint) return res.status(400).json({ error: "bad subscription" });
+  try {
+    await deletePushSub(sess.id, sub);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ══════════════════════════════════════════════
 //  管理員後台
 // ══════════════════════════════════════════════
@@ -2879,7 +2911,7 @@ function buildPersonSheet(wb, personName, records, workDescByName) {
   ws.getCell("A2").style = { font:{...tk, size:13, bold:true}, alignment:mid };
 
   // Row 3 姓名 + 工作內容 — 先設所有格子邊框再合併
-  ws.getRow(3).height = 22;
+  ws.getRow(3).height = 26;
   for (let c = 1; c <= 8; c++) ws.getCell(3, c).style = { font:tk, alignment:mid, border:bdr };
   ws.mergeCells("B3:D3");
   ws.mergeCells("F3:H3");
@@ -2893,7 +2925,7 @@ function buildPersonSheet(wb, personName, records, workDescByName) {
   ws.getCell("F3").style = { font:tk, alignment:lmid, border:bdr };
 
   // Row 4 欄位標題
-  ws.getRow(4).height = 20;
+  ws.getRow(4).height = 26;
   ["編號", "年", "月", "日", "工作項目", "時　分", "至時 分", "共計(時)"].forEach((h, i) => {
     const cell = ws.getCell(4, i+1);
     cell.value = h;
@@ -2932,7 +2964,7 @@ function buildPersonSheet(wb, personName, records, workDescByName) {
 
   // 累計列：A..G 合併「累計」，H = SUM
   let r = dataStart + n;
-  ws.getRow(r).height = 20;
+  ws.getRow(r).height = 26;
   for (let c = 1; c <= 8; c++) ws.getCell(r, c).style = { font:{...tk, bold:true}, alignment:mid, border:bdr };
   ws.mergeCells(r, 1, r, 7);
   ws.getCell(r, 1).value = "累計";
@@ -2942,27 +2974,27 @@ function buildPersonSheet(wb, personName, records, workDescByName) {
   const totRow = r;
 
   // 金額（工作時數*300）
-  r++; ws.getRow(r).height = 20;
+  r++; ws.getRow(r).height = 26;
   moneyRow(ws, r, "金額(工作時數*300)元", { formula: `300*H${totRow}` }, tk, bdr, CUR);
   const amtRow = r;
   // 自付勞保+職災費用（留空由承辦人填）
-  r++; ws.getRow(r).height = 20;
+  r++; ws.getRow(r).height = 26;
   moneyRow(ws, r, "自付勞保+職災費用", null, tk, bdr, CUR);
   const laborRow = r;
   // 自付健保費用（留空）
-  r++; ws.getRow(r).height = 20;
+  r++; ws.getRow(r).height = 26;
   moneyRow(ws, r, "自付健保費用", null, tk, bdr, CUR);
   const healthRow = r;
   // 非富邦銀行匯費（留空）
-  r++; ws.getRow(r).height = 20;
+  r++; ws.getRow(r).height = 26;
   moneyRow(ws, r, "非富邦銀行匯費", null, tk, bdr, CUR);
   const feeRow = r;
   // 臨時工資支領薪餉 = 金額 - 勞保 - 健保 - 匯費（空白視為 0）
-  r++; ws.getRow(r).height = 20;
+  r++; ws.getRow(r).height = 26;
   moneyRow(ws, r, "臨時工資支領薪餉", { formula: `H${amtRow}-H${laborRow}-H${healthRow}-H${feeRow}` }, tk, bdr, CUR);
 
   // 簽名列：A:B「簽名」，C:H 留白供簽名
-  r++; ws.getRow(r).height = 26;
+  r++; ws.getRow(r).height = 32;
   for (let c = 1; c <= 8; c++) ws.getCell(r, c).style = { font:tk, alignment:mid, border:bdr };
   ws.mergeCells(r, 1, r, 2);
   ws.getCell(r, 1).value = "簽名";
