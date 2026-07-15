@@ -811,7 +811,7 @@ function calendarGrid(courses, month, linkBase, selectedDay, opts) {
     `<strong>${Y} 年 ${M} 月</strong>` +
     `<a class='btn btn-sm btn-ghost' href='${linkBase}?month=${ymShift(month, 1)}'>下個月 →</a></div>`;
   const legend = assignMode
-    ? `每格顯示<b style='color:#c0392b'>還沒排工讀生</b>的堂數（依早／午／晚）；該日都排好顯示綠色「✓ 已排滿」。點日期看當天課程。`
+    ? `每格顯示<b style='color:#c0392b'>還沒排工讀生</b>的堂數（依早／午／晚，只計<b>有民眾報名</b>的課；沒人報名的課不用排）；該日都排好顯示綠色「✓ 已排滿」。點日期看當天課程。`
     : `每格 x/y：x＝可預約（開放跟課）堂數，y＝總堂數。點日期看當天課程。`;
   return nav +
     `<p style='font-size:11px;color:var(--light);margin-bottom:8px'>${legend}</p>` +
@@ -843,12 +843,12 @@ const CAL_CLIENT_JS = `<script>
     var start=(new Date(Y,M-1,1).getDay()+6)%7, days=new Date(Y,M,0).getDate();
     var map={};var ADM=(D.role==='admin');
     list.forEach(function(c){if(c.date.slice(0,7)!==cur)return;var b=bandOf(c.time);if(!b)return;map[c.date]=map[c.date]||{};var e=map[c.date][b]=map[c.date][b]||{x:0,t:0};
-      if(ADM){if(c.follow){e.t++;if(c.assigned&&c.assigned.length)e.x++;}}
+      if(ADM){if(c.follow&&(c.custom||(c.enrolled||0)>0)){e.t++;if(c.assigned&&c.assigned.length)e.x++;}}
       else{e.t++;if(c.x)e.x++;}});
     var rbtn=['全部'].concat(REGIONS).map(function(r){var rv=r==='全部'?'':r;return "<button type='button' class='btn btn-sm "+((reg===rv)?'btn-primary':'btn-ghost')+"' data-reg='"+rv+"'>"+r+"</button>";}).join('');
     var h="<div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px'><span style='font-size:12px;color:var(--muted)'>地區</span>"+rbtn+"</div>";
     h+="<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px'><button type='button' class='btn btn-sm btn-ghost' id='cp'>← 上個月</button><strong>"+Y+" 年 "+M+" 月</strong><button type='button' class='btn btn-sm btn-ghost' id='cn'>下個月 →</button></div>";
-    h+="<p style='font-size:11px;color:var(--light);margin-bottom:8px'>"+(ADM?"每格顯示<b style='color:#c0392b'>還沒排工讀生</b>的堂數（依早／午／晚）；該時段都排好顯示綠色。":"每格 x/y：x＝尚可報名堂數，y＝總堂數。")+"點日期看當天課程。</p>";
+    h+="<p style='font-size:11px;color:var(--light);margin-bottom:8px'>"+(ADM?"每格顯示<b style='color:#c0392b'>還沒排工讀生</b>的堂數（依早／午／晚，只計<b>有民眾報名</b>的課；沒人報名的課不用排）；該時段都排好顯示綠色。":"每格 x/y：x＝尚可報名堂數，y＝總堂數。")+"點日期看當天課程。</p>";
     h+="<table class='cal'><thead><tr>"+WD.map(function(w){return "<th>"+w+"</th>";}).join('')+"</tr></thead><tbody><tr>";
     for(var i=0;i<start;i++)h+="<td></td>";
     for(var d=1;d<=days;d++){var date=cur+'-'+String(d).padStart(2,'0');var dm=map[date]||{};var bands='';var dNeed=0,dTodo=0;BANDS.forEach(function(k){var info=dm[k];if(!info)return;
@@ -2697,7 +2697,9 @@ router.get("/admin/calendar", async (req, res) => {
   const courses = (await allCourses()).map(c => {
     const f = isFollow(c, nf);
     const ac = Object.keys(assignAll[c.id] || {}).length;
-    return { ...c, follow: f, _need: f, _done: ac > 0, avail_count: Object.keys(availAll[c.id] || {}).length, assign_count: ac };
+    // 需排工讀生＝開放跟課且有民眾報名（沒人報名不用排）；臨時活動一律計入
+    const need = f && (c.custom || (Number(c.enrolled) || 0) > 0);
+    return { ...c, follow: f, _need: need, _done: ac > 0, avail_count: Object.keys(availAll[c.id] || {}).length, assign_count: ac };
   });
   const grid = calendarGrid(courses, month, `${PREFIX}/admin/calendar`, day, { assign: true });
   let dayHtml = "";
