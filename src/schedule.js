@@ -159,12 +159,16 @@ async function fetchSupabaseCourses(force = false) {
   if (!force && Date.now() - courseCache.at < COURSE_TTL) return courseCache.data;
   try {
     const { data } = await axios.get(`${SUPA_URL}/rest/v1/prescription_data`, {
-      params: { select: "course_slots,clinic_region_map", order: "uploaded_at.desc", limit: 1 },
+      params: { select: "course_slots,clinic_region_map,uploaded_at", order: "uploaded_at.desc", limit: 10 },
       headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` },
       timeout: 15000,
     });
-    const slots = (data[0] && data[0].course_slots) || [];
-    const clinicMap = (data[0] && data[0].clinic_region_map) || {};
+    // 同一張表有些列沒帶課表（course_slots 為 null／空），往回找最近一筆有課程的上傳
+    const slotRow = (data || []).find(r => Array.isArray(r && r.course_slots) && r.course_slots.length > 0);
+    const mapRow = (data || []).find(r => r && r.clinic_region_map && Object.keys(r.clinic_region_map).length > 0);
+    const slots = (slotRow && slotRow.course_slots) || [];
+    const clinicMap = (mapRow && mapRow.clinic_region_map) || {};
+    if (!slotRow) console.warn("[schedule] Supabase 最近 10 筆上傳都沒有 course_slots");
     // 保留過去 180 天～未來的課程（讓管理端可補登過去的工讀生；工讀生端另行過濾只顯示未來）
     const cutoff = new Date(Date.now() - 180 * 86400000).toLocaleString("sv-SE", { timeZone: "Asia/Taipei" }).slice(0, 10);
     const courses = slots
