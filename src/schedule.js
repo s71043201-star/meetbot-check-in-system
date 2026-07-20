@@ -251,6 +251,14 @@ async function rpostAtt(val) {
   const { data } = await axios.post(`${ATT_FB}.json`, val); // { name: pushId }
   return data;
 }
+// 出勤記錄的課程名稱（早期版本誤把物件陣列 join 存成 "[object Object]"；一律可從 courses[] 還原）
+function attCourseLabel(r) {
+  const s = typeof r.course === "string" ? r.course : "";
+  if (s && !s.includes("[object Object]")) return s;
+  if (Array.isArray(r.courses) && r.courses.length)
+    return r.courses.map(c => (c && typeof c === "object") ? c.course : c).filter(Boolean).join("、") || s;
+  return s;
+}
 
 // ── Web Push 訂閱存取（存於 schedule /push_subs/{workerId}/{key}）──
 async function savePushSub(wid, sub) {
@@ -1108,6 +1116,7 @@ const ATT_CLIENT_JS = `<script>
   var app=document.getElementById('att-app'); if(!app) return;
   var all=[];
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function cname(r){var s=typeof r.course==='string'?r.course:'';if(s&&s.indexOf('[object Object]')<0)return s;if(Array.isArray(r.courses)&&r.courses.length)return r.courses.map(function(c){return (c&&typeof c==='object')?c.course:c;}).filter(Boolean).join('、')||s;return s;}
   function fmtT(iso){try{return new Date(iso).toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false});}catch(e){return '';}}
   var fY=document.getElementById('f-year'),fM=document.getElementById('f-month'),fN=document.getElementById('f-name');
   function filtered(){var y=fY.value.trim(),m=fM.value,n=fN.value.trim();return all.filter(function(r){if(y&&String(r.year)!==y)return false;if(m&&String(r.month)!==m)return false;if(n&&String(r.name||'').indexOf(n)<0)return false;return true;});}
@@ -1119,7 +1128,7 @@ const ATT_CLIENT_JS = `<script>
     document.getElementById('st-hours').textContent=Math.round(hours*10)/10;
     document.getElementById('st-ppl').textContent=Object.keys(ppl).length;
     var rows=list.map(function(r){
-      return "<tr><td style='font-weight:500'>"+esc(r.name)+"</td><td>"+esc(r.courseType||'')+"</td><td>"+esc(r.course||'')+"</td>"+
+      return "<tr><td style='font-weight:500'>"+esc(r.name)+"</td><td>"+esc(r.courseType||'')+"</td><td>"+esc(cname(r))+"</td>"+
         "<td style='white-space:nowrap'>"+esc(r.year)+"/"+esc(r.month)+"/"+esc(r.day)+"</td>"+
         "<td style='white-space:nowrap;color:var(--muted)'>"+fmtT(r.checkinTime)+" - "+fmtT(r.checkoutTime)+"</td>"+
         "<td><span class='badge b-blue'>"+esc(r.hours)+" 時</span></td>"+
@@ -1137,7 +1146,7 @@ const ATT_CLIENT_JS = `<script>
     ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:9999';
     ov.innerHTML="<div style='background:#fff;border-radius:6px;padding:24px;width:360px;max-width:92vw'>"+
       "<div style='font-weight:600;margin-bottom:4px'>編輯出勤時間</div>"+
-      "<div style='font-size:12px;color:#6b6b6b;margin-bottom:14px'>"+esc(r.name)+"｜"+esc(r.course||'')+"</div>"+
+      "<div style='font-size:12px;color:#6b6b6b;margin-bottom:14px'>"+esc(r.name)+"｜"+esc(cname(r))+"</div>"+
       "<label style='font-size:12px;color:#6b6b6b'>簽到時間</label>"+
       "<input id='ed-ci' type='datetime-local' value='"+toLocalInput(r.checkinTime)+"' style='width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;margin:4px 0 12px'>"+
       "<label style='font-size:12px;color:#6b6b6b'>簽退時間</label>"+
@@ -1601,7 +1610,7 @@ router.get("/timesheet", async (req, res) => {
     const rows = recs.map(r =>
       `<tr data-m='${esc(monthKey(r))}' data-h='${Number(r.hours) || 0}'>` +
       `<td style='white-space:nowrap'>${esc(r.year)}/${esc(r.month)}/${esc(r.day)}</td>` +
-      `<td>${esc(r.course)}</td>` +
+      `<td>${esc(attCourseLabel(r))}</td>` +
       `<td style='white-space:nowrap;color:var(--muted)'>${esc(fmtTime(r.checkinTime))} - ${esc(fmtTime(r.checkoutTime))}</td>` +
       `<td style='white-space:nowrap'><span class='badge b-blue'>${esc(r.hours)} 時</span></td>` +
       `</tr>`

@@ -123,7 +123,9 @@
         var content   = Array.isArray(r.workContent) ? r.workContent.join("\u3001") : (r.workContent || r.summary || "-");
         var typeLabel = r.checkinType === "prescription" ? "\u8655\u65B9\u65E5" : "\u4E00\u822C";
         var courseStr = Array.isArray(r.courses) && r.courses.length > 0
-          ? r.courses.join("\u3001") : (r.course || "-");
+          ? r.courses.map(function (c) { return (c && typeof c === "object") ? (c.course || "") : c; }).filter(Boolean).join("\u3001")
+          : (r.course || "-");
+        if (!courseStr || courseStr.indexOf("[object Object]") >= 0) courseStr = "-";
         var tag = r.status === "checked-out"
           ? '<span class="tag tag-done">\u5B8C\u6210</span>'
           : '<span class="tag tag-in">\u7C3D\u5230\u4E2D</span>';
