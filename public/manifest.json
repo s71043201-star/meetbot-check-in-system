@@ -1,14 +1,23 @@
 {
+  "id": "/schedule/home",
   "name": "跟課班表系統",
   "short_name": "跟課班表",
-  "start_url": "/schedule/home",
+  "description": "健康台灣深耕計畫 — 跟課班表、簽到退與時數表",
+  "lang": "zh-TW",
+  "dir": "ltr",
+  "start_url": "/schedule/",
   "scope": "/schedule/",
   "display": "standalone",
-  "background_color": "#F5F5F3",
-  "theme_color": "#2B4462",
+  "background_color": "#FAF9F5",
+  "theme_color": "#55B07E",
   "icons": [
     { "src": "/schedule-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/schedule-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/schedule-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "簽到退", "short_name": "簽到退", "url": "/schedule/checkin", "icons": [{ "src": "/schedule-icon-192.png", "sizes": "192x192" }] },
+    { "name": "班表月曆", "short_name": "月曆", "url": "/schedule/calendar", "icons": [{ "src": "/schedule-icon-192.png", "sizes": "192x192" }] },
+    { "name": "我的時數", "short_name": "時數", "url": "/schedule/timesheet", "icons": [{ "src": "/schedule-icon-192.png", "sizes": "192x192" }] }
   ]
 }

@@ -544,7 +544,8 @@ const CSS = `
   --radius-card:8px;--radius-btn:6px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Noto Sans TC',Arial,'Microsoft JhengHei',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.65}
+html{-webkit-text-size-adjust:100%}
+body{font-family:'Noto Sans TC',Arial,'Microsoft JhengHei',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.65;-webkit-tap-highlight-color:transparent}
 a{color:var(--accent);text-decoration:none}
 .nav{background:linear-gradient(115deg,#A5C56A 0%,#55B07E 55%,#2F8A5F 100%);height:56px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 6px rgba(0,0,0,.08)}
 .nav-brand{color:#fff;font-size:15px;font-weight:700;letter-spacing:.02em}
@@ -699,6 +700,34 @@ input[type=checkbox],input[type=radio]{width:18px;height:18px;flex:none;margin:0
   table.ntbl td:nth-child(2){color:var(--muted);font-size:12px}
   table.ntbl td:last-child{padding-top:10px}
 }
+
+/* ── PWA：安全區（瀏海／底部 home indicator）與加到主畫面後的 App 體感 ── */
+.nav{padding-left:calc(28px + env(safe-area-inset-left));padding-right:calc(28px + env(safe-area-inset-right))}
+.wrap{padding-left:calc(24px + env(safe-area-inset-left));padding-right:calc(24px + env(safe-area-inset-right));padding-bottom:env(safe-area-inset-bottom)}
+.login-wrap{padding-left:calc(24px + env(safe-area-inset-left));padding-right:calc(24px + env(safe-area-inset-right));padding-bottom:calc(60px + env(safe-area-inset-bottom))}
+@media(max-width:640px){
+  .nav{padding-left:calc(14px + env(safe-area-inset-left));padding-right:calc(14px + env(safe-area-inset-right))}
+  .wrap{padding-left:calc(12px + env(safe-area-inset-left));padding-right:calc(12px + env(safe-area-inset-right))}
+}
+/* 從主畫面圖示啟動時：關掉網頁感的文字選取與長按選單，只留輸入框可選 */
+html.pwa body{-webkit-user-select:none;user-select:none;overscroll-behavior-y:none}
+html.pwa input,html.pwa textarea,html.pwa select,html.pwa td,html.pwa .card{-webkit-user-select:text;user-select:text}
+html.pwa a,html.pwa .btn{-webkit-touch-callout:none}
+
+/* ── iOS「加到主畫面」引導條 ── */
+#a2hs{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:9998;
+  background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-raised);
+  padding:14px 16px;display:flex;gap:12px;align-items:flex-start;font-size:13px;line-height:1.6;
+  animation:a2hsIn .35s ease-out}
+@keyframes a2hsIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+#a2hs .a2hs-ico{flex:none;width:38px;height:38px;border-radius:10px;background:var(--accent-l);color:var(--accent);
+  display:flex;align-items:center;justify-content:center}
+#a2hs .a2hs-body{flex:1;min-width:0}
+#a2hs strong{display:block;font-size:14px;color:var(--subheading);margin-bottom:2px}
+#a2hs .a2hs-step{color:var(--muted)}
+#a2hs .a2hs-step svg{vertical-align:-3px;margin:0 2px}
+#a2hs .a2hs-x{flex:none;background:none;border:none;color:var(--light);font-size:20px;line-height:1;
+  padding:2px 4px;cursor:pointer;font-family:inherit}
 </style>`;
 
 const JS = `<script>
@@ -733,21 +762,75 @@ function navBar(sess) {
     `<a href='${PREFIX}/logout'>登出</a>` +
     `</div></nav>`;
 }
+// ══════════════════════════════════════════════
+//  PWA（加到主畫面即為 App）
+// ══════════════════════════════════════════════
+// 所有頁面共用的 head；themeColor 決定 Android 網址列／工作切換器的底色，
+// 有 nav 的頁面用綠色與 nav 銜接，登入／註冊頁用米白底色。
+function pwaHead(themeColor) {
+  return `<meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'>` +
+    `<link rel='manifest' href='/manifest.json'>` +
+    `<meta name='theme-color' content='${themeColor}'>` +
+    `<meta name='mobile-web-app-capable' content='yes'>` +
+    `<meta name='apple-mobile-web-app-capable' content='yes'>` +
+    `<meta name='apple-mobile-web-app-status-bar-style' content='default'>` +
+    `<meta name='apple-mobile-web-app-title' content='跟課班表'>` +
+    `<link rel='apple-touch-icon' sizes='180x180' href='/schedule-icon.png'>` +
+    `<link rel='apple-touch-icon' href='/schedule-icon.png'>` +
+    `<link rel='icon' href='/schedule-icon-192.png'>`;
+}
+
+// 每頁都跑：註冊 service worker（離線快取＋推播共用），並在 iOS Safari
+// 尚未加到主畫面時顯示引導條。iOS 只有從主畫面圖示啟動才收得到推播。
+const PWA_BOOT_JS = `<script>
+(function(){
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',function(){
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    });
+  }
+  var standalone=(window.navigator.standalone===true)||
+    (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
+  if(standalone){document.documentElement.className+=' pwa';return;}
+  var ua=navigator.userAgent;
+  var isIOS=/iphone|ipad|ipod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(!isIOS)return;
+  // LINE／FB 等 App 內建瀏覽器不能「加入主畫面」，要先請使用者用 Safari 開啟
+  var inApp=/line\\/|fban|fbav|instagram|micromessenger/i.test(ua);
+  var isSafari=/safari/i.test(ua)&&!/crios|fxios|edgios|chrome|android/i.test(ua);
+  if(!inApp&&!isSafari)return;
+  try{if(localStorage.getItem('a2hs_dismissed')==='1')return;}catch(e){}
+  window.addEventListener('load',function(){
+    var share="<svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 16V3'></path><path d='m8 7 4-4 4 4'></path><path d='M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7'></path></svg>";
+    var tip=inApp
+      ? "<strong>請改用 Safari 開啟</strong><div class='a2hs-step'>點右上角 <b>&#8943;</b>（或 "+share+" ）→「用 Safari 開啟」，才能加到主畫面並收通知。</div>"
+      : "<strong>加到主畫面，當 App 用</strong><div class='a2hs-step'>點下方 "+share+" 分享，再選「加入主畫面」。加完才能收到跟課通知。</div>";
+    var bar=document.createElement('div');
+    bar.id='a2hs';
+    bar.innerHTML=
+      "<div class='a2hs-ico'><svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect width='8' height='4' x='8' y='2' rx='1'></rect><path d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'></path><path d='M12 11h4'></path><path d='M12 16h4'></path><path d='M8 11h.01'></path><path d='M8 16h.01'></path></svg></div>"+
+      "<div class='a2hs-body'>"+tip+"</div>"+
+      "<button type='button' class='a2hs-x' aria-label='關閉'>&times;</button>";
+    document.body.appendChild(bar);
+    bar.querySelector('.a2hs-x').onclick=function(){
+      try{localStorage.setItem('a2hs_dismissed','1');}catch(e){}
+      bar.parentNode.removeChild(bar);
+    };
+  });
+})();
+</script>`;
+
 function layout(title, body, sess) {
   return `<!DOCTYPE html><html lang='zh-TW'>` +
-    `<head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>` +
+    `<head><meta charset='utf-8'>` +
     `<title>${esc(title)} — 跟課班表系統</title>` +
-    `<link rel='manifest' href='/manifest.json'>` +
-    `<meta name='theme-color' content='#2B4462'>` +
-    `<meta name='apple-mobile-web-app-capable' content='yes'>` +
-    `<meta name='apple-mobile-web-app-title' content='跟課班表'>` +
-    `<link rel='apple-touch-icon' href='/schedule-icon.png'>` +
+    pwaHead("#55B07E") +
     `<link rel='preconnect' href='https://fonts.googleapis.com'>` +
     `<link href='https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap' rel='stylesheet'>` +
     `${CSS}${JS}</head><body>` +
     `${navBar(sess)}` +
     `<div class='wrap'>${body}</div>` +
-    `</body></html>`;
+    `${PWA_BOOT_JS}</body></html>`;
 }
 function alertHtml(msg, kind = "ok") {
   if (!msg) return "";
@@ -1180,6 +1263,25 @@ const ATT_CLIENT_JS = `<script>
 </script>`;
 
 // ══════════════════════════════════════════════
+//  離線頁（service worker 於斷網時回退到這裡，故不可要求登入）
+// ══════════════════════════════════════════════
+router.get("/offline", (req, res) => {
+  res.set("Cache-Control", "no-cache");
+  res.send(
+    `<!DOCTYPE html><html lang='zh-TW'><head><meta charset='utf-8'>` +
+    `<title>目前離線 — 跟課班表系統</title>` +
+    pwaHead("#FAF9F5") + CSS + `</head><body>` +
+    `<div class='login-wrap'><div class='login-card' style='text-align:center'>` +
+    `<div class='login-logo'><div class='login-badge'>` +
+    `<svg width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M2 2l20 20'></path><path d='M8.5 16.5a5 5 0 0 1 7 0'></path><path d='M5 12.86A10 10 0 0 1 8 11'></path><path d='M16.5 11.5A10 10 0 0 1 19 12.86'></path><path d='M2 8.82A16 16 0 0 1 7 6'></path><path d='M14 5.3A16 16 0 0 1 22 8.82'></path><path d='M12 20h.01'></path></svg>` +
+    `</div><h1>目前沒有網路</h1><p style='letter-spacing:0'>連上網路後再試一次</p></div>` +
+    `<p style='color:var(--muted);font-size:13px;margin-bottom:18px'>班表與簽到都需要連線才能同步，離線時無法讀取或送出資料。</p>` +
+    `<button type='button' class='btn btn-primary' style='width:100%;justify-content:center' onclick='location.reload()'>重新載入</button>` +
+    `</div></div></body></html>`
+  );
+});
+
+// ══════════════════════════════════════════════
 //  登入
 // ══════════════════════════════════════════════
 router.get("/login", (req, res) => {
@@ -1190,8 +1292,9 @@ router.get("/login", (req, res) => {
   else if (msg) err = alertHtml(msg, "err");
   res.send(
     `<!DOCTYPE html><html lang='zh-TW'>` +
-    `<head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>` +
+    `<head><meta charset='utf-8'>` +
     `<title>登入 — 跟課班表系統</title>` +
+    pwaHead("#FAF9F5") +
     `<link href='https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600&display=swap' rel='stylesheet'>` +
     `${CSS}</head><body>` +
     `<div class='login-wrap'><div class='login-card'>` +
@@ -1209,7 +1312,7 @@ router.get("/login", (req, res) => {
     `<button class='btn btn-primary'>登入</button>` +
     `</form>` +
     `<div class='login-foot'><span style='color:var(--muted)'>第一次使用？</span><a href='${PREFIX}/register'>點此註冊</a></div>` +
-    `</div></div></body></html>`
+    `</div></div>${PWA_BOOT_JS}</body></html>`
   );
 });
 
@@ -1238,8 +1341,9 @@ router.get("/register", (req, res) => {
     `<input type='checkbox' name='feeTypes' value='${esc(f)}' style='width:auto'>${esc(f)}</label>`
   ).join("");
   res.send(
-    `<!DOCTYPE html><html lang='zh-TW'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>` +
+    `<!DOCTYPE html><html lang='zh-TW'><head><meta charset='utf-8'>` +
     `<title>註冊 — 跟課班表系統</title>` +
+    pwaHead("#FAF9F5") +
     `<link href='https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600&display=swap' rel='stylesheet'>${CSS}</head><body>` +
     `<div class='login-wrap' style='padding:24px 12px'><div class='login-card' style='width:560px;max-width:100%'>` +
     `<div class='login-logo'><h1>📋 新人註冊</h1><p>填寫請款（領據）資料</p></div>` +
@@ -1279,7 +1383,7 @@ router.get("/register", (req, res) => {
     `var same=document.getElementById('same-addr'),a=document.getElementById('reg-addr'),l=document.getElementById('reg-live');` +
     `function sync(){if(same.checked){l.value=a.value;l.readOnly=true;}else{l.readOnly=false;}}` +
     `same.addEventListener('change',sync);a.addEventListener('input',function(){if(same.checked)l.value=a.value;});` +
-    `})();</script></body></html>`
+    `})();</script>${PWA_BOOT_JS}</body></html>`
   );
 });
 router.post("/register", async (req, res) => {

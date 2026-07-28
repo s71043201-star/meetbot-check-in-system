@@ -1,9 +1,70 @@
-// 跟課班表系統 — Service Worker（Web Push）
-self.addEventListener("install", function () { self.skipWaiting(); });
-self.addEventListener("activate", function (e) { e.waitUntil(self.clients.claim()); });
+// 跟課班表系統 — Service Worker（離線回退 + Web Push）
+// 快取策略刻意保守：只快取靜態資源與離線頁，**不快取任何登入後的 HTML**，
+// 避免登出後仍能從快取讀到上一個人的班表／個資。
+const CACHE = "schedule-shell-v1";
+const SHELL = [
+  "/schedule/offline",
+  "/schedule-icon.png",
+  "/schedule-icon-192.png",
+  "/manifest.json",
+];
 
-// 最小 fetch handler（Chrome 判定「可安裝」需要 SW 有 fetch 事件；此處直接走網路）
-self.addEventListener("fetch", function () { /* pass-through */ });
+self.addEventListener("install", function (e) {
+  e.waitUntil(
+    caches.open(CACHE).then(function (c) {
+      return c.addAll(SHELL);
+    }).catch(function () { /* 單一資源失敗不阻擋安裝 */ })
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", function (e) {
+  e.waitUntil(
+    caches.keys().then(function (keys) {
+      return Promise.all(keys.filter(function (k) { return k !== CACHE; })
+        .map(function (k) { return caches.delete(k); }));
+    }).then(function () { return self.clients.claim(); })
+  );
+});
+
+self.addEventListener("fetch", function (e) {
+  const req = e.request;
+  if (req.method !== "GET") return;
+
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+
+  // 頁面導覽：一律走網路（資料必須即時），斷網才回退離線頁
+  if (req.mode === "navigate") {
+    e.respondWith(
+      fetch(req).catch(function () {
+        return caches.match("/schedule/offline").then(function (r) {
+          return r || new Response("目前沒有網路", {
+            status: 503,
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+          });
+        });
+      })
+    );
+    return;
+  }
+
+  // 圖示等靜態檔：cache-first，順便補進快取
+  if (/\.(png|jpg|jpeg|svg|ico|webp)$/i.test(url.pathname) || url.pathname === "/manifest.json") {
+    e.respondWith(
+      caches.match(req).then(function (hit) {
+        return hit || fetch(req).then(function (res) {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then(function (c) { c.put(req, copy); });
+          }
+          return res;
+        });
+      })
+    );
+  }
+  // 其餘（API、字型等）不攔截，交給瀏覽器預設行為
+});
 
 self.addEventListener("push", function (event) {
   var data = {};
