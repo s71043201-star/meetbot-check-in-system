@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    width:2500px; height:1686px; overflow:hidden;
+    font-family:"Microsoft JhengHei","微軟正黑體","Noto Sans TC",sans-serif;
+  }
+  .grid {
+    display:grid; grid-template-columns:1fr 1fr 1fr; grid-template-rows:1fr 1fr;
+    width:2500px; height:1686px;
+  }
+  .cell {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:24px;
+    position:relative; overflow:hidden;
+    border:2px solid rgba(255,255,255,0.15);
+    background-size:cover; background-position:center;
+  }
+  .c1 { background-image: url('bg_weekly.jpg'); }
+  .c2 { background-image: url('bg_progress.jpg'); }
+  .c3 { background-image: url('bg_download.jpg'); }
+  .c4 { background-image: url('bg_reminder.jpg'); }
+  .c5 { background-image: url('bg_work.jpg'); }
+  .c6 { background-image: url('bg_meet.jpg'); }
+  .cell::before {
+    content:''; position:absolute; inset:0;
+    background: rgba(0,0,0,0.48);
+  }
+  .icon {
+    font-size:130px; line-height:1; position:relative; z-index:1;
+    filter:drop-shadow(0 6px 24px rgba(0,0,0,0.7));
+  }
+  .title {
+    color:#fff; font-size:110px; font-weight:700; letter-spacing:4px;
+    position:relative; z-index:1;
+    text-shadow:0 4px 20px rgba(0,0,0,0.8);
+  }
+  .sub {
+    color:rgba(255,255,255,0.82); font-size:52px; font-weight:400; letter-spacing:2px;
+    position:relative; z-index:1;
+    text-shadow:0 2px 12px rgba(0,0,0,0.7);
+  }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="cell c1">
+    <div class="icon">📊</div>
+    <div class="title">週報</div>
+    <div class="sub">週報統計系統</div>
+  </div>
+  <div class="cell c2">
+    <div class="icon">📈</div>
+    <div class="title">進度</div>
+    <div class="sub">查看全團隊進度</div>
+  </div>
+  <div class="cell c3">
+    <div class="icon">⬇️</div>
+    <div class="title">下載</div>
+    <div class="sub">下載任務進度表</div>
+  </div>
+  <div class="cell c4">
+    <div class="icon">🔔</div>
+    <div class="title">提醒</div>
+    <div class="sub">提醒團隊成員</div>
+  </div>
+  <div class="cell c5">
+    <div class="icon">📋</div>
+    <div class="title">工作</div>
+    <div class="sub">查看我的待辦</div>
+  </div>
+  <div class="cell c6">
+    <div class="icon">💻</div>
+    <div class="title">Meetbot</div>
+    <div class="sub">任務追蹤系統</div>
+  </div>
+</div>
+</body>
+</html>
