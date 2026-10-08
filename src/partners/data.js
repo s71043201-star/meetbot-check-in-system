@@ -11,8 +11,8 @@ const HDR = { apikey: SUPA_KEY, Authorization: "Bearer " + SUPA_KEY };
 const MAIN_TTL = 5 * 60 * 1000;   // 課表／禮券：5 分鐘
 const ROWS_TTL = 10 * 60 * 1000;  // 處方明細（4 萬多筆）：10 分鐘
 
-// 與儀表板 index.html 同口徑：ITRI 是工研院自測處方，不列入統計
-const TEST_CLINICS = ["ITRI"];
+// 與儀表板 index.html 同口徑：ITRI、itri7 是工研院自測處方，不列入統計
+const TEST_CLINICS = ["ITRI", "itri7"];
 // 與儀表板 CLINIC_RENAMES 同步（儀表板／週報／clinic_report 也各有一份，改一邊要全改）
 const CLINIC_RENAMES = [
   { from: "洪耳鼻喉科診所", to: "仁禾診所", since: "2026-08-10" },
