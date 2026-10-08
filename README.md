@@ -31,6 +31,19 @@
 - **圖文選單（Rich Menu）**：提供一般使用者、管理員（6 格）、特定使用者三種圖文選單的建立與綁定（`/setup-richmenu` 等，需密碼）。
 - **LINE 額度查詢**：`/line-quota` 查詢本月訊息用量。
 
+### 3-1. 合作夥伴（老師／診所）查詢（`src/partners/`）
+同一個 LINE 官方帳號也加了合作的老師與診所。他們依角色只能看到自己的資訊；計畫同仁以外的人**不能**使用上面的 MeetBot 指令。
+- **綁定**：對方傳「綁定 XXXXXX」即完成，並自動換上該角色的圖文選單。綁定碼由 `PARTNER_BIND_SECRET` 對「角色:對象」算出來，不用逐一建立——
+  新老師（有開課）、新診所（有開立）一出現在同步資料裡就自動有碼。換掉 `PARTNER_BIND_SECRET` 會讓所有未使用的碼作廢（已綁定的人不受影響）。
+- **老師**：`我的課表`（未來 30 天）、`報名人數`（未來 14 天），每天 18:00 推播隔天課程（隔天沒課不發；LINE 剩餘額度低於 `PARTNER_PUSH_RESERVE` 會暫停並通知戴豐逸）。
+- **診所**：`診所統計`（累計／本月開立、選課或執行、執行率，口徑同儀表板）、`禮券進度`（voucher_stats）。
+- **同仁專用**：`綁定碼 關鍵字`（查碼）、`夥伴名單`、`解除綁定 名字`。
+- **資料來源**：tpma-statistics 的 Supabase `prescription_data`（n8n 每天 09:30／15:00 同步），只讀不寫；講師對應來自 n8n 寫的 `course_slot_stats.course_instructors`。
+- **管理端點**（需在 Render 設 `SETUP_SECRET`，不接受預設密碼）：
+  - `/setup-partner-menus?secret=…`：建立老師／診所圖文選單並重新套用給所有已綁定者（圖片用 `tools/make-partner-richmenus.py` 產生）
+  - `/partner-codes?secret=…`：下載全部綁定碼 CSV
+- 綁定紀錄存 Firebase `/linePartners/{LINE userId}`，推播紀錄存 `/linePartnersMeta/reminderSent/{日期}`。
+
 ### 4. 任務 / 會議排程與通知（`src/scheduler.js`）
 - 內建排程器（每分鐘輪詢，以台北時區運作，僅平日）：
   - 例行任務（routine task）每週指定時間提醒（透過 Slack 私訊）。
@@ -88,6 +101,7 @@
     ├── scheduler.js           # 排程器（例行任務、會議提醒）
     ├── storage.js             # Firebase Storage 檔案上傳
     ├── utils.js               # 課程記錄暫存、時區/民國年換算、過期清理等工具
+    ├── partners/              # 合作夥伴（老師／診所）綁定、查詢、隔天課程提醒、選單與綁定碼端點
     ├── routes/
     │   ├── webhook.js         # LINE Webhook 與指令處理
     │   ├── attendance.js      # 註冊/登入/簽到/簽退/記錄管理/檔案上傳
@@ -156,6 +170,11 @@ npm start
 | `USERS_FB` | 使用者 Firebase 端點 | 有預設值 |
 | `QA_FB` | 問題回報 Firebase 端點 | 有預設值 |
 | `MEETINGS_FB` | 會議 Firebase 端點 | 有預設值 |
+| `PARTNER_BIND_SECRET` | 老師／診所綁定碼的產生金鑰 | **必填**，未設定時綁定功能停用 |
+| `PARTNER_REMIND_HOUR` | 老師前一天提醒的發送時間（時） | 預設 `18` |
+| `PARTNER_PUSH_RESERVE` | 推播前保留的 LINE 額度 | 預設 `30` |
+| `PARTNERS_FB` | 夥伴綁定紀錄 Firebase 端點 | 有預設值 |
+| `SUPA_URL` / `SUPA_KEY` | tpma-statistics Supabase（唯讀 anon key） | 有預設值 |
 
 > 凡標註「有預設值／預設」者，未設定時程式會採用程式碼內建值；正式環境建議明確設定金鑰類與密碼類變數（`LINE_TOKEN`、`GEMINI_API_KEY`、`FIREBASE_SERVICE_ACCOUNT`、`SLACK_*`、`ADMIN_PASSWORD`、`SETUP_SECRET`）。
 
