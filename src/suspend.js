@@ -50,7 +50,23 @@ const USAGE =
   "• 停權診所 1-10 — 第 1 到 10 名\n" +
   "• 停權診所 科安 — 用診所名稱\n" +
   "• 停權診所 3,5 科安 愛林\n" +
-  "還原就把「停權」換成「還原」。";
+  "還原就把「停權」換成「還原」（或「復權」）。\n" +
+  "編號對照請輸入「停權名單」。";
+
+const HELP =
+  "🔐 診所停權／還原 指令\n" + "═".repeat(16) + "\n" +
+  "【查詢】\n" +
+  "• 停權名單 — 1–36 名診所編號對照＋目前狀態\n" +
+  "• 停權狀態 — 最近一次執行結果\n\n" +
+  "【停權】密碼改成「原密碼＋@」\n" +
+  "• 停權診所 — 1–36 名全部\n" +
+  "• 停權診所 5 ／ 1-10 ／ 科安 — 指定對象（可混用）\n" +
+  "• 確認停權 1234 — 送出後 5 分鐘內輸入確認碼\n\n" +
+  "【還原】密碼改回帳密表上的原密碼\n" +
+  "• 還原診所（或 復權診所）＋對象，寫法同停權\n" +
+  "• 確認還原 1234（或 確認復權 1234）\n\n" +
+  "送出後戴豐逸電腦上的程式約 1 分鐘內執行，完成會推播結果；電腦沒開 15 分鐘後自動作廢。";
+const HELP_WORDS = ["停權", "停權說明", "停權指令", "還原", "復權", "停權?", "停權？"];
 
 // 對象文字 → { ranks } 或 { error }
 function parseTargets(arg) {
@@ -106,6 +122,33 @@ async function latestRequest() {
   return rows.length ? { id: rows[0][0], ...rows[0][1] } : null;
 }
 
+// 依 LINE 執行紀錄推算每家目前狀態（只算從這裡送出、成功完成的；手動跑腳本的不會反映）
+async function clinicStates() {
+  const { data } = await axios.get(SUSPEND_FB + ".json", { timeout: 10000 });
+  const state = {};
+  Object.values(data || {})
+    .filter(r => r && r.status === "done" && Array.isArray(r.ranks))
+    .sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0))
+    .forEach(r => {
+      const failedClinics = new Set((r.failed || []).map(f => f.clinic));
+      r.ranks.forEach(rank => {
+        const c = CLINICS[rank - 1];
+        if (c) state[rank] = failedClinics.has(c.name) ? "partial" : r.action;
+      });
+    });
+  return state;
+}
+
+async function listText() {
+  const state = await clinicStates().catch(() => ({}));
+  const icon = { suspend: " 🔒", partial: " ⚠️" };
+  const lines = CLINICS.map(c => c.rank + ". " + c.name + (icon[state[c.rank]] || ""));
+  const n = Object.values(state).filter(v => v === "suspend").length;
+  return "📋 停權名單（第七次推動會議開立量排序）\n" + "═".repeat(16) + "\n" + lines.join("\n") +
+    "\n\n🔒 停權中 " + n + " 家" + (Object.values(state).includes("partial") ? "　⚠️ 上次有帳號沒改成功" : "") +
+    "\n（狀態依 LINE 送出的紀錄）\n\n例：停權診所 5、停權診所 1-10、停權診所 科安";
+}
+
 async function statusText() {
   const r = await latestRequest();
   if (!r) return "目前沒有停權／還原紀錄。";
@@ -128,15 +171,18 @@ async function statusText() {
 
 // 回傳 true = 這則訊息已處理
 async function handleSuspendMessage({ userId, userName, text, replyToken }) {
-  const askMatch = text.match(/^(停權診所|還原診所)(?:\s+(.*))?$/s);
-  const confirmMatch = text.match(/^(確認停權|確認還原)\s*(\d{4})$/);
-  if (!askMatch && !confirmMatch && text !== "停權狀態") return false;
+  const askMatch = text.match(/^(停權診所|還原診所|復權診所)\s*(.*)$/s);
+  const confirmMatch = text.match(/^(確認停權|確認還原|確認復權)\s*(\d{4})$/);
+  const isHelp = HELP_WORDS.includes(text);
+  if (!askMatch && !confirmMatch && !isHelp && text !== "停權狀態" && text !== "停權名單") return false;
   // 不是指定的人就當作沒看到，交給後面的一般指令處理（不透露有這個功能）
   if (!ADMIN_IDS.has(userId)) return false;
 
   const reply = msg => replyLine(replyToken, msg).then(() => true);
   if (!SECRET) return reply("❌ 尚未設定 SUSPEND_SECRET，停權功能未啟用");
 
+  if (isHelp) return reply(HELP);
+  if (text === "停權名單") return reply(await listText());
   if (text === "停權狀態") return reply(await statusText());
 
   if (askMatch) {
