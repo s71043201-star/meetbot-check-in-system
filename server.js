@@ -62,6 +62,7 @@ app.use(require("./src/routes/export"));
 app.use(require("./src/routes/meetbot"));
 app.use(require("./src/routes/questions"));
 app.use(require("./src/routes/richmenu"));
+app.use(require("./src/partners/routes"));
 
 // -- Test --
 app.get("/test-me", async (req, res) => {
@@ -88,6 +89,7 @@ app.get("/export-word", (req, res) => res.redirect("/export-pdf"));
 // -- Scheduler --
 const { startScheduler } = require("./src/scheduler");
 startScheduler();
+require("./src/partners/reminder").startPartnerReminder();
 
 // -- DocStore cleanup --
 const { cleanupExpiredDocs } = require("./src/utils");

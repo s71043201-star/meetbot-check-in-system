@@ -5,6 +5,7 @@ const { daysLeft } = require("../utils");
 const { fetchTasksFromFirebase, fetchAttendance } = require("../firebase");
 const { sendLine, replyLine, replyLineMulti, replyLineWithQuickReply } = require("../line");
 const { sendSlack, slackMention, sendSlackToUser } = require("../slack");
+const { handlePartnerMessage, UNBOUND_HELP, PUBLIC_KEYWORDS } = require("../partners/commands");
 
 function buildAttendanceReport(records, month) {
   const filtered = records.filter(r => r.month === month && r.status === "checked-out");
@@ -45,11 +46,28 @@ router.post("/webhook", async (req, res) => {
   const events = req.body.events || [];
 
   for (const event of events) {
+    // 老師／診所加好友時，直接告訴他怎麼綁定
+    if (event.type === "follow" && event.source.userId && !ID_TO_NAME[event.source.userId]) {
+      await replyLine(event.replyToken, UNBOUND_HELP).catch(() => {});
+      continue;
+    }
     if (event.type !== "message" || event.message.type !== "text") continue;
     const userId     = event.source.userId;
     const text       = event.message.text.trim();
     const replyToken = event.replyToken;
     console.log("\u{1F464} " + userId + " \u8AAA\uFF1A" + text);
+
+    // -- \u5408\u4F5C\u5925\u4F34\uFF08\u8001\u5E2B\uFF0F\u8A3A\u6240\uFF09--
+    // \u8A08\u756B\u540C\u4EC1\u4EE5\u5916\u7684\u4EBA\u53EA\u80FD\u7528\u5925\u4F34\u6307\u4EE4\uFF1B\u4E0B\u9762\u7684 MeetBot \u6307\u4EE4\uFF08\u9032\u5EA6\u3001\u63D0\u9192\u3001\u5F8C\u53F0\u2026\uFF09\u4E0D\u5C0D\u5916\u958B\u653E
+    const isStaff = !!ID_TO_NAME[userId];
+    try {
+      if (await handlePartnerMessage({ userId, text, replyToken, isStaff })) continue;
+    } catch (e) {
+      console.error("[partners] \u8655\u7406\u5931\u6557:", e.message);
+      await replyLine(replyToken, "\u26A0\uFE0F \u67E5\u8A62\u66AB\u6642\u5931\u6557\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66").catch(() => {});
+      continue;
+    }
+    if (!isStaff && !PUBLIC_KEYWORDS.includes(text)) continue;
 
     // -- help --
     if (["\u6307\u4EE4", "\u8AAA\u660E", "help", "Help", "?", "\uFF1F"].includes(text)) {
