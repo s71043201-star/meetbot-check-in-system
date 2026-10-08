@@ -62,7 +62,7 @@ router.post("/webhook", async (req, res) => {
     // \u8A08\u756B\u540C\u4EC1\u4EE5\u5916\u7684\u4EBA\u53EA\u80FD\u7528\u5925\u4F34\u6307\u4EE4\uFF1B\u4E0B\u9762\u7684 MeetBot \u6307\u4EE4\uFF08\u9032\u5EA6\u3001\u63D0\u9192\u3001\u5F8C\u53F0\u2026\uFF09\u4E0D\u5C0D\u5916\u958B\u653E
     const isStaff = !!ID_TO_NAME[userId];
     try {
-      if (await handleSuspendMessage({ userId, text, replyToken })) continue;
+      if (await handleSuspendMessage({ userId, userName: ID_TO_NAME[userId], text, replyToken })) continue;
     } catch (e) {
       console.error("[suspend] 處理失敗:", e.message);
       await replyLine(replyToken, "⚠️ 停權指令送出失敗：" + e.message).catch(() => {});
