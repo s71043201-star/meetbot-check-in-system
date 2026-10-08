@@ -44,6 +44,14 @@
   - `/partner-codes?secret=…`：下載全部綁定碼 CSV
 - 綁定紀錄存 Firebase `/linePartners/{LINE userId}`，推播紀錄存 `/linePartnersMeta/reminderSent/{日期}`。
 
+### 3-2. 診所停權（`src/suspend.js`，僅限戴豐逸）
+第七次合作診所推動會議決議：開立量 1–36 名的診所在累計開立達 60,000 張時停止系統權限，做法是把醫師帳號密碼改成「原密碼＋@」。
+- `停權診所` / `還原診所` → 回 4 碼確認碼，5 分鐘內輸入 `確認停權 1234` / `確認還原 1234` 才送出；`停權狀態` 查最近一次結果。
+- Render 只把要求（附 `SUSPEND_SECRET` 的 HMAC 簽章）寫到 Firebase `/clinicSuspend/requests`，**不碰密碼**；
+  真正改密碼的是戴豐逸電腦上的 `C:\prescription\scripts\clinic_suspend.py --poll`（工作排程器每分鐘），帳密表與 admin 帳密都只在那台電腦。
+- 送出 15 分鐘內沒被執行（電腦沒開）會自動作廢，不會隔天突然生效。
+- 需要環境變數 `SUSPEND_SECRET`（與本機 `C:\prescription\.env` 相同）；Firebase 規則要開 `clinicSuspend` 讀寫（安全性靠簽章）。
+
 ### 4. 任務 / 會議排程與通知（`src/scheduler.js`）
 - 內建排程器（每分鐘輪詢，以台北時區運作，僅平日）：
   - 例行任務（routine task）每週指定時間提醒（透過 Slack 私訊）。
