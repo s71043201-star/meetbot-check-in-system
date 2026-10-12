@@ -19,6 +19,11 @@ const CLINIC_RENAMES = [
 ];
 // 診所帳號看的是「整間診所」：遷址更名前的舊名紀錄也算進新名字
 const clinicSources = name => [name, ...CLINIC_RENAMES.filter(r => r.to === name).map(r => r.from)];
+// 依開立日套用更名（口徑同 fetchRawRows）
+const renameClinic = (name, date) => {
+  const rule = CLINIC_RENAMES.find(x => x.from === name && (!x.since || (date || "") >= x.since));
+  return rule ? rule.to : name;
+};
 const canonicalClinic = name => {
   const rule = CLINIC_RENAMES.find(r => r.from === name);
   return rule ? rule.to : name;
@@ -57,8 +62,8 @@ async function fetchRawRows(force = false) {
     const rows = (data || []).flatMap(c => c.raw_rows || [])
       .filter(r => r && !TEST_CLINICS.includes(r.clinic))
       .map(r => {
-        const rule = CLINIC_RENAMES.find(x => x.from === r.clinic && (!x.since || (r.prescDate || "") >= x.since));
-        return rule ? { ...r, clinic: rule.to } : r;
+        const to = renameClinic(r.clinic, r.prescDate);
+        return to !== r.clinic ? { ...r, clinic: to } : r;
       });
     rowsCache = { at: Date.now(), data: rows };
     return rows;
@@ -150,7 +155,11 @@ async function clinicVoucher(clinic) {
 }
 
 module.exports = {
+  SUPA_URL,
+  HDR,
   TYPE_LABEL,
+  fetchRawRows,
+  renameClinic,
   fetchMain,
   todayTaipei,
   fmtUpdated,
