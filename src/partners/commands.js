@@ -2,6 +2,7 @@
 const { replyLine } = require("../line");
 const data = require("./data");
 const bind = require("./bind");
+const rxcount = require("./rxcount");
 
 const WEEKDAY = ["日", "一", "二", "三", "四", "五", "六"];
 // 非同仁也能用的 MeetBot 系統連結關鍵字（其餘 MeetBot 指令只限計畫同仁）
@@ -157,6 +158,8 @@ async function handlePartnerMessage({ userId, text, replyToken, isStaff }) {
     const codeMatch = text.match(/^綁定碼\s*(.*)$/);
     if (codeMatch) return reply(await staffCodes(codeMatch[1]));
     if (text === "夥伴名單") return reply(await staffList());
+    const countMatch = text.match(/^開立張數s*(.*)$/);
+    if (countMatch) return reply(await rxcount.query(countMatch[1]));
     const unbindMatch = text.match(/^解除綁定\s+(.+)$/);
     if (unbindMatch) return reply(await staffUnbind(unbindMatch[1].trim()));
   }
