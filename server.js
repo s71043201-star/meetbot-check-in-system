@@ -102,6 +102,13 @@ setInterval(() => {
   axios.get(SELF_URL + "/ping").catch(() => {});
 }, 14 * 60 * 1000);
 
+// ── Keep-alive（防止 Render 免費方案休眠）────────
+const https = require("https");
+const SELF_URL = process.env.BASE_URL || "https://meetbot-check-in-system.onrender.com";
+setInterval(() => {
+  https.get(SELF_URL, () => {}).on("error", () => {});
+}, 14 * 60 * 1000); // 每 14 分鐘 ping 一次
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log("MeetBot + \u51FA\u7F3A\u52E4 + QA \u7CFB\u7D71\u555F\u52D5\uFF0Cport " + PORT);
