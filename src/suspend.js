@@ -18,9 +18,13 @@ const ADMIN_IDS = new Set([
   "Ue69dbd040159f69636c08dfd9568aa63", // 吳亞璇
 ]);
 
-// 第七次合作診所推動會議「依開立量排序」1–36 名（截至 115/10/01）。
-// 本機 clinic_suspend.py 的 CLINICS 是同一份：名次＋名稱兩邊不一致時本機會拒絕執行，改一邊要兩邊改。
-const CLINICS = [
+// 停權名單以本機 secrets\停權名單.xlsx 為準：clinic_suspend.py 每分鐘把名單（編號＋名稱＋帳號數）
+// 用 SUSPEND_SECRET 簽章後寫到 Firebase /clinicSuspend/clinics，這裡讀那份並驗簽章。
+// 讀不到或簽章不符時退回下面這份第七次推動會議 1–36 名（截至 115/10/01）。
+const SUSPEND_LIST_FB = process.env.SUSPEND_LIST_FB ||
+  "https://meetbot-ede53-default-rtdb.asia-southeast1.firebasedatabase.app/clinicSuspend/clinics";
+const LIST_CACHE_MS = 60 * 1000;
+const FALLBACK_CLINICS = [
   "慈田耳鼻喉科診所", "石牌鄭身心醫學診所", "蔡秉勳小兒科診所", "陳獻明小兒科診所", "鄭醫師診所",
   "洪耳鼻喉科診所", "仁禾診所", "周賢章耳鼻喉科診所", "王志靈內科診所", "榮清耳鼻喉科診所",
   "愛林診所", "王永良診所", "臻心復健科診所", "天母康健身心診所", "榮陽安心診所",
@@ -30,6 +34,36 @@ const CLINICS = [
   "惠康診所", "洪志淳皮膚科診所", "清田婦產科家醫科", "晨昕診所", "昱德聯合診所",
   "德泰耳鼻喉科診所",
 ].map((name, i) => ({ rank: i + 1, name }));
+let CLINICS = FALLBACK_CLINICS;
+let listFetchedAt = 0;
+
+function listSig(updatedAt, items) {
+  const body = items.map(i => i.rank + ":" + i.name + ":" + i.accounts).join(";");
+  return crypto.createHmac("sha256", SECRET).update("list|" + updatedAt + "|" + body).digest("hex");
+}
+
+// 每次處理指令前呼叫；1 分鐘內只抓一次 Firebase
+async function refreshClinics() {
+  if (Date.now() - listFetchedAt < LIST_CACHE_MS) return;
+  listFetchedAt = Date.now();
+  try {
+    const { data } = await axios.get(SUSPEND_LIST_FB + ".json", { timeout: 10000 });
+    const items = data && Array.isArray(data.items) ? data.items.filter(Boolean) : [];
+    const sig = items.length ? listSig(data.updatedAt, items) : "";
+    if (!sig || !data.sig || sig.length !== String(data.sig).length ||
+        !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(String(data.sig)))) {
+      console.warn("[suspend] Firebase 停權名單沒有或簽章不符，沿用目前名單（" + CLINICS.length + " 家）");
+      return;
+    }
+    CLINICS = items.map(i => ({ rank: Number(i.rank), name: String(i.name) })).sort((a, b) => a.rank - b.rank);
+  } catch (e) {
+    console.warn("[suspend] 讀 Firebase 停權名單失敗，沿用目前名單：" + e.message);
+  }
+}
+
+const byRank = r => CLINICS.find(c => c.rank === r);
+const rangeText = () => CLINICS.length
+  ? CLINICS[0].rank + "–" + CLINICS[CLINICS.length - 1].rank : "（空）";
 
 const ACTIONS = {
   suspend: { label: "停權", ask: "停權診所", confirm: "確認停權" },
@@ -43,9 +77,9 @@ const STATUS_LABEL = {
   error: "❌ 失敗", rejected: "⛔ 被拒絕", expired: "⌛ 已作廢",
 };
 
-const USAGE =
+const usage = () =>
   "指定對象的寫法（可混用，用空白或逗號隔開）：\n" +
-  "• 停權診所 — 1–36 名全部\n" +
+  "• 停權診所 — 名單上 " + rangeText() + " 號全部\n" +
   "• 停權診所 5 — 第 5 名\n" +
   "• 停權診所 1-10 — 第 1 到 10 名\n" +
   "• 停權診所 科安 — 用診所名稱\n" +
@@ -53,13 +87,13 @@ const USAGE =
   "還原就把「停權」換成「還原」（或「復權」）。\n" +
   "編號對照請輸入「停權名單」。";
 
-const HELP =
+const help = () =>
   "🔐 診所停權／還原 指令\n" + "═".repeat(16) + "\n" +
   "【查詢】\n" +
-  "• 停權名單 — 1–36 名診所編號對照＋目前狀態\n" +
+  "• 停權名單 — " + rangeText() + " 號診所編號對照＋目前狀態\n" +
   "• 停權狀態 — 最近一次執行結果\n\n" +
   "【停權】密碼改成「原密碼＋@」\n" +
-  "• 停權診所 — 1–36 名全部\n" +
+  "• 停權診所 — 名單上 " + rangeText() + " 號全部\n" +
   "• 停權診所 5 ／ 1-10 ／ 科安 — 指定對象（可混用）\n" +
   "• 確認停權 1234 — 送出後 5 分鐘內輸入確認碼\n\n" +
   "【還原】密碼改回帳密表上的原密碼\n" +
@@ -72,19 +106,18 @@ const HELP_WORDS = ["停權", "停權說明", "停權指令", "還原", "復權"
 function parseTargets(arg) {
   const s = String(arg || "").trim().replace(/\s*[-~～–—]\s*/g, "-");
   if (!s) return { ranks: CLINICS.map(c => c.rank) };
-  const max = CLINICS.length;
   const picked = new Set();
   for (const tok of s.split(/[\s,，、]+/).filter(Boolean)) {
     const range = tok.match(/^(\d+)-(\d+)$/);
     if (range || /^\d+$/.test(tok)) {
       const a = Number(range ? range[1] : tok), b = Number(range ? range[2] : tok);
-      if (a < 1 || b > max || a > b) return { error: "名次「" + tok + "」超出範圍，只能是 1–" + max };
-      for (let r = a; r <= b; r++) picked.add(r);
+      if (a > b || !byRank(a) || !byRank(b)) return { error: "編號「" + tok + "」超出範圍，只能是 " + rangeText() };
+      for (let r = a; r <= b; r++) if (byRank(r)) picked.add(r);
       continue;
     }
     const exact = CLINICS.filter(c => c.name === tok);
     const hits = exact.length ? exact : CLINICS.filter(c => c.name.includes(tok));
-    if (!hits.length) return { error: "1–" + max + " 名裡找不到「" + tok + "」" };
+    if (!hits.length) return { error: "停權名單裡找不到「" + tok + "」" };
     if (hits.length > 1) {
       return { error: "「" + tok + "」對到不只一家，請寫完整一點或改用名次：\n" +
         hits.map(c => c.rank + ". " + c.name).join("\n") };
@@ -94,7 +127,7 @@ function parseTargets(arg) {
   return { ranks: [...picked].sort((x, y) => x - y) };
 }
 
-const namesOf = ranks => ranks.map(r => CLINICS[r - 1].name);
+const namesOf = ranks => ranks.map(r => byRank(r).name);
 const isAll = ranks => ranks.length === CLINICS.length;
 
 function sign(id, action, at, by, ranks) {
@@ -110,8 +143,8 @@ function fmtTime(ms) {
 }
 
 function fmtTargets(ranks) {
-  if (isAll(ranks)) return "1–" + CLINICS.length + " 名全部 " + ranks.length + " 家";
-  return ranks.length + " 家\n" + ranks.map(r => "  " + r + ". " + CLINICS[r - 1].name).join("\n");
+  if (isAll(ranks)) return "名單上 " + rangeText() + " 號全部 " + ranks.length + " 家";
+  return ranks.length + " 家\n" + ranks.map(r => "  " + r + ". " + (byRank(r) || { name: "?" }).name).join("\n");
 }
 
 async function latestRequest() {
@@ -132,7 +165,7 @@ async function clinicStates() {
     .forEach(r => {
       const failedClinics = new Set((r.failed || []).map(f => f.clinic));
       r.ranks.forEach(rank => {
-        const c = CLINICS[rank - 1];
+        const c = byRank(rank);
         if (c) state[rank] = failedClinics.has(c.name) ? "partial" : r.action;
       });
     });
@@ -144,7 +177,7 @@ async function listText() {
   const icon = { suspend: " 🔒", partial: " ⚠️" };
   const lines = CLINICS.map(c => c.rank + ". " + c.name + (icon[state[c.rank]] || ""));
   const n = Object.values(state).filter(v => v === "suspend").length;
-  return "📋 停權名單（第七次推動會議開立量排序）\n" + "═".repeat(16) + "\n" + lines.join("\n") +
+  return "📋 停權名單（共 " + CLINICS.length + " 家）\n" + "═".repeat(16) + "\n" + lines.join("\n") +
     "\n\n🔒 停權中 " + n + " 家" + (Object.values(state).includes("partial") ? "　⚠️ 上次有帳號沒改成功" : "") +
     "\n（狀態依 LINE 送出的紀錄）\n\n例：停權診所 5、停權診所 1-10、停權診所 科安";
 }
@@ -181,7 +214,8 @@ async function handleSuspendMessage({ userId, userName, text, replyToken }) {
   const reply = msg => replyLine(replyToken, msg).then(() => true);
   if (!SECRET) return reply("❌ 尚未設定 SUSPEND_SECRET，停權功能未啟用");
 
-  if (isHelp) return reply(HELP);
+  await refreshClinics();
+  if (isHelp) return reply(help());
   if (text === "停權名單") return reply(await listText());
   if (text === "停權狀態") return reply(await statusText());
 
@@ -189,7 +223,7 @@ async function handleSuspendMessage({ userId, userName, text, replyToken }) {
     const action = askMatch[1] === "停權診所" ? "suspend" : "restore";
     const a = ACTIONS[action];
     const t = parseTargets(askMatch[2]);
-    if (t.error) return reply("❌ " + t.error + "\n\n" + USAGE);
+    if (t.error) return reply("❌ " + t.error + "\n\n" + usage());
     const code = String(crypto.randomInt(0, 10000)).padStart(4, "0");
     pending[userId] = { action, code, exp: Date.now() + CONFIRM_TTL, ranks: t.ranks };
     return reply(
@@ -220,4 +254,4 @@ async function handleSuspendMessage({ userId, userName, text, replyToken }) {
     "戴豐逸電腦上的程式約 1 分鐘內執行，完成後會推播結果給你。\n\n要查進度請輸入「停權狀態」。");
 }
 
-module.exports = { handleSuspendMessage, parseTargets, sign, CLINICS };
+module.exports = { handleSuspendMessage, parseTargets, sign, refreshClinics, getClinics: () => CLINICS };
