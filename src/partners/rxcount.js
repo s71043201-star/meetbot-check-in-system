@@ -100,7 +100,7 @@ function liveFooter(live, extra) {
 
 const fmtN = n => n.toLocaleString("en-US");
 
-// 額度進度：QUOTA.since 起各診所張數（對 warn／limit 標記）＋全期總開立數
+// 額度進度：QUOTA.since 起各診所張數（對 warn／limit 標記）、還沒開立的診所，以及全期總開立數
 async function quotaQuery(kw) {
   const live = await fetchLive();
   const counts = {};
@@ -116,31 +116,42 @@ async function quotaQuery(kw) {
   const over = list.filter(([, n]) => n >= QUOTA.limit).length;
   const warn = list.filter(([, n]) => n >= QUOTA.warn && n < QUOTA.limit).length;
 
+  // 診所名冊 = 開辦以來開立過的所有診所（raw_rows＋即時資料），舊名一律換成現名
+  let rows = null, rawErr = null;
+  try { rows = await data.fetchRawRows(); } catch (e) { rawErr = e; }
+  let zero = [];
+  if (rows) {
+    const roster = new Set();
+    rows.forEach(r => roster.add(quotaName(data.canonicalClinic(r.clinic))));
+    live.rows.forEach(r => roster.add(quotaName(data.canonicalClinic(r.clinic))));
+    zero = [...roster].filter(n => !counts[n] && (!kw || n.includes(kw))).sort((a, b) => a.localeCompare(b, "zh-Hant"));
+  }
+
   let msg = "📊 開立額度進度（" + quotaLabel + " 起，每家 " + QUOTA.limit + " 張）" +
     (kw ? "\n含「" + kw + "」的診所" : "") + "\n" + "═".repeat(16) + "\n";
-  if (!list.length) {
-    msg += kw ? "沒有名稱含「" + kw + "」的診所在 " + quotaLabel + " 後開立。" : quotaLabel + " 後還沒有開立紀錄。";
+  if (!list.length && !zero.length) {
+    msg += kw ? "沒有名稱含「" + kw + "」的診所。" : quotaLabel + " 後還沒有開立紀錄。";
   } else {
-    msg += "合計 " + fmtN(sum) + " 張（" + list.length + " 家）";
+    msg += "已開立 " + list.length + " 家、合計 " + fmtN(sum) + " 張" + (rows ? "；尚未開立 " + zero.length + " 家" : "");
     if (over || warn) msg += "\n🛑 達 " + QUOTA.limit + " 張 " + over + " 家　⚠️ 達 " + QUOTA.warn + " 張 " + warn + " 家";
-    msg += "\n\n" + list.map(([name, n]) => {
+    if (list.length) msg += "\n\n" + list.map(([name, n]) => {
       const mark = n >= QUOTA.limit ? "🛑 " : n >= QUOTA.warn ? "⚠️ " : "• ";
       const tail = n >= QUOTA.limit ? "（已達上限）" : "（剩 " + (QUOTA.limit - n) + "）";
       return mark + name + "　" + n + " 張" + tail;
     }).join("\n");
+    if (zero.length) msg += "\n\n尚未開立（" + zero.length + " 家）：\n" + zero.join("、");
   }
 
   // 全期總開立：即時資料起日以前用 raw_rows（日期完整），之後用即時資料；兩邊都已排除測試處方
   if (!kw) {
-    try {
-      const rows = await data.fetchRawRows();
+    if (rows) {
       const until = live.since || "9999-12-31";
       const total = rows.filter(r => (r.prescDate || "") < until).length + live.rows.length;
       const next = TOTAL_THRESHOLDS.find(t => total < t);
       msg += "\n\n📈 全期總開立 " + fmtN(total) + " 張（警示門檻 " + TOTAL_THRESHOLDS.map(fmtN).join("／") + "）" +
         (next ? "\n距 " + fmtN(next) + " 還差 " + fmtN(next - total) + " 張" : "\n已超過所有門檻");
-    } catch (e) {
-      msg += "\n\n📈 全期總開立暫時查不到（" + e.message + "）";
+    } else {
+      msg += "\n\n📈 全期總開立暫時查不到（" + rawErr.message + "）";
     }
   }
 
