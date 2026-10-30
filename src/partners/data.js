@@ -160,6 +160,7 @@ module.exports = {
   TYPE_LABEL,
   fetchRawRows,
   renameClinic,
+  canonicalClinic,
   fetchMain,
   todayTaipei,
   fmtUpdated,
