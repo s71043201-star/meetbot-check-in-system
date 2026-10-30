@@ -158,7 +158,7 @@ async function handlePartnerMessage({ userId, text, replyToken, isStaff }) {
     const codeMatch = text.match(/^綁定碼\s*(.*)$/);
     if (codeMatch) return reply(await staffCodes(codeMatch[1]));
     if (text === "夥伴名單") return reply(await staffList());
-    const countMatch = text.match(/^開立張數s*(.*)$/);
+    const countMatch = text.match(/^開立張數\s*(.*)$/);
     if (countMatch) return reply(await rxcount.query(countMatch[1]));
     const unbindMatch = text.match(/^解除綁定\s+(.+)$/);
     if (unbindMatch) return reply(await staffUnbind(unbindMatch[1].trim()));
