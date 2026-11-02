@@ -28,7 +28,7 @@ const SYSTEMS = {
   "會議":     { name: "meetbot 會議任務追蹤系統",  url: "https://s71043201-star.github.io/meetbot-app/" },
   "歷次列管": { name: "會議歷次列管事項生成系統",  url: "https://s71043201-star.github.io/meeting-system/" },
   "簽到":     { name: "臨時人員簽到系統",          url: "https://meetbot-check-in-system.onrender.com/checkin.html" },
-  "後台":     { name: "出缺勤後台管理",            url: "https://meetbot-check-in-system.onrender.com/admin.html" },
+  "後台":     { name: "出缺勤後台管理",            url: "https://meetbot-check-in-system.onrender.com/schedule/admin" },
   "問題回報": { name: "問題回報管理系統",            url: "https://meetbot-check-in-system.onrender.com/qa.html" },
   "排班":     { name: "跟課班表系統",              url: "https://meetbot-check-in-system.onrender.com/schedule" },
 };

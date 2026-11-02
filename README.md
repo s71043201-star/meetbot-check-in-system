@@ -7,6 +7,9 @@
 ## 主要功能
 
 ### 1. 臨時人員出缺勤（`/checkin.html`、`/admin.html`）
+
+> ⚠️ 已停用：這組舊版頁面與根路徑 API（`/records`、`/export`、`/export-full`、`/users`、`/receipt-data` 等）沒有伺服器端驗證且會回傳個資，現一律回 403；`/checkin.html`、`/admin.html` 會導向 `/schedule`。請改用跟課班表系統（`/schedule`）。以下為歷史說明。
+
 - **線上註冊／登入**：臨時人員以姓名 + 身分證號碼註冊，並以「姓名 + 身分證後 4 碼」登入。
 - **簽到 / 簽退**：記錄簽到、簽退時間，自動計算工時（民國年、月、日），支援「一般／處方日／行政庶務」多種打卡類型與多課程記錄。
 - **課程記錄頁**：簽退後自動產生可列印／另存 PDF 的課程記錄頁（暫存於 Firebase，7 天後自動清除）。
@@ -148,7 +151,7 @@ npm start
 
 主要頁面：
 - 簽到系統：`http://localhost:3000/checkin.html`
-- 後台管理：`http://localhost:3000/admin.html`
+- 後台管理：`http://localhost:3000/schedule/admin`（舊 `/admin.html` 會導向此處）
 - 問題回報：`http://localhost:3000/qa.html`
 
 > 注意：出勤、QA、任務等資料皆存於 Firebase Realtime Database，本機啟動仍會連線至 `config.js` 中設定的 Firebase 端點。若需獨立環境，請另行設定對應的 Firebase 環境變數。
