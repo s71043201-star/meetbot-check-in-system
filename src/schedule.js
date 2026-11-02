@@ -2210,12 +2210,20 @@ router.post("/checkout", async (req, res) => {
 });
 
 // ── 出勤記錄清單 / 刪除（新系統後台用，讀寫 ATT_FB）──
+// 舊版出勤紀錄裡直接存了個資；後台與簽到單都用不到，回傳前移除
+const ATT_PII_FIELDS = ["idNumber", "bankInfo", "address", "liveAddress", "phone"];
 router.get("/records", async (req, res) => {
   const sess = getSess(req);
-  if (!sess) return res.status(403).json({ error: "unauthorized" });
+  if (!sess || sess.role !== "admin") return res.status(403).json({ error: "unauthorized" });
   try {
     const data = await rgetAtt() || {};
-    const records = Object.entries(data).map(([id, r]) => ({ id, ...r })).filter(r => !r.attendanceDeleted);
+    const records = Object.entries(data)
+      .filter(([, r]) => !r.attendanceDeleted)
+      .map(([id, r]) => {
+        const rec = { id, ...r };
+        ATT_PII_FIELDS.forEach(k => { delete rec[k]; });
+        return rec;
+      });
     res.json(records);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
