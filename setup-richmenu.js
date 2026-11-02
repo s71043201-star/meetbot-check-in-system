@@ -201,7 +201,7 @@ const ADMIN_MENU = {
     area(CW1,       0,  CW2, CH, { type:'message', label:'進度',    text:'進度' }),
     area(CW1+CW2,   0,  CW3, CH, { type:'message', label:'工作',    text:'工作' }),
     area(0,         CH, CW1, CH, { type:'uri',     label:'Meetbot', uri:'https://s71043201-star.github.io/meetbot-app/' }),
-    area(CW1,       CH, CW2, CH, { type:'uri',     label:'後台',    uri:'https://meetbot-check-in-system.onrender.com/admin.html' }),
+    area(CW1,       CH, CW2, CH, { type:'uri',     label:'後台',    uri:'https://meetbot-check-in-system.onrender.com/schedule/admin' }),
     area(CW1+CW2,   CH, CW3, CH, { type:'message', label:'指令說明', text:'指令' }),
   ],
 };
@@ -212,7 +212,7 @@ const MEMBER_MENU = {
   areas: [
     area(0,         0,  CW1, CH, { type:'message', label:'工作',    text:'工作' }),
     area(CW1,       0,  CW2, CH, { type:'uri',     label:'Meetbot', uri:'https://s71043201-star.github.io/meetbot-app/' }),
-    area(CW1+CW2,   0,  CW3, CH, { type:'uri',     label:'後台',    uri:'https://meetbot-check-in-system.onrender.com/admin.html' }),
+    area(CW1+CW2,   0,  CW3, CH, { type:'uri',     label:'後台',    uri:'https://meetbot-check-in-system.onrender.com/schedule/admin' }),
     area(0,         CH, CW1, CH, { type:'uri',     label:'週報',    uri:'https://s71043201-star.github.io/tpma-statistics/' }),
     area(CW1,       CH, CW2, CH, { type:'uri',     label:'歷次列管', uri:'https://s71043201-star.github.io/meeting-system/' }),
     area(CW1+CW2,   CH, CW3, CH, { type:'message', label:'指令說明', text:'指令' }),

@@ -7,6 +7,8 @@ app.use(express.json({ limit: "10mb" }));
 
 // 舊簽到頁 → 導向新的合併系統（放在 static 之前才能覆蓋 public/checkin.html）
 app.get("/checkin.html", (req, res) => res.redirect(302, "/schedule/login"));
+// 舊後台 → 新系統管理員後台（舊後台的 API 已停用，見 src/routes/attendance.js）
+app.get("/admin.html", (req, res) => res.redirect(302, "/schedule/admin"));
 
 app.use(express.static(path.join(__dirname, "public")));
 
