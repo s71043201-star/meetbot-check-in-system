@@ -129,7 +129,7 @@ const SUPA_KEY = process.env.SUPA_KEY ||
 // course_type → 處方類型（只保留需跟課的三種團體處方課；nutrition/營養諮詢排除）
 const COURSE_TYPE_MAP = { exercise: "運動處方", mental: "情緒調適處方", social: "社會處方" };
 const COURSE_TTL = 10 * 60 * 1000; // 快取 10 分鐘
-let courseCache = { at: 0, data: [] };
+let courseCache = { at: 0, data: [], sig: null }; // sig = main 列 uploaded_at
 
 // ── 分區（北投／士林／中山）──
 const REGIONS = ["北投", "士林", "中山"];
@@ -157,12 +157,30 @@ function todayTaipei() {
 }
 async function fetchSupabaseCourses(force = false) {
   if (!force && Date.now() - courseCache.at < COURSE_TTL) return courseCache.data;
+  const sbGet = params => axios.get(`${SUPA_URL}/rest/v1/prescription_data`, {
+    params,
+    headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` },
+    timeout: 15000,
+  });
   try {
-    const { data } = await axios.get(`${SUPA_URL}/rest/v1/prescription_data`, {
-      params: { select: "course_slots,clinic_region_map,uploaded_at", order: "uploaded_at.desc", limit: 10 },
-      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` },
-      timeout: 15000,
-    });
+    // 先只查 main 列的 uploaded_at 當簽章（回應不到 100 bytes）：n8n 沒有新同步就沿用快取，
+    // 不必每 10 分鐘重抓 400KB+ 的 course_slots —— Supabase 免費方案 egress 有上限（同 tpma 儀表板的做法）
+    if (!force && courseCache.sig) {
+      const { data: sigRows } = await sbGet({ select: "uploaded_at", id: "eq.main" });
+      const sig = sigRows && sigRows[0] && sigRows[0].uploaded_at;
+      if (sig && sig === courseCache.sig) {
+        courseCache.at = Date.now();
+        return courseCache.data;
+      }
+    }
+    let { data } = await sbGet({ select: "course_slots,clinic_region_map,uploaded_at", id: "eq.main" });
+    let sig = null;
+    if (data && data[0] && Array.isArray(data[0].course_slots) && data[0].course_slots.length) {
+      sig = data[0].uploaded_at || null;
+    } else {
+      // main 列萬一沒帶課表，才退回舊做法：往回找最近 10 筆上傳（這時不記簽章，下次照常整包重抓）
+      ({ data } = await sbGet({ select: "course_slots,clinic_region_map,uploaded_at", order: "uploaded_at.desc", limit: 10 }));
+    }
     // 同一張表有些列沒帶課表（course_slots 為 null／空），往回找最近一筆有課程的上傳
     const slotRow = (data || []).find(r => Array.isArray(r && r.course_slots) && r.course_slots.length > 0);
     const mapRow = (data || []).find(r => r && r.clinic_region_map && Object.keys(r.clinic_region_map).length > 0);
@@ -187,7 +205,7 @@ async function fetchSupabaseCourses(force = false) {
         region: resolveRegion(s.course_name, s.course_location, clinicMap),
       }))
       .sort((a, b) => (a.date + a.time_slot).localeCompare(b.date + b.time_slot));
-    courseCache = { at: Date.now(), data: courses };
+    courseCache = { at: Date.now(), data: courses, sig };
     return courses;
   } catch (e) {
     console.error("[schedule] Supabase 讀取失敗:", e.message);
