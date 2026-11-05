@@ -3,6 +3,7 @@ const { replyLine } = require("../line");
 const data = require("./data");
 const bind = require("./bind");
 const rxcount = require("./rxcount");
+const { RXCOUNT_VIEWERS } = require("../config");
 
 const WEEKDAY = ["日", "一", "二", "三", "四", "五", "六"];
 // 非同仁也能用的 MeetBot 系統連結關鍵字（其餘 MeetBot 指令只限計畫同仁）
@@ -154,12 +155,17 @@ async function handlePartnerMessage({ userId, text, replyToken, isStaff }) {
       (menuOk ? "\n\n下方選單已切換成" + bind.ROLE_LABEL[ent.role] + "專用。" : ""));
   }
 
+  // 開立張數：同仁＋RXCOUNT_VIEWERS 白名單。其他人回覆自己的 userId，方便請計畫窗口加進白名單
+  const countMatch = text.match(/^開立張數\s*(.*)$/);
+  if (countMatch) {
+    if (isStaff || RXCOUNT_VIEWERS[userId]) return reply(await rxcount.query(countMatch[1]));
+    return reply("🔒「開立張數」僅限計畫同仁使用。\n如需開通，請把下面這串 ID 傳給計畫窗口：\n" + userId);
+  }
+
   if (isStaff) {
     const codeMatch = text.match(/^綁定碼\s*(.*)$/);
     if (codeMatch) return reply(await staffCodes(codeMatch[1]));
     if (text === "夥伴名單") return reply(await staffList());
-    const countMatch = text.match(/^開立張數\s*(.*)$/);
-    if (countMatch) return reply(await rxcount.query(countMatch[1]));
     const unbindMatch = text.match(/^解除綁定\s+(.+)$/);
     if (unbindMatch) return reply(await staffUnbind(unbindMatch[1].trim()));
   }
