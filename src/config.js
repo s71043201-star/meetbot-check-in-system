@@ -76,6 +76,15 @@ const RICHMENU_ADMIN_IDS = new Set([
   "Uc8e074d50b3b20581945f5c6aca80d1d", // 陳佩研
 ]);
 
+// 非同仁但可以用「開立張數」的 LINE 帳號（只開這個指令，不給其他 MeetBot 內部指令）
+// 另可用環境變數 RXCOUNT_VIEWER_IDS（逗號分隔 userId）臨時加人，免改程式
+const RXCOUNT_VIEWERS = {
+  "U4994ef2724366d7915a6526c86bccbaa": "怡茜Euny",
+};
+for (const id of String(process.env.RXCOUNT_VIEWER_IDS || "").split(",").map(s => s.trim()).filter(Boolean)) {
+  if (!RXCOUNT_VIEWERS[id]) RXCOUNT_VIEWERS[id] = "(環境變數)";
+}
+
 module.exports = {
   TOKEN,
   TEAM,
@@ -95,4 +104,5 @@ module.exports = {
   SLACK_BOT_TOKEN,
   SLACK_MEMBERS,
   RICHMENU_ADMIN_IDS,
+  RXCOUNT_VIEWERS,
 };
