@@ -79,7 +79,7 @@ const RICHMENU_ADMIN_IDS = new Set([
 // 非同仁但可以用「開立張數」的 LINE 帳號（只開這個指令，不給其他 MeetBot 內部指令）
 // 另可用環境變數 RXCOUNT_VIEWER_IDS（逗號分隔 userId）臨時加人，免改程式
 const RXCOUNT_VIEWERS = {
-  // "Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx": "怡茜Euny",
+  "U4994ef2724366d7915a6526c86bccbaa": "怡茜Euny",
 };
 for (const id of String(process.env.RXCOUNT_VIEWER_IDS || "").split(",").map(s => s.trim()).filter(Boolean)) {
   if (!RXCOUNT_VIEWERS[id]) RXCOUNT_VIEWERS[id] = "(環境變數)";
