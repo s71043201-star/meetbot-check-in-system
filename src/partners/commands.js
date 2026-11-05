@@ -155,12 +155,9 @@ async function handlePartnerMessage({ userId, text, replyToken, isStaff }) {
       (menuOk ? "\n\n下方選單已切換成" + bind.ROLE_LABEL[ent.role] + "專用。" : ""));
   }
 
-  // 開立張數：同仁＋RXCOUNT_VIEWERS 白名單。其他人回覆自己的 userId，方便請計畫窗口加進白名單
+  // 開立張數：只限同仁＋RXCOUNT_VIEWERS 白名單；其他人照舊不回應
   const countMatch = text.match(/^開立張數\s*(.*)$/);
-  if (countMatch) {
-    if (isStaff || RXCOUNT_VIEWERS[userId]) return reply(await rxcount.query(countMatch[1]));
-    return reply("🔒「開立張數」僅限計畫同仁使用。\n如需開通，請把下面這串 ID 傳給計畫窗口：\n" + userId);
-  }
+  if (countMatch && (isStaff || RXCOUNT_VIEWERS[userId])) return reply(await rxcount.query(countMatch[1]));
 
   if (isStaff) {
     const codeMatch = text.match(/^綁定碼\s*(.*)$/);
