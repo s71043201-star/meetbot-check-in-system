@@ -8,6 +8,9 @@
 //
 // 不帶日期（「開立張數」或「開立張數 杏華」）= 額度進度：QUOTA.since 起各診所張數對 800 張上限，
 // 加上全期總開立數對 TOTAL_THRESHOLDS。門檻跟 Slack 警示 clinic_quota_alert.py 同一組，改一邊要兩邊改。
+//
+// 活動開立（電話＝活動頁預設 0900000000）在即時資料帶 a=1：不算進診所額度，在該診所後面另列「活動」張數。
+// 目前活動都掛洪耳鼻喉科帳號（換名後＝仁禾診所）。raw_rows 沒有電話，早於即時資料的部分分不出來。
 const axios = require("axios");
 const data = require("./data");
 
@@ -22,6 +25,9 @@ const TOTAL_THRESHOLDS = [86500, 87000];
 const QUOTA_ALIASES = { "信達雅診所-嚴醫": "信達雅診所" };
 const bareName = s => String(s || "").replace(/^\s*[(（][^)）]*[)）]\s*/, "").trim();
 const quotaName = s => QUOTA_ALIASES[bareName(s)] || bareName(s) || "(未填診所)";
+
+// 額度進度固定顯示的張數（使用者 2026-11-11 指定：德泰固定顯示 800）
+const QUOTA_FIXED = { "德泰耳鼻喉科診所": 800 };
 
 const quotaLabel = QUOTA.since.slice(5, 16).replace("-", "/");   // '10/29 12:00'
 
@@ -49,7 +55,7 @@ async function fetchLive() {
     since: payload.since || null,
     updatedAt: row.uploaded_at || null,
     // 開立時間 'YYYY/MM/DD HH:MM:SS' → 'YYYY-MM-DD HH:MM:SS'，跟 raw_rows 的 prescDate 同格式好比較
-    rows: (payload.rows || []).map(r => ({ clinic: r.c, t: String(r.t || "").replace(/\//g, "-") })),
+    rows: (payload.rows || []).map(r => ({ clinic: r.c, t: String(r.t || "").replace(/\//g, "-"), activity: !!r.a })),
   };
   liveCache = { at: Date.now(), data: live };
   return live;
@@ -103,16 +109,20 @@ const fmtN = n => n.toLocaleString("en-US");
 // 額度進度：QUOTA.since 起各診所張數（對 warn／limit 標記）、還沒開立的診所，以及全期總開立數
 async function quotaQuery(kw) {
   const live = await fetchLive();
-  const counts = {};
+  const counts = {}, acts = {};
   live.rows.forEach(r => {
     if (r.t < QUOTA.since) return;
     const name = quotaName(data.renameClinic(r.clinic, r.t.slice(0, 10)));
-    counts[name] = (counts[name] || 0) + 1;
+    const bucket = r.activity ? acts : counts;
+    bucket[name] = (bucket[name] || 0) + 1;
   });
+  Object.keys(acts).forEach(name => { if (!counts[name]) counts[name] = 0; });   // 只有活動開立也要列出來
+  Object.entries(QUOTA_FIXED).forEach(([name, n]) => { if (name in counts) counts[name] = n; });
   let list = Object.entries(counts);
   if (kw) list = list.filter(([name]) => name.includes(kw));
   list.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   const sum = list.reduce((s, [, n]) => s + n, 0);
+  const actSum = list.reduce((s, [name]) => s + (acts[name] || 0), 0);
   const over = list.filter(([, n]) => n >= QUOTA.limit).length;
   const warn = list.filter(([, n]) => n >= QUOTA.warn && n < QUOTA.limit).length;
 
@@ -132,12 +142,14 @@ async function quotaQuery(kw) {
   if (!list.length && !zero.length) {
     msg += kw ? "沒有名稱含「" + kw + "」的診所。" : quotaLabel + " 後還沒有開立紀錄。";
   } else {
-    msg += "已開立 " + list.length + " 家、合計 " + fmtN(sum) + " 張" + (rows ? "；尚未開立 " + zero.length + " 家" : "");
+    msg += "已開立 " + list.length + " 家、診所開立合計 " + fmtN(sum) + " 張" + (rows ? "；尚未開立 " + zero.length + " 家" : "");
+    if (actSum) msg += "\n另有活動開立 " + fmtN(actSum) + " 張（不計入診所額度）";
     if (over || warn) msg += "\n🛑 達 " + QUOTA.limit + " 張 " + over + " 家　⚠️ 達 " + QUOTA.warn + " 張 " + warn + " 家";
     if (list.length) msg += "\n\n" + list.map(([name, n]) => {
       const mark = n >= QUOTA.limit ? "🛑 " : n >= QUOTA.warn ? "⚠️ " : "• ";
       const tail = n >= QUOTA.limit ? "（已達上限）" : "（剩 " + (QUOTA.limit - n) + "）";
-      return mark + name + "　" + n + " 張" + tail;
+      const act = acts[name] ? "\n　　＋活動開立 " + fmtN(acts[name]) + " 張（另計）" : "";
+      return mark + name + "　" + n + " 張" + tail + act;
     }).join("\n");
     if (zero.length) msg += "\n\n尚未開立（" + zero.length + " 家）：\n" + zero.join("、");
   }
@@ -168,20 +180,25 @@ async function query(arg) {
 
   const live = await fetchLive();
   const start = p.date + " " + p.time + ":00";
-  const counts = {};
-  const add = name => { counts[name] = (counts[name] || 0) + 1; };
+  const counts = {}, acts = {};
+  const add = (name, activity) => {
+    const bucket = activity ? acts : counts;
+    bucket[name] = (bucket[name] || 0) + 1;
+    if (activity && !counts[name]) counts[name] = 0;
+  };
   const notes = [];
   let usedRaw = false;
 
   if (live.since && p.date >= live.since) {
-    live.rows.forEach(r => { if (r.t >= start) add(data.renameClinic(r.clinic, r.t.slice(0, 10))); });
+    live.rows.forEach(r => { if (r.t >= start) add(data.renameClinic(r.clinic, r.t.slice(0, 10)), r.activity); });
   } else {
     // 起點早於即時資料：之前那段用 raw_rows（只到日期），之後接即時資料
     usedRaw = true;
     const rows = await data.fetchRawRows();
     const until = live.since || "9999-12-31";
     rows.forEach(r => { const d = r.prescDate || ""; if (d >= p.date && d < until) add(r.clinic); });
-    live.rows.forEach(r => add(data.renameClinic(r.clinic, r.t.slice(0, 10))));
+    live.rows.forEach(r => add(data.renameClinic(r.clinic, r.t.slice(0, 10)), r.activity));
+    notes.push("※ " + (live.since || "").slice(5).replace("-", "/") + " 以前的每日同步資料分不出活動開立，算在診所開立裡");
     if (p.hasTime) notes.push("※ " + p.date.slice(5).replace("-", "/") + " 早於即時資料範圍，只能算到日期，時間 " + p.time + " 沒有作用");
   }
 
@@ -190,14 +207,17 @@ async function query(arg) {
   if (kw) list = list.filter(([name]) => name.includes(kw));
   list.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   const total = list.reduce((s, [, n]) => s + n, 0);
+  const actTotal = list.reduce((s, [name]) => s + (acts[name] || 0), 0);
 
   const label = p.date.replace(/-/g, "/") + (p.hasTime ? " " + p.time : "");
   let msg = "📊 " + label + " 起開立張數" + (kw ? "（含「" + kw + "」）" : "") + "\n" + "═".repeat(16) + "\n";
   if (!list.length) {
     msg += kw ? "沒有名稱含「" + kw + "」的診所在這段期間開立。" : "這段期間沒有開立紀錄。";
   } else {
-    msg += "合計 " + total + " 張（" + list.length + " 家）\n\n" +
-      list.map(([name, n]) => "• " + name + "　" + n + " 張").join("\n");
+    msg += "診所開立合計 " + total + " 張（" + list.length + " 家）" +
+      (actTotal ? "\n另有活動開立 " + actTotal + " 張" : "") + "\n\n" +
+      list.map(([name, n]) => "• " + name + "　" + n + " 張" +
+        (acts[name] ? "\n　　＋活動開立 " + acts[name] + " 張（另計）" : "")).join("\n");
   }
   msg += "\n\n";
   if (notes.length) msg += notes.join("\n") + "\n";
