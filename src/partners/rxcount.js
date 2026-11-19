@@ -26,8 +26,6 @@ const QUOTA_ALIASES = { "信達雅診所-嚴醫": "信達雅診所" };
 const bareName = s => String(s || "").replace(/^\s*[(（][^)）]*[)）]\s*/, "").trim();
 const quotaName = s => QUOTA_ALIASES[bareName(s)] || bareName(s) || "(未填診所)";
 
-// 額度進度固定顯示的張數（使用者 2026-11-11 指定：德泰固定顯示 800）
-const QUOTA_FIXED = { "德泰耳鼻喉科診所": 800 };
 
 const quotaLabel = QUOTA.since.slice(5, 16).replace("-", "/");   // '10/29 12:00'
 
@@ -117,7 +115,6 @@ async function quotaQuery(kw) {
     bucket[name] = (bucket[name] || 0) + 1;
   });
   Object.keys(acts).forEach(name => { if (!counts[name]) counts[name] = 0; });   // 只有活動開立也要列出來
-  Object.entries(QUOTA_FIXED).forEach(([name, n]) => { if (name in counts) counts[name] = n; });
   let list = Object.entries(counts);
   if (kw) list = list.filter(([name]) => name.includes(kw));
   list.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
