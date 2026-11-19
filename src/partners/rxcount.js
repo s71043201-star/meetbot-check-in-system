@@ -6,7 +6,7 @@
 // - 更早：raw_rows（n8n 每天 09:30 / 15:00 同步），只有開立「日期」，沒有時間。
 // 查詢起點落在即時資料範圍內就全用即時資料；更早的部分用 raw_rows 補到即時資料的起日前一天。
 //
-// 不帶日期（「開立張數」或「開立張數 杏華」）= 額度進度：QUOTA.since 起各診所張數對 800 張上限，
+// 不帶日期（「開立張數」或「開立張數 杏華」）= 額度進度：QUOTA.since 起各診所張數對 QUOTA.limit 張上限，
 // 加上全期總開立數對 TOTAL_THRESHOLDS。門檻跟 Slack 警示 clinic_quota_alert.py 同一組，改一邊要兩邊改。
 //
 // 活動開立（電話＝活動頁預設 0900000000）在即時資料帶 a=1：不算進診所額度，在該診所後面另列「活動」張數。
@@ -18,16 +18,14 @@ const LIVE_TTL = 60 * 1000;
 const STALE_MIN = 30;     // 即時資料超過這麼久沒更新，多半是本機排程沒在跑
 const MAX_TEXT = 4800;    // LINE 單則上限 5000 字
 
-// 2026/10/29 12:00 起所有診所各開放 800 張，700 張預警
-const QUOTA = { since: "2026-10-29 12:00:00", warn: 700, limit: 800 };
-const TOTAL_THRESHOLDS = [86500, 87000];
+// 2026/10/29 12:00 起所有診所各開放 800 張，2026/11/19 調為 1100 張（1000 張預警）
+const QUOTA = { since: "2026-10-29 12:00:00", warn: 1000, limit: 1100 };
+const TOTAL_THRESHOLDS = [90200, 90700];
 // 同一家診所的不同帳號寫法共用額度（同 clinic_quota_alert.py 的 CLINICS）
 const QUOTA_ALIASES = { "信達雅診所-嚴醫": "信達雅診所" };
 const bareName = s => String(s || "").replace(/^\s*[(（][^)）]*[)）]\s*/, "").trim();
 const quotaName = s => QUOTA_ALIASES[bareName(s)] || bareName(s) || "(未填診所)";
 
-// 額度進度固定顯示的張數（使用者 2026-11-11 指定：德泰固定顯示 800）
-const QUOTA_FIXED = { "德泰耳鼻喉科診所": 800 };
 
 const quotaLabel = QUOTA.since.slice(5, 16).replace("-", "/");   // '10/29 12:00'
 
@@ -117,7 +115,6 @@ async function quotaQuery(kw) {
     bucket[name] = (bucket[name] || 0) + 1;
   });
   Object.keys(acts).forEach(name => { if (!counts[name]) counts[name] = 0; });   // 只有活動開立也要列出來
-  Object.entries(QUOTA_FIXED).forEach(([name, n]) => { if (name in counts) counts[name] = n; });
   let list = Object.entries(counts);
   if (kw) list = list.filter(([name]) => name.includes(kw));
   list.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
