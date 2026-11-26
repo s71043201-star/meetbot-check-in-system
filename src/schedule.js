@@ -80,6 +80,9 @@ const MSG_MAP = {
   registered:      "✓ 註冊成功！請用「姓名＋身分證後4碼」登入",
   reg_badid:       "請填寫姓名，身分證字號需 10 碼",
   reg_dup:         "此姓名與身分證後4碼已註冊過，請直接登入",
+  reg_name_taken:  "此姓名已有登入帳號，但密碼不是身分證後 4 碼（可能曾自行修改過）。請聯繫管理員重設密碼",
+  account_ready:   "✓ 你的資料已在系統中，登入帳號已建立，請用「姓名＋身分證後4碼」登入",
+  already_reg:     "你已註冊過，請直接用「姓名＋身分證後4碼」登入",
   reg_fail:        "註冊失敗，請稍後再試",
   pw_changed_home: "✓ 密碼已成功變更",
   pw_mismatch:     "兩次輸入的新密碼不一致",
@@ -1304,7 +1307,7 @@ router.get("/offline", (req, res) => {
 // ══════════════════════════════════════════════
 router.get("/login", (req, res) => {
   const msg = req.query.msg || "";
-  const okMsgs = new Set(["pw_changed", "registered"]);
+  const okMsgs = new Set(["pw_changed", "registered", "account_ready", "already_reg"]);
   let err = "";
   if (okMsgs.has(msg)) err = `<div class='alert alert-ok'>${esc(MSG_MAP[msg] || msg)}</div>`;
   else if (msg) err = alertHtml(msg, "err");
@@ -1412,30 +1415,41 @@ router.post("/register", async (req, res) => {
   const id4 = idNumber.slice(-4);
   try {
     const existing = await regUsersGet();
-    if (existing.some(u => u.name === name && String(u.idNumber || "").slice(-4) === id4))
-      return res.redirect(`${PREFIX}/register?msg=reg_dup`);
-    const feeTypes = [].concat(b.feeTypes || []).filter(Boolean);
-    const bankInfo = b.payMethod === "匯款"
-      ? { bankName: (b.bankName || "").trim(), accountName: (b.accountName || "").trim(), account: (b.account || "").trim() }
-      : {};
-    await regUsersPost({
-      name, idNumber,
-      phone: (b.phone || "").trim(),
-      eventName: (b.eventName || "").trim(),
-      workDescription: (b.workDescription || "").trim(),
-      feeTypes,
-      payMethod: b.payMethod || "",
-      bankInfo,
-      address: (b.address || "").trim(),
-      liveAddress: (b.liveAddress || "").trim(),
-      registeredAt: new Date().toISOString(),
-    });
-    // 建立登入帳號（姓名＋身分證後4碼），若尚無相同帳號
+    // 領據資料若已存在就不重複寫入，但【仍要繼續往下確保登入帳號存在】。
+    // 舊版在這裡直接 return，導致「報名資料還在、登入帳號被刪掉（或從舊系統沿用）」的人
+    // 重新註冊只會看到「已重複註冊」，永遠拿不到登入帳號、登不進系統。
+    const dupReg = existing.some(u => u.name === name && String(u.idNumber || "").slice(-4) === id4);
+    if (!dupReg) {
+      const feeTypes = [].concat(b.feeTypes || []).filter(Boolean);
+      const bankInfo = b.payMethod === "匯款"
+        ? { bankName: (b.bankName || "").trim(), accountName: (b.accountName || "").trim(), account: (b.account || "").trim() }
+        : {};
+      await regUsersPost({
+        name, idNumber,
+        phone: (b.phone || "").trim(),
+        eventName: (b.eventName || "").trim(),
+        workDescription: (b.workDescription || "").trim(),
+        feeTypes,
+        payMethod: b.payMethod || "",
+        bankInfo,
+        address: (b.address || "").trim(),
+        liveAddress: (b.liveAddress || "").trim(),
+        registeredAt: new Date().toISOString(),
+      });
+    }
+    // 建立登入帳號（姓名＋身分證後4碼）
     const sUsers = await getUsers();
-    if (!sUsers.some(u => u.display_name === name && u.password_hash === hp(id4))) {
+    const canLogin   = sUsers.some(u => u.display_name === name && u.password_hash === hp(id4));
+    const nameTaken  = sUsers.some(u => u.display_name === name);
+    if (!canLogin && nameTaken) {
+      // 同名帳號存在但密碼不是後4碼（自行改過密碼、或同名同姓的另一人）。
+      // 這時不新增第二個同名帳號（會讓指派／報名分裂成兩筆），交由管理員處理。
+      return res.redirect(`${PREFIX}/register?msg=reg_name_taken`);
+    }
+    if (!canLogin) {
       await rpost("/users", { username: name, password_hash: hp(id4), display_name: name, role: "worker" });
     }
-    res.redirect(`${PREFIX}/login?msg=registered`);
+    res.redirect(`${PREFIX}/login?msg=${dupReg ? (canLogin ? "already_reg" : "account_ready") : "registered"}`);
   } catch (e) {
     console.error("[schedule] register:", e.message);
     res.redirect(`${PREFIX}/register?msg=reg_fail`);
